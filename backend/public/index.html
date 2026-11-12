@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pharmacy Dashboard</title>
+<style>
+  :root{
+    --bg:#F8FAFC; --card:#FFFFFF; --text:#172033; --muted:#64748B;
+    --blue:#2563EB; --blue-light:#EFF6FF; --border:#E5E7EB;
+    --success:#16A34A; --warning:#F59E0B; --error:#DC2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  .hidden{display:none !important}
+  button{font:inherit;cursor:pointer;border:none;border-radius:8px;padding:10px 16px;background:var(--blue);color:#fff;font-weight:600}
+  button.secondary{background:var(--blue-light);color:var(--blue)}
+  button.ghost{background:transparent;color:var(--muted);font-weight:500}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  input,select{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text)}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:20px}
+  .muted{color:var(--muted)}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+  .pill.ok{background:#DCFCE7;color:var(--success)}
+  .pill.rx{background:#FEF3C7;color:#92400E}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);font-size:14px}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .grow{flex:1}
+  .toast{position:fixed;right:16px;bottom:16px;max-width:360px;padding:12px 16px;border-radius:10px;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.15);font-size:14px}
+  .toast.err{background:var(--error)} .toast.ok{background:var(--success)}
+
+  /* layout */
+  .topbar{background:#fff;border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:12px}
+  .brand{font-weight:700;color:var(--blue)}
+  .wrap{max-width:1000px;margin:0 auto;padding:20px}
+  .stat{flex:1;min-width:150px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px}
+  .stat .n{font-size:24px;font-weight:700}
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .login-card{width:100%;max-width:380px}
+  h1{font-size:20px;margin:0}
+  h2{font-size:16px;margin:0 0 4px}
+  .sectionhead{display:flex;align-items:center;justify-content:space-between;margin:24px 0 8px}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="loginView" class="login-wrap">
+  <div class="card login-card">
+    <div class="brand" style="font-size:18px">Pharmacy Marketplace</div>
+    <p class="muted" style="margin:4px 0 16px">Pharmacy dashboard — sign in</p>
+    <label>Email</label>
+    <input id="email" type="email" value="owner.a@pharmacy.test" autocomplete="username" />
+    <label>Password</label>
+    <input id="password" type="password" value="Owner@12345" autocomplete="current-password" />
+    <button id="loginBtn" style="width:100%;margin-top:16px">Sign in</button>
+    <p class="muted" style="font-size:12px;margin-top:12px">
+      Try: owner.a@pharmacy.test / Owner@12345 — or Pharmacy B: owner.b@pharmacy.test
+    </p>
+  </div>
+</div>
+
+<!-- ================= DASHBOARD ================= -->
+<div id="appView" class="hidden">
+  <div class="topbar">
+    <span class="brand">Pharmacy Marketplace</span>
+    <span class="grow"></span>
+    <span id="whoami" class="muted"></span>
+    <button class="ghost" id="logoutBtn">Log out</button>
+  </div>
+
+  <div class="wrap">
+    <!-- profile + stats -->
+    <div class="row" style="margin-bottom:8px">
+      <div>
+        <h1 id="phName">—</h1>
+        <div class="muted" id="phAddr"></div>
+      </div>
+      <span class="grow"></span>
+      <span id="phStatus" class="pill ok">—</span>
+    </div>
+
+    <div class="row" style="margin:16px 0">
+      <div class="stat"><div class="muted">Listed medicines</div><div class="n" id="statListings">0</div></div>
+      <div class="stat"><div class="muted">Total stock units</div><div class="n" id="statStock">0</div></div>
+      <div class="stat"><div class="muted">Low / out of stock</div><div class="n" id="statLow">0</div></div>
+    </div>
+
+    <!-- add a medicine -->
+    <div class="sectionhead">
+      <h2>Add a medicine from the catalogue</h2>
+    </div>
+    <div class="card">
+      <div class="row">
+        <div class="grow">
+          <label>Search catalogue</label>
+          <input id="catSearch" placeholder="Type a medicine name, e.g. Para" />
+        </div>
+        <div style="width:110px">
+          <label>MRP (₹)</label>
+          <input id="mrp" type="number" min="0" value="0" />
+        </div>
+        <div style="width:130px">
+          <label>Selling (₹)</label>
+          <input id="sellingPrice" type="number" min="0" value="0" />
+        </div>
+      </div>
+      <div id="catResults" style="margin-top:10px"></div>
+    </div>
+
+    <!-- listings -->
+    <div class="sectionhead">
+      <h2>Your medicines</h2>
+      <button class="secondary" id="refreshBtn">Refresh</button>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>Medicine</th><th>MRP</th><th>Price</th><th>Rx</th><th>In stock</th><th></th></tr></thead>
+        <tbody id="listingBody"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- batches panel -->
+    <div id="batchPanel" class="hidden">
+      <div class="sectionhead">
+        <h2 id="batchTitle">Stock batches</h2>
+        <button class="ghost" id="closeBatch">Close</button>
+      </div>
+      <div class="card">
+        <div class="row">
+          <div class="grow"><label>Batch number</label><input id="batchNo" placeholder="e.g. B-2026-01" /></div>
+          <div style="width:150px"><label>Expiry date</label><input id="batchExp" type="date" /></div>
+          <div style="width:110px"><label>Quantity</label><input id="batchQty" type="number" min="0" value="0" /></div>
+          <div style="align-self:flex-end"><button id="addBatchBtn">Add stock</button></div>
+        </div>
+        <table>
+          <thead><tr><th>Batch</th><th>Expiry</th><th>Qty</th><th>Available</th><th></th></tr></thead>
+          <tbody id="batchBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = ''; // same origin as this page (served by the backend)
+let token = localStorage.getItem('token') || '';
+let currentListingId = null;
+
+const $ = (id) => document.getElementById(id);
+function toast(msg, ok=false){
+  const t=document.createElement('div');
+  t.className='toast '+(ok?'ok':'err'); t.textContent=msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(), 3000);
+}
+
+async function api(path, opts={}){
+  const res = await fetch(API+path, {
+    ...opts,
+    headers:{'Content-Type':'application/json', ...(token?{'Authorization':'Bearer '+token}:{}), ...(opts.headers||{})},
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data?.error?.message || ('Request failed ('+res.status+')'));
+  return data;
+}
+
+// ---------- auth ----------
+async function login(){
+  try{
+    $('loginBtn').disabled=true;
+    const data = await api('/api/auth/login',{method:'POST',body:JSON.stringify({email:$('email').value.trim(),password:$('password').value})});
+    token = data.accessToken; localStorage.setItem('token', token);
+    await showApp();
+  }catch(e){ toast(e.message); } finally{ $('loginBtn').disabled=false; }
+}
+function logout(){ token=''; localStorage.removeItem('token'); $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); }
+
+async function showApp(){
+  $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
+  await loadProfile(); await loadListings();
+}
+
+async function loadProfile(){
+  try{
+    const me = await api('/api/auth/me');
+    $('whoami').textContent = me.user.name + ' · ' + me.user.role;
+    const p = await api('/api/pharmacy/me');
+    const ph = p.pharmacy;
+    $('phName').textContent = ph.name;
+    const a = ph.address||{};
+    $('phAddr').textContent = [a.line1, a.city, a.pincode].filter(Boolean).join(', ');
+    $('phStatus').textContent = ph.status;
+  }catch(e){ toast(e.message); if(/token|Unauthorized/i.test(e.message)) logout(); }
+}
+
+// ---------- listings ----------
+async function loadListings(){
+  try{
+    const data = await api('/api/pharmacy/listings');
+    const items = data.items||[];
+    $('statListings').textContent = items.length;
+    const body = $('listingBody');
+    if(!items.length){ body.innerHTML='<tr><td colspan="6" class="muted">No medicines yet. Add one above.</td></tr>'; $('statStock').textContent='0'; $('statLow').textContent='0'; return; }
+    body.innerHTML='';
+    let totalStock=0, low=0;
+    for(const l of items){
+      const med = l.medicine||{};
+      // fetch stock for this listing
+      let avail=0;
+      try{ const b = await api('/api/pharmacy/listings/'+l._id+'/batches'); avail=b.availableTotal||0; }catch{}
+      totalStock+=avail; if(avail<=10) low++;
+      const tr=document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${med.name||'—'}</strong><div class="muted" style="font-size:12px">${[med.strength,med.packSize].filter(Boolean).join(' · ')}</div></td>
+        <td>₹${l.mrp}</td><td>₹${l.sellingPrice}</td>
+        <td>${l.prescriptionRequired?'<span class="pill rx">Rx</span>':'<span class="muted">—</span>'}</td>
+        <td>${avail}</td>
+        <td><button class="secondary" data-id="${l._id}" data-name="${med.name||''}">Stock</button></td>`;
+      body.appendChild(tr);
+    }
+    $('statStock').textContent=totalStock; $('statLow').textContent=low;
+    body.querySelectorAll('button[data-id]').forEach(btn=>btn.addEventListener('click',()=>openBatches(btn.dataset.id, btn.dataset.name)));
+  }catch(e){ toast(e.message); }
+}
+
+// ---------- catalogue search + add listing ----------
+let searchTimer=null;
+function onSearch(){
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(async()=>{
+    const q=$('catSearch').value.trim();
+    if(!q){ $('catResults').innerHTML=''; return; }
+    try{
+      const data=await api('/api/catalogue?q='+encodeURIComponent(q));
+      const items=data.items||[];
+      if(!items.length){ $('catResults').innerHTML='<span class="muted">No matches.</span>'; return; }
+      $('catResults').innerHTML='';
+      items.slice(0,6).forEach(m=>{
+        const div=document.createElement('div');
+        div.className='row'; div.style.padding='8px 0'; div.style.borderBottom='1px solid var(--border)';
+        div.innerHTML=`<div class="grow"><strong>${m.name}</strong> <span class="muted">${m.strength||''}</span> ${m.prescriptionRequired?'<span class="pill rx">Rx</span>':''}</div>`;
+        const add=document.createElement('button'); add.textContent='Add to my shop';
+        add.addEventListener('click',()=>addListing(m._id));
+        div.appendChild(add); $('catResults').appendChild(div);
+      });
+    }catch(e){ toast(e.message); }
+  },300);
+}
+async function addListing(medicineId){
+  const mrp=Number($('mrp').value), sellingPrice=Number($('sellingPrice').value);
+  if(mrp<=0||sellingPrice<=0) return toast('Enter MRP and selling price first');
+  try{
+    await api('/api/pharmacy/listings',{method:'POST',body:JSON.stringify({medicineId,mrp,sellingPrice})});
+    toast('Added to your shop',true); $('catSearch').value=''; $('catResults').innerHTML='';
+    loadListings();
+  }catch(e){ toast(e.message); }
+}
+
+// ---------- batches ----------
+async function openBatches(listingId, name){
+  currentListingId=listingId;
+  $('batchPanel').classList.remove('hidden');
+  $('batchTitle').textContent='Stock batches — '+name;
+  $('batchPanel').scrollIntoView({behavior:'smooth'});
+  await loadBatches();
+}
+async function loadBatches(){
+  try{
+    const data=await api('/api/pharmacy/listings/'+currentListingId+'/batches');
+    const body=$('batchBody'); body.innerHTML='';
+    (data.batches||[]).forEach(b=>{
+      const exp=new Date(b.expiryDate).toISOString().slice(0,10);
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${b.batchNumber}</td><td>${exp}</td><td>${b.quantity}</td><td>${b.available??'-'}</td>
+        <td><button class="ghost" data-b="${b._id}" data-d="-10">-10</button><button class="ghost" data-b="${b._id}" data-d="10">+10</button></td>`;
+      body.appendChild(tr);
+    });
+    body.querySelectorAll('button[data-b]').forEach(btn=>btn.addEventListener('click',()=>adjust(btn.dataset.b, Number(btn.dataset.d))));
+    if(!(data.batches||[]).length) body.innerHTML='<tr><td colspan="5" class="muted">No batches yet. Add stock above.</td></tr>';
+  }catch(e){ toast(e.message); }
+}
+async function addBatch(){
+  const batchNumber=$('batchNo').value.trim(), expiryDate=$('batchExp').value, quantity=Number($('batchQty').value);
+  if(!batchNumber||!expiryDate||quantity<=0) return toast('Fill batch number, expiry and quantity');
+  try{
+    await api('/api/pharmacy/listings/'+currentListingId+'/batches',{method:'POST',body:JSON.stringify({batchNumber,expiryDate,quantity})});
+    toast('Stock added',true); $('batchNo').value=''; $('batchQty').value=0;
+    await loadBatches(); loadListings();
+  }catch(e){ toast(e.message); }
+}
+async function adjust(batchId, delta){
+  try{ await api('/api/pharmacy/batches/'+batchId+'/adjust',{method:'PATCH',body:JSON.stringify({delta})}); await loadBatches(); loadListings(); }
+  catch(e){ toast(e.message); }
+}
+
+// ---------- wire up ----------
+$('loginBtn').addEventListener('click',login);
+$('password').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+$('logoutBtn').addEventListener('click',logout);
+$('refreshBtn').addEventListener('click',loadListings);
+$('catSearch').addEventListener('input',onSearch);
+$('addBatchBtn').addEventListener('click',addBatch);
+$('closeBatch').addEventListener('click',()=>$('batchPanel').classList.add('hidden'));
+
+// auto-login if token present
+if(token){ showApp().catch(()=>logout()); }
+</script>
+</body>
+</html>
