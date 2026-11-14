@@ -12,6 +12,7 @@ import registrationRoutes from './routes/registration.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import catalogueRoutes from './routes/catalogue.routes.js';
 import discoverRoutes from './routes/discover.routes.js';
+import orderRoutes from './routes/order.routes.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 
 export function createApp() {
@@ -41,6 +42,7 @@ export function createApp() {
   app.use('/api/admin', adminRoutes);
   app.use('/api/catalogue', catalogueRoutes);
   app.use('/api/discover', discoverRoutes);
+    app.use('/api/customer', orderRoutes);
   app.use('/api/pharmacy', pharmacyRoutes);
 
   app.use(notFoundHandler);

@@ -4,6 +4,20 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../servic
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ACCOUNT_STATUS, ROLES } from '../config/constants.js';
+import { env } from '../config/env.js';
+
+/** POST /api/auth/demo-login — easy test login for a demo customer (no SMS). */
+export const demoLoginHandler = asyncHandler(async (req, res) => {
+  if (env.features.liveOrders) throw ApiError.forbidden('Demo login is disabled');
+  const phone = '9000000001';
+  let user = await User.findOne({ phone });
+  if (!user) {
+    user = await User.create({ phone, name: 'Demo Customer', role: ROLES.CUSTOMER, phoneVerified: true });
+  }
+  user.lastLoginAt = new Date();
+  await user.save();
+  res.json({ user: user.toSafeJSON(), accessToken: signAccessToken(user), refreshToken: signRefreshToken(user) });
+});
 
 /** POST /api/auth/otp/request — customer/rider OTP login step 1. */
 export const requestOtpHandler = asyncHandler(async (req, res) => {
