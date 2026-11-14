@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pharmacy Signup</title>
+<style>
+  :root{
+    --bg:#F8FAFC; --card:#FFFFFF; --text:#172033; --muted:#64748B;
+    --blue:#2563EB; --blue-light:#EFF6FF; --border:#E5E7EB;
+    --success:#16A34A; --warning:#F59E0B; --error:#DC2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  .topbar{background:#fff;border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:12px}
+  .brand{font-weight:700;color:var(--blue)}
+  .grow{flex:1}
+  a{color:var(--blue);text-decoration:none;font-weight:600}
+  .wrap{max-width:680px;margin:0 auto;padding:24px 20px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:24px}
+  h1{font-size:22px;margin:0 0 4px}
+  h2{font-size:14px;margin:22px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+  .muted{color:var(--muted)}
+  label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+  input{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+  button{font:inherit;cursor:pointer;border:none;border-radius:8px;padding:12px 16px;background:var(--blue);color:#fff;font-weight:600;width:100%;margin-top:20px}
+  button:disabled{opacity:.6;cursor:not-allowed}
+  .toast{position:fixed;right:16px;bottom:16px;max-width:360px;padding:12px 16px;border-radius:10px;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.15);font-size:14px;z-index:50}
+  .toast.err{background:var(--error)} .toast.ok{background:var(--success)}
+  .success{text-align:center;padding:16px}
+  .success .tick{width:56px;height:56px;border-radius:50%;background:#DCFCE7;color:var(--success);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px}
+  .req{color:var(--error)}
+  @media(max-width:560px){ .grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">Pharmacy Marketplace</span>
+  <span class="grow"></span>
+  <a href="/">Pharmacy login →</a>
+</div>
+
+<div class="wrap">
+  <div id="formCard" class="card">
+    <h1>Register your pharmacy</h1>
+    <p class="muted">Fill in your shop details. After you submit, our team reviews and approves your pharmacy before you can go live.</p>
+
+    <h2>Pharmacy details</h2>
+    <label>Pharmacy name <span class="req">*</span></label>
+    <input id="pharmacyName" placeholder="e.g. Sri Sai Medicals" />
+    <div class="grid">
+      <div><label>Owner name <span class="req">*</span></label><input id="ownerName" placeholder="Owner full name" /></div>
+      <div><label>Phone <span class="req">*</span></label><input id="phone" placeholder="10-digit mobile" maxlength="10" /></div>
+    </div>
+
+    <h2>Login details</h2>
+    <div class="grid">
+      <div><label>Email <span class="req">*</span></label><input id="email" type="email" placeholder="you@example.com" /></div>
+      <div><label>Password <span class="req">*</span></label><input id="password" type="password" placeholder="min 8 characters" /></div>
+    </div>
+
+    <h2>Address</h2>
+    <label>Address line <span class="req">*</span></label>
+    <input id="line1" placeholder="Shop no, street, area" />
+    <div class="grid">
+      <div><label>City <span class="req">*</span></label><input id="city" value="Tarikere" /></div>
+      <div><label>PIN code <span class="req">*</span></label><input id="pincode" placeholder="6-digit PIN" maxlength="6" /></div>
+    </div>
+
+    <h2>Licence (optional)</h2>
+    <div class="grid">
+      <div><label>Drug licence no.</label><input id="drugLicenceNumber" placeholder="optional" /></div>
+      <div><label>Pharmacist name</label><input id="pharmacistName" placeholder="optional" /></div>
+    </div>
+
+    <button id="submitBtn">Submit registration</button>
+    <p class="muted" style="font-size:12px;margin-top:12px">By submitting, you confirm the details are accurate. Live medicine ordering stays disabled until the platform completes legal and licensing checks.</p>
+  </div>
+
+  <div id="successCard" class="card success" style="display:none">
+    <div class="tick">✓</div>
+    <h1>Registration received</h1>
+    <p class="muted" id="successMsg">Your pharmacy is now pending admin approval. You'll be able to log in and manage your shop once it's approved.</p>
+    <p style="margin-top:16px"><a href="/">Go to pharmacy login →</a></p>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+function toast(msg, ok=false){
+  const t=document.createElement('div');
+  t.className='toast '+(ok?'ok':'err'); t.textContent=msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(), 3500);
+}
+
+async function submit(){
+  const body={
+    pharmacyName:$('pharmacyName').value.trim(),
+    ownerName:$('ownerName').value.trim(),
+    phone:$('phone').value.trim(),
+    email:$('email').value.trim(),
+    password:$('password').value,
+    address:{
+      line1:$('line1').value.trim(),
+      city:$('city').value.trim()||'Tarikere',
+      state:'Karnataka',
+      pincode:$('pincode').value.trim(),
+    },
+    drugLicenceNumber:$('drugLicenceNumber').value.trim()||undefined,
+    pharmacistName:$('pharmacistName').value.trim()||undefined,
+  };
+
+  if(body.pharmacyName.length<2) return toast('Enter the pharmacy name');
+  if(body.ownerName.length<2) return toast('Enter the owner name');
+  if(!/^[6-9]\d{9}$/.test(body.phone)) return toast('Enter a valid 10-digit mobile number');
+  if(!/^\S+@\S+\.\S+$/.test(body.email)) return toast('Enter a valid email');
+  if(body.password.length<8) return toast('Password must be at least 8 characters');
+  if(!body.address.line1) return toast('Enter the address');
+  if(!/^\d{6}$/.test(body.address.pincode)) return toast('Enter a valid 6-digit PIN code');
+
+  try{
+    $('submitBtn').disabled=true; $('submitBtn').textContent='Submitting…';
+    const res=await fetch('/api/register/pharmacy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data?.error?.message || ('Registration failed ('+res.status+')'));
+    $('formCard').style.display='none';
+    $('successCard').style.display='block';
+    if(data.message) $('successMsg').textContent=data.message+" You'll be able to log in once it's approved.";
+    window.scrollTo(0,0);
+  }catch(e){
+    toast(e.message);
+    $('submitBtn').disabled=false; $('submitBtn').textContent='Submit registration';
+  }
+}
+
+$('submitBtn').addEventListener('click',submit);
+$('phone').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+$('pincode').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+</script>
+</body>
+</html>
