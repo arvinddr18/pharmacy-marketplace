@@ -16,6 +16,8 @@
   button{font:inherit;cursor:pointer;border:none;border-radius:8px;padding:10px 16px;background:var(--blue);color:#fff;font-weight:600}
   button.secondary{background:var(--blue-light);color:var(--blue)}
   button.ghost{background:transparent;color:var(--muted);font-weight:500}
+  button.ok{background:var(--success)} button.danger{background:var(--error)}
+  button.small{padding:6px 10px;font-size:13px}
   button:disabled{opacity:.5;cursor:not-allowed}
   input,select{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text)}
   label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
@@ -24,6 +26,11 @@
   .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
   .pill.ok{background:#DCFCE7;color:var(--success)}
   .pill.rx{background:#FEF3C7;color:#92400E}
+  .pill.placed{background:#FEF3C7;color:#92400E}
+  .pill.accepted{background:#DBEAFE;color:#1e40af}
+  .pill.ready{background:#E0E7FF;color:#3730a3}
+  .pill.delivered{background:#DCFCE7;color:var(--success)}
+  .pill.rejected,.pill.cancelled{background:#FEE2E2;color:var(--error)}
   table{width:100%;border-collapse:collapse;margin-top:8px}
   th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);font-size:14px}
   th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
@@ -87,6 +94,18 @@
       <div class="stat"><div class="muted">Listed medicines</div><div class="n" id="statListings">0</div></div>
       <div class="stat"><div class="muted">Total stock units</div><div class="n" id="statStock">0</div></div>
       <div class="stat"><div class="muted">Low / out of stock</div><div class="n" id="statLow">0</div></div>
+    </div>
+
+    <!-- orders -->
+    <div class="sectionhead">
+      <h2>Orders</h2>
+      <button class="secondary" id="refreshOrdersBtn">Refresh</button>
+    </div>
+    <div class="card" style="padding:8px 12px">
+      <table>
+        <thead><tr><th>Order</th><th>Customer</th><th>Item</th><th>Total</th><th>Status</th><th style="text-align:right">Action</th></tr></thead>
+        <tbody id="orderBody"><tr><td colspan="6" class="muted" style="padding:14px">Loading…</td></tr></tbody>
+      </table>
     </div>
 
     <!-- add a medicine -->
@@ -181,7 +200,46 @@ function logout(){ token=''; localStorage.removeItem('token'); $('appView').clas
 
 async function showApp(){
   $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
-  await loadProfile(); await loadListings();
+  await loadProfile(); await loadListings(); await loadOrders();
+}
+
+// ---------- orders ----------
+async function loadOrders(){
+  try{
+    const data = await api('/api/pharmacy/orders');
+    const items = data.items || [];
+    const body = $('orderBody');
+    if(!items.length){ body.innerHTML='<tr><td colspan="6" class="muted" style="padding:14px">No orders yet.</td></tr>'; return; }
+    body.innerHTML='';
+    for(const o of items){
+      const it = o.items[0] || {};
+      const cust = o.customer || {};
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${o.orderNumber}</strong><div class="muted" style="font-size:12px">${new Date(o.createdAt).toLocaleString()}</div></td>
+        <td>${cust.name||'Customer'}<div class="muted" style="font-size:12px">${(o.deliveryAddress&&o.deliveryAddress.line1)||''}</div></td>
+        <td>${it.name||''} × ${it.quantity||1} ${it.prescriptionRequired?'<span class="pill rx">Rx</span>':''}</td>
+        <td>₹${o.total}</td>
+        <td><span class="pill ${o.status}">${o.status}</span></td>
+        <td><div class="oact" style="display:flex;gap:6px;justify-content:flex-end"></div></td>`;
+      body.appendChild(tr);
+      const el = tr.querySelector('.oact');
+      const mk=(label,cls,fn)=>{ const b=document.createElement('button'); b.className='small '+cls; b.textContent=label; b.onclick=fn; el.appendChild(b); };
+      if(o.status==='placed'){ mk('Accept','ok',()=>orderAction(o._id,'accept')); mk('Reject','danger',()=>rejectOrderPrompt(o._id)); }
+      else if(o.status==='accepted'){ mk('Mark ready','ok',()=>orderAction(o._id,'ready')); mk('Reject','danger',()=>rejectOrderPrompt(o._id)); }
+      else if(o.status==='ready'){ const s=document.createElement('span'); s.className='muted'; s.style.fontSize='12px'; s.textContent='Waiting for delivery pickup'; el.appendChild(s); }
+    }
+  }catch(e){ toast(e.message); }
+}
+async function orderAction(id, action){
+  try{ await api('/api/pharmacy/orders/'+id+'/'+action,{method:'POST'}); toast('Order '+action,true); await loadOrders(); loadListings(); }
+  catch(e){ toast(e.message); }
+}
+async function rejectOrderPrompt(id){
+  const reason = prompt('Reason for rejecting this order?');
+  if(reason===null) return;
+  try{ await api('/api/pharmacy/orders/'+id+'/reject',{method:'POST',body:JSON.stringify({reason})}); toast('Order rejected',true); await loadOrders(); loadListings(); }
+  catch(e){ toast(e.message); }
 }
 
 async function loadProfile(){
@@ -302,6 +360,7 @@ $('loginBtn').addEventListener('click',login);
 $('password').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
 $('logoutBtn').addEventListener('click',logout);
 $('refreshBtn').addEventListener('click',loadListings);
+$('refreshOrdersBtn').addEventListener('click',loadOrders);
 $('catSearch').addEventListener('input',onSearch);
 $('addBatchBtn').addEventListener('click',addBatch);
 $('closeBatch').addEventListener('click',()=>$('batchPanel').classList.add('hidden'));

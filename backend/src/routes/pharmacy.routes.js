@@ -23,6 +23,7 @@ import {
   createBatch,
   adjustBatch,
 } from '../controllers/inventory.controller.js';
+import { acceptOrder, markReady, rejectOrder } from '../controllers/pharmacy.order.controller.js';
 
 const router = Router();
 
@@ -30,6 +31,9 @@ router.use(authenticate, requireRole(ROLES.PHARMACY_OWNER, ROLES.PHARMACY_STAFF)
 
 router.get('/me', getMyPharmacy);
 router.get('/orders', listMyPharmacyOrders);
+router.post('/orders/:id/accept', acceptOrder);
+router.post('/orders/:id/ready', markReady);
+router.post('/orders/:id/reject', rejectOrder);
 
 // --- Inventory: listings + batches (all tenant-scoped to req.pharmacyId) ---
 router.get('/listings', listListings);
