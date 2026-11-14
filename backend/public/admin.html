@@ -31,6 +31,8 @@
   .pill.placed{background:#FEF3C7;color:#92400E}
   .pill.accepted{background:#DBEAFE;color:#1e40af}
   .pill.ready{background:#E0E7FF;color:#3730a3}
+  .pill.assigned{background:#FEF3C7;color:#92400E}
+  .pill.out_for_delivery{background:#DBEAFE;color:#1e40af}
   .pill.delivered{background:#DCFCE7;color:var(--success)}
   .pill.cancelled{background:#FEE2E2;color:var(--error)}
   .pill.rx{background:#FEF3C7;color:#92400E}
@@ -129,6 +131,20 @@
         <tbody id="orderRows"><tr><td colspan="7" class="muted" style="padding:16px">Loading…</td></tr></tbody>
       </table>
     </div>
+
+    <div class="row" style="justify-content:space-between;align-items:flex-end;margin-top:28px">
+      <h2 style="margin:0">Delivery riders</h2>
+    </div>
+    <div class="card">
+      <div class="row" style="align-items:flex-end">
+        <div class="grow"><label>Name</label><input id="rName" placeholder="Rider name" /></div>
+        <div class="grow"><label>Email</label><input id="rEmail" type="email" placeholder="rider@rider.test" /></div>
+        <div style="width:150px"><label>Phone</label><input id="rPhone" placeholder="optional" /></div>
+        <div style="width:160px"><label>Password</label><input id="rPass" type="password" placeholder="min 8 chars" /></div>
+        <div><button id="addRiderBtn">Add rider</button></div>
+      </div>
+      <div id="riderList" style="margin-top:12px"></div>
+    </div>
   </div>
 </div>
 
@@ -182,6 +198,7 @@ async function showApp(){
     $('whoami').textContent=me.user.name+' · '+me.user.role;
   }catch(e){ toast(e.message); return logout(); }
   await load();
+  await loadRiders();
   await loadOrders();
 }
 
@@ -207,14 +224,53 @@ async function loadOrders(){
         <td><span class="pill ${o.status}">${o.status}</span></td>
         <td><div class="dact" style="display:flex;gap:6px;justify-content:flex-end"></div></td>`;
       body.appendChild(tr);
-      const el=tr.querySelector('.dact');
-      if(o.status==='ready'||o.status==='accepted'){ const b=document.createElement('button'); b.className='small ok'; b.textContent='Mark delivered'; b.onclick=()=>deliverOrder(o._id); el.appendChild(b); }
-      else{ const s=document.createElement('span'); s.className='muted'; s.style.fontSize='12px'; s.textContent=o.status==='delivered'?'Completed':'—'; el.appendChild(s); }
+      renderDelivery(tr.querySelector('.dact'), o);
     }
   }catch(e){ toast(e.message); }
 }
 async function deliverOrder(id){
   try{ await api('/api/admin/orders/'+id+'/delivered',{method:'POST'}); toast('Marked delivered',true); await loadOrders(); }
+  catch(e){ toast(e.message); }
+}
+
+let riders=[];
+async function loadRiders(){
+  try{
+    const d=await api('/api/admin/riders'); riders=d.items||[];
+    const box=$('riderList');
+    if(!riders.length){ box.innerHTML='<span class="muted">No riders yet. Add one above.</span>'; return; }
+    box.innerHTML = riders.map(r=>`<span class="pill" style="background:var(--blue-light);color:var(--blue);margin:0 6px 6px 0;display:inline-block">${r.name}${r.phone?(' · '+r.phone):''}</span>`).join('');
+  }catch(e){ toast(e.message); }
+}
+async function addRider(){
+  const name=$('rName').value.trim(), email=$('rEmail').value.trim(), phone=$('rPhone').value.trim(), password=$('rPass').value;
+  if(!name||!email||password.length<8) return toast('Name, email and 8+ char password required');
+  try{
+    await api('/api/admin/riders',{method:'POST',body:JSON.stringify({name,email,phone,password})});
+    toast('Rider added',true); $('rName').value='';$('rEmail').value='';$('rPhone').value='';$('rPass').value='';
+    loadRiders();
+  }catch(e){ toast(e.message); }
+}
+function renderDelivery(el, o){
+  const riderName = o.rider ? (riders.find(r=>r._id===String(o.rider))?.name || 'rider') : null;
+  if(o.status==='ready'){
+    const sel=document.createElement('select'); sel.className='small'; sel.style.cssText='padding:6px 8px;border:1px solid var(--border);border-radius:8px';
+    sel.innerHTML='<option value="">Assign rider…</option>'+riders.map(r=>`<option value="${r._id}">${r.name}</option>`).join('');
+    const b=document.createElement('button'); b.className='small ok'; b.textContent='Assign';
+    b.onclick=()=>{ if(!sel.value) return toast('Pick a rider'); assign(o._id, sel.value); };
+    el.appendChild(sel); el.appendChild(b);
+  } else if(o.status==='assigned'){
+    el.innerHTML='<span class="muted" style="font-size:12px">Assigned'+(riderName?(' → '+riderName):'')+' · awaiting pickup</span>';
+  } else if(o.status==='out_for_delivery'){
+    el.innerHTML='<span class="pill out_for_delivery">out for delivery</span>';
+  } else if(o.status==='delivered'){
+    el.innerHTML='<span class="muted" style="font-size:12px">Completed</span>';
+  } else {
+    el.innerHTML='<span class="muted" style="font-size:12px">—</span>';
+  }
+}
+async function assign(orderId, riderId){
+  try{ await api('/api/admin/orders/'+orderId+'/assign',{method:'POST',body:JSON.stringify({riderId})}); toast('Rider assigned',true); await loadOrders(); }
   catch(e){ toast(e.message); }
 }
 
@@ -302,6 +358,7 @@ $('tabs').addEventListener('click',(e)=>{
   tab.classList.add('active'); currentStatus=tab.dataset.status; renderRows();
 });
 $('refreshOrdersBtn').addEventListener('click',loadOrders);
+$('addRiderBtn').addEventListener('click',addRider);
 $('orderTabs').addEventListener('click',(e)=>{
   const tab=e.target.closest('.tab'); if(!tab) return;
   $('orderTabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));

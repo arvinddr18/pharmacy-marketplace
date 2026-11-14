@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rider App</title>
+<style>
+  :root{
+    --bg:#F8FAFC; --card:#FFFFFF; --text:#172033; --muted:#64748B;
+    --blue:#2563EB; --blue-light:#EFF6FF; --border:#E5E7EB;
+    --success:#16A34A; --warning:#F59E0B; --error:#DC2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  .hidden{display:none !important}
+  .topbar{background:#fff;border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:10px}
+  .brand{font-weight:700;color:var(--blue)}
+  .badge{background:var(--text);color:#fff;font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600}
+  .grow{flex:1}
+  button{font:inherit;cursor:pointer;border:none;border-radius:10px;padding:11px 16px;background:var(--blue);color:#fff;font-weight:600}
+  button.ok{background:var(--success)} button.ghost{background:transparent;color:var(--muted);font-weight:500}
+  button.small{padding:8px 12px;font-size:13px;border-radius:8px}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  input{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:8px;background:#fff}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  .wrap{max-width:620px;margin:0 auto;padding:18px 16px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:16px;margin-top:12px}
+  .muted{color:var(--muted)}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+  .pill.assigned{background:#FEF3C7;color:#92400E}
+  .pill.out_for_delivery{background:#DBEAFE;color:#1e40af}
+  .pill.delivered{background:#DCFCE7;color:var(--success)}
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .login-card{width:100%;max-width:360px}
+  .toast{position:fixed;right:16px;bottom:16px;max-width:360px;padding:12px 16px;border-radius:10px;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.15);font-size:14px;z-index:50}
+  .toast.err{background:var(--error)} .toast.ok{background:var(--success)}
+  .leg{display:flex;gap:8px;align-items:flex-start;padding:8px 0}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--blue);margin-top:5px;flex:none}
+  h1{font-size:19px;margin:0}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login-wrap">
+  <div class="card login-card">
+    <div class="brand" style="font-size:18px">Pharmacy Marketplace <span class="badge">RIDER</span></div>
+    <p class="muted" style="margin:4px 0 14px">Delivery partner — sign in</p>
+    <label>Email</label><input id="email" type="email" placeholder="you@rider.test" />
+    <label>Password</label><input id="password" type="password" placeholder="your password" />
+    <button id="loginBtn" style="width:100%;margin-top:14px">Sign in</button>
+    <p class="muted" style="font-size:12px;margin-top:10px">Ask your admin to create your rider account.</p>
+  </div>
+</div>
+
+<div id="appView" class="hidden">
+  <div class="topbar">
+    <span class="brand">Rider</span>
+    <span class="grow"></span>
+    <span id="whoami" class="muted"></span>
+    <button class="ghost" id="logoutBtn">Log out</button>
+  </div>
+  <div class="wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h1>My deliveries</h1>
+      <button class="small" style="background:var(--blue-light);color:var(--blue)" id="refreshBtn">Refresh</button>
+    </div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script>
+const $=(id)=>document.getElementById(id);
+let token=localStorage.getItem('rider_token')||'';
+function toast(m,ok=false){const t=document.createElement('div');t.className='toast '+(ok?'ok':'err');t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3200);}
+async function api(path,opts={}){
+  const r=await fetch(path,{...opts,headers:{'Content-Type':'application/json',...(token?{'Authorization':'Bearer '+token}:{}),...(opts.headers||{})}});
+  const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d?.error?.message||('Failed ('+r.status+')')); return d;
+}
+
+async function login(){
+  try{
+    $('loginBtn').disabled=true;
+    const d=await api('/api/auth/login',{method:'POST',body:JSON.stringify({email:$('email').value.trim(),password:$('password').value})});
+    if(d.user.role!=='rider'){ toast('This is not a rider account'); $('loginBtn').disabled=false; return; }
+    token=d.accessToken; localStorage.setItem('rider_token',token); await showApp();
+  }catch(e){ toast(e.message); } finally{ $('loginBtn').disabled=false; }
+}
+function logout(){ token=''; localStorage.removeItem('rider_token'); $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); }
+
+async function showApp(){
+  $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
+  try{ const me=await api('/api/auth/me'); if(me.user.role!=='rider') return logout(); $('whoami').textContent=me.user.name; }
+  catch{ return logout(); }
+  await load();
+}
+
+async function load(){
+  $('list').innerHTML='<p class="muted">Loading…</p>';
+  try{
+    const d=await api('/api/rider/orders'); const items=d.items||[];
+    const active=items.filter(o=>o.status==='assigned'||o.status==='out_for_delivery');
+    const done=items.filter(o=>o.status==='delivered');
+    if(!active.length && !done.length){ $('list').innerHTML='<div class="card muted">No deliveries assigned yet.</div>'; return; }
+    $('list').innerHTML='';
+    for(const o of active) $('list').appendChild(card(o));
+    if(done.length){ const h=document.createElement('p'); h.className='muted'; h.style.marginTop='18px'; h.textContent='Completed'; $('list').appendChild(h); for(const o of done) $('list').appendChild(card(o)); }
+  }catch(e){ toast(e.message); $('list').innerHTML=''; }
+}
+
+function card(o){
+  const ph=o.pharmacy||{}, cust=o.customer||{}, a=o.deliveryAddress||{}, pa=ph.address||{};
+  const c=document.createElement('div'); c.className='card';
+  c.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong>${o.orderNumber}</strong><span class="pill ${o.status}">${o.status.replace(/_/g,' ')}</span>
+    </div>
+    <div class="leg"><div class="dot" style="background:var(--warning)"></div><div><strong>Pick up from</strong><div>${ph.name||''}</div><div class="muted" style="font-size:13px">${[pa.line1,pa.city,pa.pincode].filter(Boolean).join(', ')} ${ph.phone?('· '+ph.phone):''}</div></div></div>
+    <div class="leg"><div class="dot" style="background:var(--success)"></div><div><strong>Deliver to</strong><div>${cust.name||'Customer'} ${cust.phone?('· '+cust.phone):''}</div><div class="muted" style="font-size:13px">${[a.line1,a.city,a.pincode].filter(Boolean).join(', ')}${a.instructions?(' — '+a.instructions):''}</div></div></div>
+    <div class="muted" style="font-size:13px;margin:6px 0 2px">${(o.items&&o.items[0]?o.items[0].name+' × '+o.items[0].quantity:'')} · ₹${o.total}</div>
+    <div class="act" style="margin-top:10px"></div>`;
+  const act=c.querySelector('.act');
+  if(o.status==='assigned'){
+    const b=document.createElement('button'); b.className='ok'; b.style.width='100%'; b.textContent='Confirm pickup';
+    b.onclick=async()=>{ try{ await api('/api/rider/orders/'+o._id+'/pickup',{method:'POST'}); toast('Picked up — out for delivery',true); load(); }catch(e){ toast(e.message);} };
+    act.appendChild(b);
+  } else if(o.status==='out_for_delivery'){
+    act.innerHTML=`<label>Enter delivery OTP (ask the customer)</label>
+      <div style="display:flex;gap:8px"><input class="otp" maxlength="6" placeholder="6-digit OTP" /><button class="ok dl">Deliver</button></div>`;
+    const inp=act.querySelector('.otp'); inp.addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+    act.querySelector('.dl').onclick=async()=>{ const otp=inp.value.trim(); if(otp.length!==6) return toast('Enter the 6-digit OTP');
+      try{ await api('/api/rider/orders/'+o._id+'/deliver',{method:'POST',body:JSON.stringify({otp})}); toast('Delivered! 🎉',true); load(); }catch(e){ toast(e.message);} };
+  } else {
+    act.innerHTML='<span class="muted" style="font-size:13px">Completed</span>';
+  }
+  return c;
+}
+
+$('loginBtn').addEventListener('click',login);
+$('password').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+$('logoutBtn').addEventListener('click',logout);
+$('refreshBtn').addEventListener('click',load);
+if(token){ showApp().catch(()=>logout()); }
+</script>
+</body>
+</html>

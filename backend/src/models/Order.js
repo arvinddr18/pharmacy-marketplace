@@ -6,6 +6,8 @@ export const ORDER_STATUS = Object.freeze({
   PLACED: 'placed',
   ACCEPTED: 'accepted',
   READY: 'ready',
+  ASSIGNED: 'assigned',
+  OUT_FOR_DELIVERY: 'out_for_delivery',
   DELIVERED: 'delivered',
   REJECTED: 'rejected',
   CANCELLED: 'cancelled',
@@ -54,6 +56,10 @@ const orderSchema = new Schema(
     prescriptionRequired: { type: Boolean, default: false },
     status: { type: String, enum: Object.values(ORDER_STATUS), default: ORDER_STATUS.PLACED, index: true },
     rejectionReason: { type: String },
+
+    rider: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    deliveryOtp: { type: String },
+
     isDemo: { type: Boolean, default: true },
     timeline: { type: [timelineSchema], default: [] },
   },

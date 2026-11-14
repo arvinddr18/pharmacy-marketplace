@@ -12,6 +12,7 @@ import {
   reactivatePharmacy,
 } from '../controllers/admin.pharmacy.controller.js';
 import { listAllOrders, markDelivered } from '../controllers/admin.orders.controller.js';
+import { listRiders, createRider, assignRider } from '../controllers/admin.riders.controller.js';
 
 const router = Router();
 
@@ -25,5 +26,8 @@ router.post('/pharmacies/:id/suspend', validateBody(suspendPharmacySchema), susp
 router.post('/pharmacies/:id/reactivate', reactivatePharmacy);
 router.get('/orders', listAllOrders);
 router.post('/orders/:id/delivered', markDelivered);
+router.get('/riders', listRiders);
+router.post('/riders', createRider);
+router.post('/orders/:id/assign', assignRider);
 
 export default router;

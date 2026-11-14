@@ -35,6 +35,8 @@
   .pill.in{background:#DCFCE7;color:var(--success)}
   .pill.out{background:#FEE2E2;color:var(--error)}
   .pill.placed{background:#FEF3C7;color:#92400E}
+  .pill.assigned{background:#FEF3C7;color:#92400E}
+  .pill.out_for_delivery{background:#DBEAFE;color:#1e40af}
   .pill.accepted{background:#DBEAFE;color:#1e40af}
   .pill.ready{background:#E0E7FF;color:#3730a3}
   .pill.delivered{background:#DCFCE7;color:var(--success)}
@@ -217,12 +219,14 @@ async function openOrders(){
     $('ordersList').innerHTML='';
     for(const o of items){
       const it=o.items[0]||{};
+      const otpBox = (o.status==='out_for_delivery' && o.deliveryOtp)
+        ? `<div class="banner" style="margin-top:10px;background:#DCFCE7;color:#166534"><strong>Delivery OTP: ${o.deliveryOtp}</strong> — give this to the delivery person when your order arrives.</div>` : '';
       const c=document.createElement('div'); c.className='card';
       c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center">
-          <div><strong>${o.orderNumber}</strong> <span class="pill ${o.status}">${o.status}</span>
+          <div><strong>${o.orderNumber}</strong> <span class="pill ${o.status}">${o.status.replace(/_/g,' ')}</span>
             <div class="muted" style="font-size:13px">${it.name||''} × ${it.quantity||1} · ${o.pharmacy?.name||''}</div></div>
           <div style="text-align:right"><div class="price">₹${o.total}</div><div class="mtc"></div></div>
-        </div>`;
+        </div>${otpBox}`;
       if(o.status==='placed'){ const b=document.createElement('button'); b.className='small ghost'; b.textContent='Cancel'; b.onclick=()=>cancelOrder(o._id); c.querySelector('.mtc').appendChild(b); }
       $('ordersList').appendChild(c);
     }
