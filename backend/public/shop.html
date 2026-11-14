@@ -3,246 +3,521 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Find Medicines</title>
+<title>Pharmacy Marketplace</title>
 <style>
   :root{
     --bg:#F8FAFC; --card:#FFFFFF; --text:#172033; --muted:#64748B;
-    --blue:#2563EB; --blue-light:#EFF6FF; --border:#E5E7EB;
+    --blue:#2563EB; --blue-dark:#1D4ED8; --blue-light:#EFF6FF; --border:#E5E7EB;
     --success:#16A34A; --warning:#F59E0B; --error:#DC2626;
+    --shadow:0 1px 2px rgba(16,24,40,.05); --shadow-lg:0 8px 24px rgba(16,24,40,.10);
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
-  .topbar{background:#fff;border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:14px}
-  .brand{font-weight:700;color:var(--blue)}
-  .grow{flex:1}
-  a{color:var(--blue);text-decoration:none;font-weight:600;cursor:pointer}
-  .wrap{max-width:760px;margin:0 auto;padding:22px 20px}
-  .hero{text-align:center;padding:10px 0 18px}
-  .hero h1{font-size:24px;margin:0 0 6px}
-  .muted{color:var(--muted)}
-  .searchbar{display:flex;gap:8px}
-  input,textarea{font:inherit;width:100%;padding:12px 13px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text)}
-  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
-  button{font:inherit;cursor:pointer;border:none;border-radius:10px;padding:12px 18px;background:var(--blue);color:#fff;font-weight:600;white-space:nowrap}
-  button.small{padding:8px 12px;border-radius:8px;font-size:13px}
-  button.ghost{background:transparent;color:var(--blue)}
+  html,body{margin:0}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  .hidden{display:none !important}
+  a{color:inherit;text-decoration:none}
+  button{font:inherit;cursor:pointer;border:none;border-radius:10px;padding:10px 16px;background:var(--blue);color:#fff;font-weight:600}
+  button:hover{background:var(--blue-dark)}
+  button.ghost{background:transparent;color:var(--blue);font-weight:600;padding:8px 10px}
+  button.ghost:hover{background:var(--blue-light)}
+  button.light{background:var(--blue-light);color:var(--blue)}
+  button.small{padding:8px 12px;font-size:13px}
+  button.ok{background:var(--success)} button.ok:hover{filter:brightness(.95)}
   button:disabled{opacity:.5;cursor:not-allowed}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:16px;margin-top:12px}
-  .medrow{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;background:#fff;margin-top:10px;cursor:pointer;transition:.15s}
-  .medrow:hover{border-color:var(--blue);background:var(--blue-light)}
+  input{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text)}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+
+  /* top bar */
+  .topbar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--border);box-shadow:var(--shadow)}
+  .topbar-in{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:12px 16px}
+  .brand{font-weight:800;color:var(--blue);font-size:18px;white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:8px}
+  .brand .logo{width:30px;height:30px;border-radius:8px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px}
+  .searchbox{flex:1;display:flex;max-width:620px;position:relative}
+  .searchbox input{border-radius:10px;padding-left:40px}
+  .searchbox .ic{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+  .navbtns{display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .cartbtn{position:relative}
+  .cartbtn .count{position:absolute;top:-6px;right:-6px;background:var(--error);color:#fff;font-size:11px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+
+  .wrap{max-width:1100px;margin:0 auto;padding:18px 16px 60px}
+  h1{font-size:22px;margin:0 0 2px} h2{font-size:17px;margin:22px 0 10px}
+  .muted{color:var(--muted)} .sub{color:var(--muted);font-size:14px}
+  .row{display:flex;gap:10px;align-items:center}
+  .sp{flex:1}
+
+  .hero{background:linear-gradient(120deg,var(--blue),#60A5FA);color:#fff;border-radius:18px;padding:26px 22px;margin-bottom:8px}
+  .hero h1{color:#fff;font-size:24px} .hero p{margin:6px 0 16px;opacity:.95}
+  .hero .herosearch{display:flex;max-width:560px;background:#fff;border-radius:12px;padding:5px;gap:6px}
+  .hero .herosearch input{border:none;padding:11px 14px}
+  .hero .herosearch button{border-radius:9px}
+
+  .grid{display:grid;gap:14px}
+  .shops{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+  .prods{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:16px}
+  .card.clickable{cursor:pointer;transition:box-shadow .15s,transform .15s}
+  .card.clickable:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+  .avatar{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#fff;flex:none}
+  .thumb{height:92px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:30px;color:#fff;margin-bottom:10px}
+
   .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
   .pill.rx{background:#FEF3C7;color:#92400E}
-  .pill.in{background:#DCFCE7;color:var(--success)}
-  .pill.out{background:#FEE2E2;color:var(--error)}
+  .pill.open{background:#DCFCE7;color:#166534}
   .pill.placed{background:#FEF3C7;color:#92400E}
-  .pill.assigned{background:#FEF3C7;color:#92400E}
-  .pill.out_for_delivery{background:#DBEAFE;color:#1e40af}
   .pill.accepted{background:#DBEAFE;color:#1e40af}
   .pill.ready{background:#E0E7FF;color:#3730a3}
+  .pill.assigned{background:#FEF3C7;color:#92400E}
+  .pill.out_for_delivery{background:#DBEAFE;color:#1e40af}
   .pill.delivered{background:#DCFCE7;color:var(--success)}
   .pill.rejected,.pill.cancelled{background:#FEE2E2;color:var(--error)}
-  .offer{display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid var(--border)}
-  .offer:last-child{border-bottom:none}
-  .price{font-size:18px;font-weight:700}
-  .strike{color:var(--muted);text-decoration:line-through;font-size:13px;font-weight:500;margin-left:6px}
-  .best{background:var(--success);color:#fff;font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700}
-  .toast{position:fixed;right:16px;bottom:16px;max-width:360px;padding:12px 16px;border-radius:10px;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.15);font-size:14px;z-index:60}
+
+  .price{font-weight:800;font-size:17px}
+  .mrp{color:var(--muted);text-decoration:line-through;font-size:13px;margin-left:6px}
+  .off{color:var(--success);font-size:12px;font-weight:700;margin-left:6px}
+  .stepper{display:flex;align-items:center;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .stepper button{background:#fff;color:var(--blue);padding:6px 12px;border-radius:0}
+  .stepper button:hover{background:var(--blue-light)}
+  .stepper span{min-width:34px;text-align:center;font-weight:700}
+
+  .back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);cursor:pointer;margin-bottom:10px;font-size:14px}
+  .back:hover{color:var(--blue)}
+  .empty{text-align:center;color:var(--muted);padding:50px 16px}
+  .empty .big{font-size:40px;margin-bottom:8px}
+
+  .panel{max-width:460px;margin:0 auto}
+  .banner{border-radius:12px;padding:12px 14px;font-size:14px;margin:10px 0}
+  .banner.info{background:var(--blue-light);color:var(--blue-dark)}
+  .banner.warn{background:#FEF3C7;color:#92400E}
+  .banner.okb{background:#DCFCE7;color:#166534}
+
+  .toast{position:fixed;right:16px;bottom:16px;max-width:360px;padding:12px 16px;border-radius:10px;color:#fff;box-shadow:var(--shadow-lg);font-size:14px;z-index:60}
   .toast.err{background:var(--error)} .toast.ok{background:var(--success)}
-  .back{cursor:pointer;color:var(--blue);font-weight:600;display:inline-flex;gap:6px;align-items:center;margin-bottom:6px}
-  .banner{background:var(--blue-light);color:#1e40af;border-radius:10px;padding:10px 14px;font-size:13px;margin-top:14px}
-  .overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
-  .modal{background:#fff;border-radius:14px;max-width:440px;width:100%;padding:22px;max-height:90vh;overflow:auto}
-  .rowflex{display:flex;gap:12px}
+
+  .sticky-sum{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--border);padding:12px 0;margin-top:14px}
+  @media(max-width:640px){
+    .brand span.full{display:none}
+    .navbtns button.small{padding:8px 10px}
+    .topbar-in{gap:8px;padding:10px 12px}
+  }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <span class="brand">Pharmacy Marketplace</span>
-  <span class="grow"></span>
-  <a id="ordersLink" onclick="openOrders()">My orders</a>
-  <a id="authLink" onclick="toggleAuth()">Log in</a>
-</div>
-
-<div class="wrap">
-  <div id="searchView">
-    <div class="hero">
-      <h1>Find medicines near you</h1>
-      <p class="muted">Search a medicine to see which pharmacies have it and compare prices.</p>
+  <div class="topbar-in">
+    <div class="brand" id="brandBtn"><span class="logo">+</span><span class="full">MedMart</span></div>
+    <div class="searchbox">
+      <span class="ic">🔍</span>
+      <input id="globalSearch" placeholder="Search medicines…" />
     </div>
-    <div class="searchbar">
-      <input id="q" placeholder="Search medicine, e.g. Paracetamol" />
-      <button id="searchBtn">Search</button>
-    </div>
-    <div id="results"></div>
-  </div>
-
-  <div id="offersView" style="display:none">
-    <div class="back" onclick="backToSearch()">← Back to search</div>
-    <div class="card" id="medHead"></div>
-    <h3 style="margin:18px 0 0">Available at</h3>
-    <div class="card" id="offersList" style="padding:0"></div>
-    <div class="banner">🛒 Demo mode — you can place test orders. Real payment & delivery stay off until licensing is complete.</div>
-  </div>
-
-  <div id="ordersView" style="display:none">
-    <div class="back" onclick="backToSearch()">← Back to search</div>
-    <h2>My orders</h2>
-    <div id="ordersList"></div>
-  </div>
-</div>
-
-<div id="checkout" class="overlay" style="display:none">
-  <div class="modal">
-    <h2 style="margin:0 0 2px" id="coTitle">Place order</h2>
-    <p class="muted" id="coSub" style="margin:0 0 10px"></p>
-    <div class="rowflex">
-      <div style="width:120px"><label>Quantity</label><input id="coQty" type="number" min="1" value="1" /></div>
-      <div class="grow" style="align-self:flex-end;text-align:right"><div class="muted" style="font-size:13px">Item total</div><div class="price" id="coTotal">₹0</div></div>
-    </div>
-    <label>Delivery address <span style="color:var(--error)">*</span></label>
-    <input id="coLine1" placeholder="House/shop, street, area" />
-    <div class="rowflex">
-      <div class="grow"><label>City</label><input id="coCity" value="Tarikere" /></div>
-      <div style="width:140px"><label>PIN code <span style="color:var(--error)">*</span></label><input id="coPin" maxlength="6" placeholder="6-digit" /></div>
-    </div>
-    <label>Delivery note (optional)</label>
-    <input id="coNote" placeholder="e.g. call on arrival" />
-    <div id="coRx" class="banner" style="display:none;background:#FEF3C7;color:#92400E">⚠️ This medicine needs a prescription. In demo mode you can place the order; the pharmacy will verify the prescription before dispensing.</div>
-    <div class="rowflex" style="justify-content:flex-end;margin-top:16px">
-      <button class="ghost" onclick="closeCheckout()">Cancel</button>
-      <button id="coPlace">Place order</button>
+    <div class="navbtns">
+      <button class="ghost small cartbtn" id="cartBtn">🛒<span class="count hidden" id="cartCount">0</span></button>
+      <button class="light small" id="accountBtn">Account</button>
     </div>
   </div>
 </div>
+
+<div class="wrap" id="view"></div>
 
 <script>
+/* ---------------- infra ---------------- */
 const $=(id)=>document.getElementById(id);
-let token=localStorage.getItem('cust_token')||'';
-let user=null, currentMed=null, currentOffer=null;
+const view=$('view');
+const state={ token:localStorage.getItem('cust_token')||'', user:null, cart:[], view:'home' };
+try{ state.cart=JSON.parse(localStorage.getItem('cust_cart')||'[]')||[]; }catch{ state.cart=[]; }
 
-function toast(m,ok=false){const t=document.createElement('div');t.className='toast '+(ok?'ok':'err');t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3200);}
+function saveCart(){ try{ localStorage.setItem('cust_cart',JSON.stringify(state.cart)); }catch{} updateCartCount(); }
+function updateCartCount(){ const n=state.cart.reduce((s,i)=>s+i.qty,0); const el=$('cartCount'); el.textContent=n; el.classList.toggle('hidden',n===0); }
+function toast(m,ok=false){ const t=document.createElement('div'); t.className='toast '+(ok?'ok':'err'); t.textContent=m; document.body.appendChild(t); setTimeout(()=>t.remove(),3200); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function money(n){ return '₹'+Number(n||0).toFixed(0); }
+function colorFor(s){ const c=['#2563EB','#7C3AED','#059669','#DB2777','#D97706','#0891B2','#DC2626','#4F46E5']; let h=0; for(const ch of String(s||'')) h=(h*31+ch.charCodeAt(0))>>>0; return c[h%c.length]; }
+function initials(s){ return String(s||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase()||'?'; }
+
 async function api(path,opts={}){
-  const r=await fetch(path,{...opts,headers:{'Content-Type':'application/json',...(token?{'Authorization':'Bearer '+token}:{}),...(opts.headers||{})}});
-  const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d?.error?.message||('Failed ('+r.status+')')); return d;
+  const r=await fetch(path,{...opts,headers:{'Content-Type':'application/json',...(state.token?{'Authorization':'Bearer '+state.token}:{}),...(opts.headers||{})}});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d?.error?.message||('Request failed ('+r.status+')'));
+  return d;
 }
 
-async function refreshMe(){
-  if(!token){ user=null; setAuthUI(); return; }
-  try{ const me=await api('/api/auth/me'); user=me.user; }catch{ token=''; localStorage.removeItem('cust_token'); user=null; }
-  setAuthUI();
+/* ---------------- cart ---------------- */
+function addToCart(p){
+  if(!p.inStock){ toast('Out of stock'); return; }
+  const ex=state.cart.find(i=>i.listingId===p.listingId);
+  if(ex){ ex.qty=Math.min(ex.qty+1,p.available||99); }
+  else state.cart.push({ listingId:p.listingId, pharmacyId:p.pharmacyId, pharmacyName:p.pharmacyName, name:p.name, sellingPrice:p.sellingPrice, mrp:p.mrp, prescriptionRequired:p.prescriptionRequired, available:p.available||99, qty:1 });
+  saveCart(); toast('Added to cart',true);
 }
-function setAuthUI(){ $('authLink').textContent = user ? ('Log out ('+ (user.name||'you') +')') : 'Log in'; }
-async function toggleAuth(){
-  if(user){ token=''; localStorage.removeItem('cust_token'); user=null; setAuthUI(); toast('Logged out',true); return; }
-  try{ const d=await api('/api/auth/demo-login',{method:'POST'}); token=d.accessToken; localStorage.setItem('cust_token',token); user=d.user; setAuthUI(); toast('Logged in as demo customer',true); }
-  catch(e){ toast(e.message); }
+function setQty(listingId,qty){
+  const i=state.cart.find(x=>x.listingId===listingId); if(!i) return;
+  i.qty=Math.max(0,Math.min(qty,i.available||99));
+  if(i.qty===0) state.cart=state.cart.filter(x=>x.listingId!==listingId);
+  saveCart(); if(state.view==='cart') renderCart();
 }
+function cartTotal(){ return state.cart.reduce((s,i)=>s+i.sellingPrice*i.qty,0); }
 
-async function search(){
-  const q=$('q').value.trim();
-  $('results').innerHTML='<p class="muted" style="margin-top:14px">Searching…</p>';
+/* ---------------- navigation ---------------- */
+function go(v,arg){ state.view=v; window.scrollTo(0,0);
+  if(v==='home') renderHome();
+  else if(v==='shop') renderShop(arg);
+  else if(v==='search') renderSearch(arg);
+  else if(v==='medicine') renderMedicine(arg);
+  else if(v==='cart') renderCart();
+  else if(v==='checkout') renderCheckout();
+  else if(v==='account') renderAccount();
+  else if(v==='orders') renderOrders();
+}
+function backLink(label,onclick){ const d=document.createElement('div'); d.className='back'; d.innerHTML='← '+esc(label); d.onclick=onclick; return d; }
+
+/* ---------------- HOME ---------------- */
+async function renderHome(){
+  view.innerHTML=`
+    <div class="hero">
+      <h1>Medicines from your local shops</h1>
+      <p>Order from trusted pharmacies near you — delivered to your door.</p>
+      <div class="herosearch">
+        <input id="heroSearch" placeholder="Search for a medicine…" />
+        <button id="heroBtn">Search</button>
+      </div>
+    </div>
+    <h2>Medical shops</h2>
+    <div id="shopList" class="grid shops"><p class="muted">Loading shops…</p></div>
+    <h2>Popular medicines</h2>
+    <div id="popList" class="grid prods"><p class="muted">Loading…</p></div>
+  `;
+  $('heroBtn').onclick=()=>{ const q=$('heroSearch').value.trim(); if(q){ $('globalSearch').value=q; go('search',q); } };
+  $('heroSearch').addEventListener('keydown',e=>{ if(e.key==='Enter') $('heroBtn').click(); });
+
   try{
-    const data=await api('/api/discover/medicines'+(q?('?q='+encodeURIComponent(q)):''));
-    const items=data.items||[];
-    if(!items.length){ $('results').innerHTML='<p class="muted" style="margin-top:14px">No medicines found.</p>'; return; }
-    $('results').innerHTML='';
-    for(const m of items){
-      const d=document.createElement('div'); d.className='medrow';
-      d.innerHTML=`<div class="grow"><strong>${m.name}</strong> ${m.prescriptionRequired?'<span class="pill rx">Rx</span>':''}
-        <div class="muted" style="font-size:13px">${[m.brand,m.strength,m.packSize].filter(Boolean).join(' · ')}</div></div><span class="muted">View offers →</span>`;
-      d.onclick=()=>openOffers(m._id); $('results').appendChild(d);
+    const d=await api('/api/discover/pharmacies');
+    const shops=d.items||[];
+    $('shopList').innerHTML = shops.length ? '' : '<p class="muted">No shops available yet.</p>';
+    for(const s of shops) $('shopList').appendChild(shopCard(s));
+  }catch(e){ $('shopList').innerHTML='<p class="muted">Could not load shops.</p>'; }
+
+  try{
+    const d=await api('/api/discover/medicines');
+    const meds=(d.items||[]).slice(0,8);
+    $('popList').innerHTML = meds.length ? '' : '<p class="muted">No medicines listed yet.</p>';
+    for(const m of meds) $('popList').appendChild(medCatalogueCard(m));
+  }catch(e){ $('popList').innerHTML='<p class="muted">Could not load medicines.</p>'; }
+}
+
+function shopCard(s){
+  const c=document.createElement('div'); c.className='card clickable';
+  const city=[s.address?.line1,s.address?.city].filter(Boolean).join(', ');
+  const hrs=s.operatingHours?`${s.operatingHours.open||''}–${s.operatingHours.close||''}`:'';
+  c.innerHTML=`
+    <div class="row">
+      <div class="avatar" style="background:${colorFor(s.name)}">${esc(initials(s.name))}</div>
+      <div><strong>${esc(s.name)}</strong><div class="sub">${esc(city||'Pharmacy')}</div></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      ${hrs?`<span class="pill open">🕐 ${esc(hrs)}</span>`:''}
+      <span class="sp"></span>
+      <span class="ghost small" style="color:var(--blue);font-weight:700">View shop →</span>
+    </div>`;
+  c.onclick=()=>go('shop',s._id);
+  return c;
+}
+
+function medCatalogueCard(m){
+  const c=document.createElement('div'); c.className='card clickable';
+  const meta=[m.strength,m.packSize].filter(Boolean).join(' · ');
+  c.innerHTML=`
+    <div class="thumb" style="background:${colorFor(m.name)}">💊</div>
+    <strong>${esc(m.name)}</strong>
+    <div class="sub">${esc(meta||m.brand||'Medicine')}</div>
+    ${m.prescriptionRequired?'<span class="pill rx" style="margin-top:8px">Rx</span>':''}
+    <div style="margin-top:10px"><button class="light small" style="width:100%">See pharmacies</button></div>`;
+  c.onclick=()=>go('medicine',m._id);
+  return c;
+}
+
+/* ---------------- SHOP ---------------- */
+async function renderShop(id){
+  view.innerHTML='<p class="muted">Loading shop…</p>';
+  try{
+    const d=await api('/api/discover/pharmacies/'+id+'/products');
+    const ph=d.pharmacy, prods=d.products||[];
+    view.innerHTML='';
+    view.appendChild(backLink('Back to shops',()=>go('home')));
+    const addr=[ph.address?.line1,ph.address?.city,ph.address?.pincode].filter(Boolean).join(', ');
+    const head=document.createElement('div'); head.className='card'; head.innerHTML=`
+      <div class="row">
+        <div class="avatar" style="background:${colorFor(ph.name)}">${esc(initials(ph.name))}</div>
+        <div><h1>${esc(ph.name)}</h1><div class="sub">${esc(addr||'')}</div></div>
+      </div>`;
+    view.appendChild(head);
+
+    const sb=document.createElement('div'); sb.className='searchbox'; sb.style.margin='16px 0';
+    sb.innerHTML='<span class="ic">🔍</span><input id="shopSearch" placeholder="Search in this shop…" />';
+    view.appendChild(sb);
+
+    const grid=document.createElement('div'); grid.className='grid prods'; grid.id='shopGrid'; view.appendChild(grid);
+    const draw=(list)=>{ grid.innerHTML = list.length ? '' : '<p class="muted">No matching products.</p>'; for(const p of list){ p.pharmacyId=ph._id; p.pharmacyName=ph.name; grid.appendChild(productCard(p)); } };
+    draw(prods);
+    $('shopSearch').addEventListener('input',e=>{ const q=e.target.value.trim().toLowerCase(); draw(prods.filter(p=>p.name.toLowerCase().includes(q))); });
+  }catch(e){ view.innerHTML=''; view.appendChild(backLink('Back to shops',()=>go('home'))); const d=document.createElement('p'); d.className='muted'; d.textContent=e.message; view.appendChild(d); }
+}
+
+function productCard(p){
+  const c=document.createElement('div'); c.className='card';
+  const meta=[p.strength,p.packSize].filter(Boolean).join(' · ');
+  const off=(p.mrp>p.sellingPrice)?Math.round((1-p.sellingPrice/p.mrp)*100):0;
+  c.innerHTML=`
+    <div class="thumb" style="background:${colorFor(p.name)}">💊</div>
+    <strong>${esc(p.name)}</strong>
+    <div class="sub">${esc(meta||p.brand||'')}</div>
+    <div style="margin:8px 0">
+      ${p.prescriptionRequired?'<span class="pill rx">Rx</span>':''}
+      ${p.inStock?'':'<span class="pill rejected">Out of stock</span>'}
+    </div>
+    <div class="row">
+      <span class="price">${money(p.sellingPrice)}</span>
+      ${p.mrp>p.sellingPrice?`<span class="mrp">${money(p.mrp)}</span><span class="off">${off}% off</span>`:''}
+    </div>
+    <div class="addwrap" style="margin-top:10px"></div>`;
+  const aw=c.querySelector('.addwrap');
+  const b=document.createElement('button'); b.className='small'; b.style.width='100%'; b.textContent=p.inStock?'Add to cart':'Unavailable'; b.disabled=!p.inStock;
+  b.onclick=()=>addToCart(p); aw.appendChild(b);
+  return c;
+}
+
+/* ---------------- SEARCH ---------------- */
+async function renderSearch(q){
+  view.innerHTML='';
+  view.appendChild(backLink('Back to home',()=>go('home')));
+  const h=document.createElement('h1'); h.textContent=q?`Results for “${q}”`:'All medicines'; view.appendChild(h);
+  const grid=document.createElement('div'); grid.className='grid prods'; grid.style.marginTop='12px'; grid.innerHTML='<p class="muted">Searching…</p>'; view.appendChild(grid);
+  try{
+    const d=await api('/api/discover/medicines'+(q?('?q='+encodeURIComponent(q)):''));
+    const meds=d.items||[];
+    grid.innerHTML = meds.length ? '' : `<div class="empty"><div class="big">🔍</div>No medicines found for “${esc(q)}”.</div>`;
+    for(const m of meds) grid.appendChild(medCatalogueCard(m));
+  }catch(e){ grid.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
+}
+
+/* ---------------- MEDICINE OFFERS ---------------- */
+async function renderMedicine(id){
+  view.innerHTML='<p class="muted">Loading…</p>';
+  try{
+    const d=await api('/api/discover/medicines/'+id+'/offers');
+    const m=d.medicine, offers=d.offers||[];
+    view.innerHTML='';
+    view.appendChild(backLink('Back',()=>go(state._searchQ?'search':'home',state._searchQ)));
+    const meta=[m.strength,m.dosageForm,m.packSize].filter(Boolean).join(' · ');
+    const head=document.createElement('div'); head.className='card'; head.innerHTML=`
+      <div class="row">
+        <div class="avatar" style="background:${colorFor(m.name)}">💊</div>
+        <div><h1>${esc(m.name)}</h1><div class="sub">${esc(meta||m.brand||'')}</div>
+        ${m.prescriptionRequired?'<span class="pill rx" style="margin-top:6px">Prescription required</span>':''}</div>
+      </div>`;
+    view.appendChild(head);
+    const h2=document.createElement('h2'); h2.textContent='Available at '+offers.length+' shop'+(offers.length===1?'':'s'); view.appendChild(h2);
+    if(!offers.length){ const e=document.createElement('p'); e.className='muted'; e.textContent='No pharmacy currently stocks this medicine.'; view.appendChild(e); return; }
+    for(const o of offers){
+      const card=document.createElement('div'); card.className='card'; card.style.marginBottom='10px';
+      const off=(o.mrp>o.sellingPrice)?Math.round((1-o.sellingPrice/o.mrp)*100):0;
+      card.innerHTML=`
+        <div class="row">
+          <div class="avatar" style="background:${colorFor(o.pharmacyName)}">${esc(initials(o.pharmacyName))}</div>
+          <div class="sp"><strong>${esc(o.pharmacyName)}</strong><div class="sub">${esc(o.city||'')} ${o.inStock?'· In stock':'· Out of stock'}</div></div>
+          <div style="text-align:right"><span class="price">${money(o.sellingPrice)}</span>${o.mrp>o.sellingPrice?`<div><span class="mrp">${money(o.mrp)}</span><span class="off">${off}%</span></div>`:''}</div>
+        </div>
+        <div class="addwrap" style="margin-top:10px"></div>`;
+      const b=document.createElement('button'); b.className='small ok'; b.textContent=o.inStock?'Add to cart':'Out of stock'; b.disabled=!o.inStock;
+      b.onclick=()=>addToCart({ listingId:o.listingId, pharmacyId:o.pharmacyId, pharmacyName:o.pharmacyName, name:m.name, sellingPrice:o.sellingPrice, mrp:o.mrp, prescriptionRequired:o.prescriptionRequired, available:o.available, inStock:o.inStock });
+      card.querySelector('.addwrap').appendChild(b);
+      view.appendChild(card);
     }
-  }catch(e){ toast(e.message); $('results').innerHTML=''; }
-}
-function showOnly(id){ for(const v of ['searchView','offersView','ordersView']) $(v).style.display = (v===id?'block':'none'); }
-function backToSearch(){ showOnly('searchView'); }
-
-async function openOffers(id){
-  try{
-    const data=await api('/api/discover/medicines/'+id+'/offers');
-    currentMed=data.medicine; const offers=data.offers||[];
-    showOnly('offersView');
-    $('medHead').innerHTML=`<strong style="font-size:17px">${currentMed.name}</strong> ${currentMed.prescriptionRequired?'<span class="pill rx">Rx required</span>':''}
-      <div class="muted" style="font-size:13px;margin-top:2px">${[currentMed.brand,currentMed.strength,currentMed.packSize,currentMed.manufacturer].filter(Boolean).join(' · ')}</div>`;
-    const list=$('offersList');
-    if(!offers.length){ list.innerHTML='<div class="offer muted">No pharmacy currently offers this medicine.</div>'; return; }
-    list.innerHTML='';
-    offers.forEach((o,i)=>{
-      const row=document.createElement('div'); row.className='offer';
-      row.innerHTML=`<div class="grow"><strong>${o.pharmacyName}</strong> ${i===0&&o.inStock?'<span class="best">BEST PRICE</span>':''}
-        <div class="muted" style="font-size:13px">${o.city||''} · ${o.inStock?('<span class="pill in">In stock: '+o.available+'</span>'):'<span class="pill out">Out of stock</span>'} ${o.prescriptionRequired?'<span class="pill rx">Rx</span>':''}</div></div>
-        <div style="text-align:right"><div class="price">₹${o.sellingPrice}${o.mrp>o.sellingPrice?'<span class="strike">₹'+o.mrp+'</span>':''}</div><div class="mt"></div></div>`;
-      const b=document.createElement('button'); b.className='small'; b.textContent='Order'; if(!o.inStock) b.disabled=true;
-      b.onclick=()=>startCheckout(o); row.querySelector('.mt').appendChild(b);
-      list.appendChild(row);
-    });
-  }catch(e){ toast(e.message); }
+  }catch(e){ view.innerHTML=''; view.appendChild(backLink('Back to home',()=>go('home'))); const p=document.createElement('p'); p.className='muted'; p.textContent=e.message; view.appendChild(p); }
 }
 
-function startCheckout(offer){
-  if(!user){ toast('Please log in first (top-right “Log in”)'); return; }
-  currentOffer=offer;
-  $('coTitle').textContent='Order from '+offer.pharmacyName;
-  $('coSub').textContent=currentMed.name+' · ₹'+offer.sellingPrice+' each · '+offer.available+' in stock';
-  $('coQty').value=1; $('coQty').max=offer.available;
-  $('coLine1').value=''; $('coPin').value=''; $('coNote').value='';
-  $('coRx').style.display = offer.prescriptionRequired ? 'block':'none';
-  updateTotal();
-  $('checkout').style.display='flex';
-}
-function closeCheckout(){ $('checkout').style.display='none'; }
-function updateTotal(){ const q=Math.max(1,parseInt($('coQty').value||'1',10)); $('coTotal').textContent='₹'+(q*currentOffer.sellingPrice); }
-async function placeOrder(){
-  const qty=parseInt($('coQty').value||'1',10);
-  if(qty<1) return toast('Enter a valid quantity');
-  if(qty>currentOffer.available) return toast('Only '+currentOffer.available+' in stock');
-  const deliveryAddress={line1:$('coLine1').value.trim(),city:$('coCity').value.trim()||'Tarikere',pincode:$('coPin').value.trim(),instructions:$('coNote').value.trim()};
-  if(!deliveryAddress.line1) return toast('Enter the delivery address');
-  if(!/^\d{6}$/.test(deliveryAddress.pincode)) return toast('Enter a valid 6-digit PIN code');
-  try{
-    $('coPlace').disabled=true; $('coPlace').textContent='Placing…';
-    const d=await api('/api/customer/orders',{method:'POST',body:JSON.stringify({listingId:currentOffer.listingId,quantity:qty,deliveryAddress})});
-    closeCheckout(); toast('Order placed! '+d.order.orderNumber,true);
-    openOrders();
-  }catch(e){ toast(e.message); }
-  finally{ $('coPlace').disabled=false; $('coPlace').textContent='Place order'; }
-}
+/* ---------------- CART ---------------- */
+function renderCart(){
+  view.innerHTML='';
+  view.appendChild(backLink('Continue shopping',()=>go('home')));
+  const h=document.createElement('h1'); h.textContent='Your cart'; view.appendChild(h);
+  if(!state.cart.length){ const e=document.createElement('div'); e.className='empty'; e.innerHTML='<div class="big">🛒</div>Your cart is empty.<div style="margin-top:14px"><button onclick="go(\'home\')">Browse medicines</button></div>'; view.appendChild(e); return; }
 
-async function openOrders(){
-  if(!user){ toast('Log in to see your orders'); return; }
-  showOnly('ordersView');
-  $('ordersList').innerHTML='<p class="muted">Loading…</p>';
-  try{
-    const d=await api('/api/customer/orders'); const items=d.items||[];
-    if(!items.length){ $('ordersList').innerHTML='<p class="muted">No orders yet. Search a medicine and place one.</p>'; return; }
-    $('ordersList').innerHTML='';
-    for(const o of items){
-      const it=o.items[0]||{};
-      const otpBox = (o.status==='out_for_delivery' && o.deliveryOtp)
-        ? `<div class="banner" style="margin-top:10px;background:#DCFCE7;color:#166534"><strong>Delivery OTP: ${o.deliveryOtp}</strong> — give this to the delivery person when your order arrives.</div>` : '';
-      const c=document.createElement('div'); c.className='card';
-      c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center">
-          <div><strong>${o.orderNumber}</strong> <span class="pill ${o.status}">${o.status.replace(/_/g,' ')}</span>
-            <div class="muted" style="font-size:13px">${it.name||''} × ${it.quantity||1} · ${o.pharmacy?.name||''}</div></div>
-          <div style="text-align:right"><div class="price">₹${o.total}</div><div class="mtc"></div></div>
-        </div>${otpBox}`;
-      if(o.status==='placed'){ const b=document.createElement('button'); b.className='small ghost'; b.textContent='Cancel'; b.onclick=()=>cancelOrder(o._id); c.querySelector('.mtc').appendChild(b); }
-      $('ordersList').appendChild(c);
+  const groups={};
+  for(const i of state.cart){ (groups[i.pharmacyId]=groups[i.pharmacyId]||{name:i.pharmacyName,items:[]}).items.push(i); }
+  const hasRx=state.cart.some(i=>i.prescriptionRequired);
+
+  for(const pid in groups){
+    const g=groups[pid];
+    const card=document.createElement('div'); card.className='card'; card.style.marginBottom='12px';
+    card.innerHTML=`<div class="row"><div class="avatar" style="width:36px;height:36px;font-size:15px;background:${colorFor(g.name)}">${esc(initials(g.name))}</div><strong>${esc(g.name)}</strong></div><div class="lines" style="margin-top:10px"></div>`;
+    const lines=card.querySelector('.lines');
+    for(const i of g.items){
+      const line=document.createElement('div'); line.className='row'; line.style.cssText='padding:10px 0;border-top:1px solid var(--border)';
+      line.innerHTML=`
+        <div class="sp"><strong>${esc(i.name)}</strong> ${i.prescriptionRequired?'<span class="pill rx">Rx</span>':''}<div class="sub">${money(i.sellingPrice)} each</div></div>
+        <div class="stepper"><button data-m="-1">−</button><span>${i.qty}</span><button data-m="1">+</button></div>
+        <div style="width:70px;text-align:right" class="price">${money(i.sellingPrice*i.qty)}</div>`;
+      const [minus,plus]=line.querySelectorAll('.stepper button');
+      minus.onclick=()=>setQty(i.listingId,i.qty-1); plus.onclick=()=>setQty(i.listingId,i.qty+1);
+      lines.appendChild(line);
     }
-  }catch(e){ toast(e.message); }
+    view.appendChild(card);
+  }
+
+  if(hasRx){ const w=document.createElement('div'); w.className='banner warn'; w.textContent='Some items need a prescription. In this demo you can place the order; prescription upload will be added before real launch.'; view.appendChild(w); }
+
+  const sum=document.createElement('div'); sum.className='sticky-sum'; sum.innerHTML=`
+    <div class="row"><strong style="font-size:18px">Total</strong><span class="sp"></span><span class="price" style="font-size:20px">${money(cartTotal())}</span></div>
+    <button style="width:100%;margin-top:10px" id="checkoutBtn">Proceed to checkout</button>`;
+  view.appendChild(sum);
+  $('checkoutBtn').onclick=()=>go('checkout');
+}
+
+/* ---------------- CHECKOUT ---------------- */
+function renderCheckout(){
+  view.innerHTML='';
+  view.appendChild(backLink('Back to cart',()=>go('cart')));
+  const h=document.createElement('h1'); h.textContent='Checkout'; view.appendChild(h);
+  if(!state.cart.length){ go('cart'); return; }
+
+  if(!state.token || !state.user){
+    const p=document.createElement('div'); p.className='banner info'; p.innerHTML='Please sign in to place your order.'; view.appendChild(p);
+    const b=document.createElement('button'); b.textContent='Sign in'; b.onclick=()=>{ state._afterLogin='checkout'; go('account'); }; view.appendChild(b);
+    return;
+  }
+
+  const panel=document.createElement('div'); panel.className='panel';
+  const groups=new Set(state.cart.map(i=>i.pharmacyName));
+  panel.innerHTML=`
+    <div class="card">
+      <h2 style="margin-top:0">Delivery address</h2>
+      <label>Full address *</label><input id="coLine1" placeholder="House no, street, area" />
+      <label>City</label><input id="coCity" value="Tarikere" />
+      <label>PIN code *</label><input id="coPin" maxlength="6" placeholder="577228" />
+      <label>Phone</label><input id="coPhone" placeholder="10-digit mobile" />
+      <label>Delivery note (optional)</label><input id="coNote" placeholder="Landmark, instructions" />
+    </div>
+    <div class="banner info" style="margin-top:12px">Items from ${groups.size} shop${groups.size===1?'':'s'} · Total <strong>${money(cartTotal())}</strong></div>
+    <button id="placeBtn" style="width:100%">Place order · ${money(cartTotal())}</button>
+  `;
+  view.appendChild(panel);
+  $('coPin').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  $('coPhone').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  $('placeBtn').onclick=placeOrders;
+}
+
+async function placeOrders(){
+  const addr={ line1:$('coLine1').value.trim(), city:$('coCity').value.trim(), pincode:$('coPin').value.trim(), phone:$('coPhone').value.trim(), instructions:$('coNote').value.trim() };
+  if(!addr.line1){ toast('Please enter your address'); return; }
+  if(!/^\d{6}$/.test(addr.pincode)){ toast('Enter a valid 6-digit PIN code'); return; }
+  $('placeBtn').disabled=true; $('placeBtn').textContent='Placing order…';
+  const ok=[], fail=[];
+  for(const i of state.cart){
+    try{ await api('/api/customer/orders',{method:'POST',body:JSON.stringify({ listingId:i.listingId, quantity:i.qty, deliveryAddress:addr })}); ok.push(i); }
+    catch(e){ fail.push({ i, msg:e.message }); }
+  }
+  state.cart=state.cart.filter(i=>!ok.includes(i)); saveCart();
+  if(fail.length===0){ toast('Order placed! 🎉',true); go('orders'); }
+  else{
+    $('placeBtn').disabled=false; $('placeBtn').textContent='Place order · '+money(cartTotal());
+    toast(ok.length?`${ok.length} placed, ${fail.length} failed: ${fail[0].msg}`:fail[0].msg);
+    if(ok.length) renderCheckout();
+  }
+}
+
+/* ---------------- ACCOUNT / AUTH ---------------- */
+function renderAccount(){
+  view.innerHTML='';
+  const h=document.createElement('h1'); h.textContent='Account'; view.appendChild(h);
+  if(state.token && state.user){
+    const c=document.createElement('div'); c.className='card panel'; c.innerHTML=`
+      <div class="row"><div class="avatar" style="background:${colorFor(state.user.name)}">${esc(initials(state.user.name))}</div>
+      <div><strong>${esc(state.user.name)}</strong><div class="sub">${esc(state.user.email||state.user.phone||'')}</div></div></div>
+      <div style="margin-top:14px" class="row">
+        <button class="light" id="ordersBtn">My orders</button>
+        <button class="ghost" id="logoutBtn">Log out</button>
+      </div>`;
+    view.appendChild(c);
+    $('ordersBtn').onclick=()=>go('orders');
+    $('logoutBtn').onclick=()=>{ state.token=''; state.user=null; localStorage.removeItem('cust_token'); toast('Logged out',true); go('home'); };
+    return;
+  }
+  const c=document.createElement('div'); c.className='card panel'; c.innerHTML=`
+    <h2 style="margin-top:0">Sign in</h2>
+    <label>Email</label><input id="loginEmail" type="email" placeholder="you@example.com" />
+    <label>Password</label><input id="loginPass" type="password" placeholder="your password" />
+    <button id="loginBtn" style="width:100%;margin-top:14px">Sign in</button>
+    <div class="banner info" style="margin-top:14px">Testing the app? Use <strong>Demo customer</strong> to jump straight in — no signup needed.</div>
+    <button class="light" id="demoBtn" style="width:100%">Continue as demo customer</button>`;
+  view.appendChild(c);
+  $('loginBtn').onclick=doLogin;
+  $('loginPass').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+  $('demoBtn').onclick=doDemoLogin;
+}
+
+async function afterAuth(d){
+  if(d.user && d.user.role && d.user.role!=='customer'){ toast('This is not a customer account'); return false; }
+  state.token=d.accessToken; localStorage.setItem('cust_token',state.token);
+  try{ const me=await api('/api/auth/me'); state.user=me.user; }catch{ state.user=d.user||null; }
+  toast('Welcome'+(state.user?.name?(', '+state.user.name.split(' ')[0]):'')+'!',true);
+  const next=state._afterLogin; state._afterLogin=null;
+  go(next||'home');
+  return true;
+}
+async function doLogin(){
+  const email=$('loginEmail').value.trim(), password=$('loginPass').value;
+  if(!email||!password){ toast('Enter email and password'); return; }
+  $('loginBtn').disabled=true;
+  try{ const d=await api('/api/auth/login',{method:'POST',body:JSON.stringify({email,password})}); await afterAuth(d); }
+  catch(e){ toast(e.message); } finally{ if($('loginBtn')) $('loginBtn').disabled=false; }
+}
+async function doDemoLogin(){
+  $('demoBtn').disabled=true;
+  try{ const d=await api('/api/auth/demo-login',{method:'POST'}); await afterAuth(d); }
+  catch(e){ toast(e.message||'Demo login is disabled'); } finally{ if($('demoBtn')) $('demoBtn').disabled=false; }
+}
+
+/* ---------------- MY ORDERS ---------------- */
+async function renderOrders(){
+  if(!state.token){ state._afterLogin='orders'; go('account'); return; }
+  view.innerHTML='';
+  view.appendChild(backLink('Back to home',()=>go('home')));
+  const h=document.createElement('h1'); h.textContent='My orders'; view.appendChild(h);
+  const list=document.createElement('div'); list.style.marginTop='12px'; list.innerHTML='<p class="muted">Loading…</p>'; view.appendChild(list);
+  try{
+    const d=await api('/api/customer/orders'); const orders=d.items||[];
+    list.innerHTML = orders.length ? '' : '<div class="empty"><div class="big">📦</div>No orders yet.</div>';
+    for(const o of orders){
+      const it=o.items&&o.items[0]||{};
+      const card=document.createElement('div'); card.className='card'; card.style.marginBottom='10px';
+      const otp=(o.status==='out_for_delivery'&&o.deliveryOtp)?`<div class="banner okb"><strong>Delivery OTP: ${esc(o.deliveryOtp)}</strong> — give this to the delivery person at your door.</div>`:'';
+      card.innerHTML=`
+        <div class="row"><strong>${esc(o.orderNumber)}</strong><span class="pill ${o.status}">${esc(String(o.status).replace(/_/g,' '))}</span>
+          <span class="sp"></span><span class="price">${money(o.total)}</span></div>
+        <div class="sub" style="margin-top:4px">${esc(it.name||'')} × ${it.quantity||1} · ${esc(o.pharmacy?.name||'')}</div>
+        ${otp}
+        <div class="mtc" style="margin-top:8px"></div>`;
+      if(o.status==='placed'){ const b=document.createElement('button'); b.className='ghost small'; b.textContent='Cancel order'; b.onclick=()=>cancelOrder(o._id); card.querySelector('.mtc').appendChild(b); }
+      list.appendChild(card);
+    }
+  }catch(e){ list.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
 }
 async function cancelOrder(id){
-  try{ await api('/api/customer/orders/'+id+'/cancel',{method:'POST'}); toast('Order cancelled',true); openOrders(); }
+  try{ await api('/api/customer/orders/'+id+'/cancel',{method:'POST'}); toast('Order cancelled',true); renderOrders(); }
   catch(e){ toast(e.message); }
 }
 
-$('searchBtn').addEventListener('click',search);
-$('q').addEventListener('keydown',e=>{if(e.key==='Enter')search();});
-$('coQty').addEventListener('input',updateTotal);
-$('coPlace').addEventListener('click',placeOrder);
-$('coPin').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
-refreshMe(); search();
+/* ---------------- wire up ---------------- */
+$('brandBtn').onclick=()=>go('home');
+$('cartBtn').onclick=()=>go('cart');
+$('accountBtn').onclick=()=>go('account');
+$('globalSearch').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const q=e.target.value.trim(); state._searchQ=q; go('search',q); } });
+
+(async function boot(){
+  updateCartCount();
+  if(state.token){ try{ const me=await api('/api/auth/me'); if(me.user.role==='customer') state.user=me.user; else { state.token=''; localStorage.removeItem('cust_token'); } }catch{ state.token=''; localStorage.removeItem('cust_token'); } }
+  go('home');
+})();
 </script>
 </body>
 </html>
