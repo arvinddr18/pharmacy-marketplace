@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin Dashboard</title>
+<style>
+  :root{
+    --bg:#F8FAFC; --card:#FFFFFF; --text:#172033; --muted:#64748B;
+    --blue:#2563EB; --blue-light:#EFF6FF; --border:#E5E7EB;
+    --success:#16A34A; --warning:#F59E0B; --error:#DC2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  .hidden{display:none !important}
+  button{font:inherit;cursor:pointer;border:none;border-radius:8px;padding:9px 14px;background:var(--blue);color:#fff;font-weight:600}
+  button.secondary{background:var(--blue-light);color:var(--blue)}
+  button.ghost{background:transparent;color:var(--muted);font-weight:500}
+  button.ok{background:var(--success)} button.warn{background:var(--warning)} button.danger{background:var(--error)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  button.small{padding:6px 10px;font-size:13px}
+  input,select,textarea{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text)}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:20px}
+  .muted{color:var(--muted)}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;text-transform:capitalize}
+  .pill.approved{background:#DCFCE7;color:var(--success)}
+  .pill.pending{background:#FEF3C7;color:#92400E}
+  .pill.suspended{background:#FEE2E2;color:var(--error)}
+  .pill.rejected{background:#F1F5F9;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--border);font-size:14px;vertical-align:middle}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .grow{flex:1}
+  .toast{position:fixed;right:16px;bottom:16px;max-width:360px;padding:12px 16px;border-radius:10px;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.15);font-size:14px;z-index:50}
+  .toast.err{background:var(--error)} .toast.ok{background:var(--success)}
+  .topbar{background:#fff;border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:12px}
+  .brand{font-weight:700;color:var(--blue)}
+  .badge{background:var(--text);color:#fff;font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600}
+  .wrap{max-width:1040px;margin:0 auto;padding:20px}
+  .stat{flex:1;min-width:150px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px}
+  .stat .n{font-size:24px;font-weight:700}
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .login-card{width:100%;max-width:380px}
+  h1{font-size:20px;margin:0}
+  h2{font-size:16px;margin:0 0 4px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:20px 0 8px}
+  .tab{padding:7px 14px;border-radius:999px;background:#fff;border:1px solid var(--border);color:var(--muted);font-size:13px;font-weight:600;cursor:pointer}
+  .tab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:40;padding:20px}
+  .modal{background:#fff;border-radius:14px;max-width:420px;width:100%;padding:22px}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login-wrap">
+  <div class="card login-card">
+    <div class="row" style="gap:8px"><span class="brand" style="font-size:18px">Pharmacy Marketplace</span><span class="badge">ADMIN</span></div>
+    <p class="muted" style="margin:4px 0 16px">Platform admin — sign in</p>
+    <label>Email</label>
+    <input id="email" type="email" value="admin@pharmacy.test" autocomplete="username" />
+    <label>Password</label>
+    <input id="password" type="password" value="Admin@12345" autocomplete="current-password" />
+    <button id="loginBtn" style="width:100%;margin-top:16px">Sign in</button>
+    <p class="muted" style="font-size:12px;margin-top:12px">Admin only. Pharmacy owners use the main dashboard.</p>
+  </div>
+</div>
+
+<div id="appView" class="hidden">
+  <div class="topbar">
+    <span class="brand">Pharmacy Marketplace</span>
+    <span class="badge">ADMIN</span>
+    <span class="grow"></span>
+    <span id="whoami" class="muted"></span>
+    <button class="ghost" id="logoutBtn">Log out</button>
+  </div>
+
+  <div class="wrap">
+    <h1>Platform overview</h1>
+    <div class="row" style="margin:16px 0">
+      <div class="stat"><div class="muted">Total pharmacies</div><div class="n" id="statTotal">0</div></div>
+      <div class="stat"><div class="muted">Pending approval</div><div class="n" id="statPending" style="color:var(--warning)">0</div></div>
+      <div class="stat"><div class="muted">Approved / active</div><div class="n" id="statApproved" style="color:var(--success)">0</div></div>
+      <div class="stat"><div class="muted">Suspended</div><div class="n" id="statSuspended" style="color:var(--error)">0</div></div>
+    </div>
+
+    <div class="row" style="justify-content:space-between;align-items:flex-end">
+      <h2 style="margin-top:8px">Pharmacies</h2>
+      <button class="secondary small" id="refreshBtn">Refresh</button>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-status="">All</div>
+      <div class="tab" data-status="pending">Pending</div>
+      <div class="tab" data-status="approved">Approved</div>
+      <div class="tab" data-status="suspended">Suspended</div>
+      <div class="tab" data-status="rejected">Rejected</div>
+    </div>
+
+    <div class="card" style="padding:8px 12px">
+      <table>
+        <thead><tr><th>Pharmacy</th><th>Owner</th><th>City</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+        <tbody id="rows"><tr><td colspan="5" class="muted" style="padding:16px">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="modal" class="overlay hidden">
+  <div class="modal">
+    <h2 id="modalTitle">Reject pharmacy</h2>
+    <p class="muted" id="modalSub" style="margin:4px 0 12px">Please give a reason.</p>
+    <textarea id="modalReason" rows="3" placeholder="Reason…"></textarea>
+    <div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button class="ghost" id="modalCancel">Cancel</button>
+      <button class="danger" id="modalConfirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let token = localStorage.getItem('admin_token') || '';
+let currentStatus = '';
+let allItems = [];
+
+const $ = (id) => document.getElementById(id);
+function toast(msg, ok=false){
+  const t=document.createElement('div');
+  t.className='toast '+(ok?'ok':'err'); t.textContent=msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(), 3000);
+}
+async function api(path, opts={}){
+  const res = await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',...(token?{'Authorization':'Bearer '+token}:{}),...(opts.headers||{})}});
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data?.error?.message || ('Request failed ('+res.status+')'));
+  return data;
+}
+
+async function login(){
+  try{
+    $('loginBtn').disabled=true;
+    const data=await api('/api/auth/login',{method:'POST',body:JSON.stringify({email:$('email').value.trim(),password:$('password').value})});
+    if(!['admin','super_admin'].includes(data.user.role)){ toast('This account is not an admin'); $('loginBtn').disabled=false; return; }
+    token=data.accessToken; localStorage.setItem('admin_token',token);
+    await showApp();
+  }catch(e){ toast(e.message); } finally{ $('loginBtn').disabled=false; }
+}
+function logout(){ token=''; localStorage.removeItem('admin_token'); $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); }
+
+async function showApp(){
+  $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
+  try{
+    const me=await api('/api/auth/me');
+    if(!['admin','super_admin'].includes(me.user.role)){ toast('Not an admin account'); return logout(); }
+    $('whoami').textContent=me.user.name+' · '+me.user.role;
+  }catch(e){ toast(e.message); return logout(); }
+  await load();
+}
+
+async function load(){
+  try{
+    const data=await api('/api/admin/pharmacies?limit=100');
+    allItems=data.items||[];
+    renderStats(); renderRows();
+  }catch(e){ toast(e.message); }
+}
+function renderStats(){
+  const by=(s)=>allItems.filter(p=>p.status===s).length;
+  $('statTotal').textContent=allItems.length;
+  $('statPending').textContent=by('pending');
+  $('statApproved').textContent=by('approved');
+  $('statSuspended').textContent=by('suspended');
+}
+function renderRows(){
+  const items=currentStatus?allItems.filter(p=>p.status===currentStatus):allItems;
+  const body=$('rows');
+  if(!items.length){ body.innerHTML='<tr><td colspan="5" class="muted" style="padding:16px">No pharmacies in this view.</td></tr>'; return; }
+  body.innerHTML='';
+  for(const p of items){
+    const a=p.address||{};
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><strong>${p.name||'—'}</strong>${p.rejectionReason?`<div class="muted" style="font-size:12px">${p.rejectionReason}</div>`:''}</td>
+      <td>${p.ownerName||'—'}<div class="muted" style="font-size:12px">${p.phone||''}</div></td>
+      <td>${a.city||'—'}</td>
+      <td><span class="pill ${p.status}">${p.status}</span></td>
+      <td><div class="actions"></div></td>`;
+    body.appendChild(tr);
+    renderActions(tr.querySelector('.actions'), p);
+  }
+}
+function renderActions(el, p){
+  const id=p._id, name=p.name;
+  const mk=(label,cls,fn)=>{ const b=document.createElement('button'); b.className='small '+cls; b.textContent=label; b.onclick=fn; el.appendChild(b); };
+  if(p.status==='pending'){
+    mk('Approve','ok',()=>act(id,'approve'));
+    mk('Reject','danger',()=>askReason('reject',id,name));
+  } else if(p.status==='approved'){
+    mk('Suspend','warn',()=>askReason('suspend',id,name));
+  } else if(p.status==='suspended'){
+    mk('Reactivate','ok',()=>act(id,'reactivate'));
+  } else if(p.status==='rejected'){
+    mk('Approve','ok',()=>act(id,'approve'));
+  }
+}
+
+async function act(id, action, body){
+  try{
+    await api(`/api/admin/pharmacies/${id}/${action}`,{method:'POST',body:body?JSON.stringify(body):undefined});
+    toast('Done ('+action+')',true);
+    await load();
+  }catch(e){ toast(e.message); }
+}
+
+let pending={action:null,id:null};
+function askReason(action,id,name){
+  pending={action,id};
+  $('modalTitle').textContent=(action==='reject'?'Reject':'Suspend')+' pharmacy';
+  $('modalSub').textContent=(action==='reject'?'Rejecting':'Suspending')+' "'+name+'". '+(action==='reject'?'A reason is required.':'Reason optional.');
+  $('modalReason').value='';
+  $('modal').classList.remove('hidden');
+  $('modalReason').focus();
+}
+async function confirmModal(){
+  const reason=$('modalReason').value.trim();
+  if(pending.action==='reject' && !reason){ toast('Reason is required to reject'); return; }
+  $('modal').classList.add('hidden');
+  await act(pending.id, pending.action, reason?{reason}:(pending.action==='suspend'?{}:undefined));
+}
+
+$('loginBtn').addEventListener('click',login);
+$('password').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+$('logoutBtn').addEventListener('click',logout);
+$('refreshBtn').addEventListener('click',load);
+$('modalCancel').addEventListener('click',()=>$('modal').classList.add('hidden'));
+$('modalConfirm').addEventListener('click',confirmModal);
+$('tabs').addEventListener('click',(e)=>{
+  const tab=e.target.closest('.tab'); if(!tab) return;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  tab.classList.add('active'); currentStatus=tab.dataset.status; renderRows();
+});
+
+if(token){ showApp().catch(()=>logout()); }
+</script>
+</body>
+</html>
