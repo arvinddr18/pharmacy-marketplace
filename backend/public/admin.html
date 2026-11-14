@@ -28,6 +28,12 @@
   .pill.pending{background:#FEF3C7;color:#92400E}
   .pill.suspended{background:#FEE2E2;color:var(--error)}
   .pill.rejected{background:#F1F5F9;color:var(--muted)}
+  .pill.placed{background:#FEF3C7;color:#92400E}
+  .pill.accepted{background:#DBEAFE;color:#1e40af}
+  .pill.ready{background:#E0E7FF;color:#3730a3}
+  .pill.delivered{background:#DCFCE7;color:var(--success)}
+  .pill.cancelled{background:#FEE2E2;color:var(--error)}
+  .pill.rx{background:#FEF3C7;color:#92400E}
   table{width:100%;border-collapse:collapse;margin-top:8px}
   th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--border);font-size:14px;vertical-align:middle}
   th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
@@ -105,6 +111,24 @@
         <tbody id="rows"><tr><td colspan="5" class="muted" style="padding:16px">Loading…</td></tr></tbody>
       </table>
     </div>
+
+    <div class="row" style="justify-content:space-between;align-items:flex-end;margin-top:28px">
+      <h2 style="margin:0">All orders</h2>
+      <button class="secondary small" id="refreshOrdersBtn">Refresh</button>
+    </div>
+    <div class="tabs" id="orderTabs">
+      <div class="tab active" data-ostatus="">All</div>
+      <div class="tab" data-ostatus="placed">Placed</div>
+      <div class="tab" data-ostatus="accepted">Accepted</div>
+      <div class="tab" data-ostatus="ready">Ready</div>
+      <div class="tab" data-ostatus="delivered">Delivered</div>
+    </div>
+    <div class="card" style="padding:8px 12px">
+      <table>
+        <thead><tr><th>Order</th><th>Pharmacy</th><th>Customer</th><th>Item</th><th>Total</th><th>Status</th><th style="text-align:right">Delivery</th></tr></thead>
+        <tbody id="orderRows"><tr><td colspan="7" class="muted" style="padding:16px">Loading…</td></tr></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -158,8 +182,43 @@ async function showApp(){
     $('whoami').textContent=me.user.name+' · '+me.user.role;
   }catch(e){ toast(e.message); return logout(); }
   await load();
+  await loadOrders();
 }
 
+// ---------- orders (all pharmacies) ----------
+let orderStatus='';
+async function loadOrders(){
+  try{
+    const data=await api('/api/admin/orders'+(orderStatus?('?status='+orderStatus):''));
+    const items=data.items||[];
+    const body=$('orderRows');
+    if(!items.length){ body.innerHTML='<tr><td colspan="7" class="muted" style="padding:16px">No orders in this view.</td></tr>'; return; }
+    body.innerHTML='';
+    for(const o of items){
+      const it=o.items[0]||{}; const cust=o.customer||{}; const ph=o.pharmacy||{};
+      const a=o.deliveryAddress||{};
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td><strong>${o.orderNumber}</strong><div class="muted" style="font-size:12px">${new Date(o.createdAt).toLocaleString()}</div></td>
+        <td>${ph.name||'—'}</td>
+        <td>${cust.name||'Customer'}<div class="muted" style="font-size:12px">${[a.line1,a.pincode].filter(Boolean).join(', ')}</div></td>
+        <td>${it.name||''} × ${it.quantity||1} ${it.prescriptionRequired?'<span class="pill rx">Rx</span>':''}</td>
+        <td>₹${o.total}</td>
+        <td><span class="pill ${o.status}">${o.status}</span></td>
+        <td><div class="dact" style="display:flex;gap:6px;justify-content:flex-end"></div></td>`;
+      body.appendChild(tr);
+      const el=tr.querySelector('.dact');
+      if(o.status==='ready'||o.status==='accepted'){ const b=document.createElement('button'); b.className='small ok'; b.textContent='Mark delivered'; b.onclick=()=>deliverOrder(o._id); el.appendChild(b); }
+      else{ const s=document.createElement('span'); s.className='muted'; s.style.fontSize='12px'; s.textContent=o.status==='delivered'?'Completed':'—'; el.appendChild(s); }
+    }
+  }catch(e){ toast(e.message); }
+}
+async function deliverOrder(id){
+  try{ await api('/api/admin/orders/'+id+'/delivered',{method:'POST'}); toast('Marked delivered',true); await loadOrders(); }
+  catch(e){ toast(e.message); }
+}
+
+// ---------- data ----------
 async function load(){
   try{
     const data=await api('/api/admin/pharmacies?limit=100');
@@ -239,8 +298,14 @@ $('modalCancel').addEventListener('click',()=>$('modal').classList.add('hidden')
 $('modalConfirm').addEventListener('click',confirmModal);
 $('tabs').addEventListener('click',(e)=>{
   const tab=e.target.closest('.tab'); if(!tab) return;
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  $('tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   tab.classList.add('active'); currentStatus=tab.dataset.status; renderRows();
+});
+$('refreshOrdersBtn').addEventListener('click',loadOrders);
+$('orderTabs').addEventListener('click',(e)=>{
+  const tab=e.target.closest('.tab'); if(!tab) return;
+  $('orderTabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  tab.classList.add('active'); orderStatus=tab.dataset.ostatus; loadOrders();
 });
 
 if(token){ showApp().catch(()=>logout()); }
