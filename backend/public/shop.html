@@ -456,7 +456,12 @@ function renderAccount(){
 }
 
 async function afterAuth(d){
-  if(d.user && d.user.role && d.user.role!=='customer'){ toast('This is not a customer account'); return false; }
+  const role=d.user?.role;
+  // Staff accounts: hand the token to their dashboard and route them there (one login for everyone).
+  if(role==='admin'||role==='super_admin'){ localStorage.setItem('admin_token',d.accessToken); toast('Signed in — opening admin…',true); setTimeout(()=>location.href='/admin',500); return true; }
+  if(role==='pharmacy_owner'||role==='pharmacy_staff'){ localStorage.setItem('token',d.accessToken); toast('Signed in — opening your shop dashboard…',true); setTimeout(()=>location.href='/pharmacy',500); return true; }
+  if(role==='rider'){ localStorage.setItem('rider_token',d.accessToken); toast('Signed in — opening deliveries…',true); setTimeout(()=>location.href='/rider',500); return true; }
+  // Customer stays in the shop.
   state.token=d.accessToken; localStorage.setItem('cust_token',state.token);
   try{ const me=await api('/api/auth/me'); state.user=me.user; }catch{ state.user=d.user||null; }
   toast('Welcome'+(state.user?.name?(', '+state.user.name.split(' ')[0]):'')+'!',true);

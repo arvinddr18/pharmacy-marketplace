@@ -36,7 +36,16 @@ export function createApp() {
 
   // Serve the pharmacy dashboard web page from backend/public at "/".
   const here = path.dirname(fileURLToPath(import.meta.url));
-  app.use(express.static(path.join(here, '..', 'public')));
+  const pub = path.join(here, '..', 'public');
+
+  // One public link ("/") opens the customer shop, like flipkart.com.
+  // Staff get clean routes; a smart login sends each person to the right one.
+  app.get('/', (_req, res) => res.sendFile(path.join(pub, 'shop.html')));
+  app.get('/pharmacy', (_req, res) => res.sendFile(path.join(pub, 'index.html')));
+  app.get('/admin', (_req, res) => res.sendFile(path.join(pub, 'admin.html')));
+  app.get('/rider', (_req, res) => res.sendFile(path.join(pub, 'rider.html')));
+
+  app.use(express.static(pub));
 
   app.use('/api/auth', authRoutes);
   app.use('/api/register', registrationRoutes);
