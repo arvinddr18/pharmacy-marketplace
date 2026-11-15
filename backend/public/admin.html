@@ -324,12 +324,17 @@ async function loadCatalogue(){
       tr.innerHTML=`
         <td>${thumb}</td>
         <td><strong>${m.name||''}</strong><div class="muted" style="font-size:12px">${[m.strength,m.packSize].filter(Boolean).join(' · ')}</div></td>
-        <td>${m.prescriptionRequired?'<span class="pill rx">Rx</span>':'<span class="muted">—</span>'}</td>
+        <td>${m.prescriptionRequired?'<span class="pill rx">Rx</span>':'<span class="muted">OTC</span>'} <button class="small secondary" data-rxid="${m._id}" data-val="${m.prescriptionRequired?'0':'1'}">${m.prescriptionRequired?'Make OTC':'Make Rx'}</button></td>
         <td style="text-align:right"><button class="small secondary" data-id="${m._id}">Set image</button></td>`;
       body.appendChild(tr);
     }
     body.querySelectorAll('button[data-id]').forEach(b=>b.addEventListener('click',()=>setCatImage(b.dataset.id)));
+    body.querySelectorAll('button[data-rxid]').forEach(b=>b.addEventListener('click',()=>toggleRx(b.dataset.rxid, b.dataset.val==='1')));
   }catch(e){ toast(e.message); }
+}
+async function toggleRx(id, value){
+  try{ await api('/api/catalogue/'+id,{method:'PATCH',body:JSON.stringify({prescriptionRequired:value})}); toast(value?'Marked as Rx':'Marked as OTC',true); loadCatalogue(); }
+  catch(e){ toast(e.message); }
 }
 async function addCatalogueMed(){
   const name=$('cName').value.trim();

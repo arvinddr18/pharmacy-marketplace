@@ -35,6 +35,9 @@ export const createOrder = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('This pharmacy is not currently active');
   }
 
+  const requiresRx = Boolean(listing.prescriptionRequired || listing.medicine?.prescriptionRequired);
+  if (requiresRx && !presc) throw ApiError.badRequest('A prescription photo is required for this medicine');
+
   const session = await mongoose.startSession();
   try {
     let order;

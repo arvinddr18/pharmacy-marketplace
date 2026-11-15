@@ -61,7 +61,7 @@ export const medicineOffers = asyncHandler(async (req, res) => {
       city: ph.address?.city ?? '',
       mrp: l.mrp,
       sellingPrice: l.sellingPrice,
-      prescriptionRequired: l.prescriptionRequired,
+      prescriptionRequired: Boolean(l.prescriptionRequired || medicine.prescriptionRequired),
       available,
       inStock: available > 0,
     });
