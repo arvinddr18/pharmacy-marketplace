@@ -199,6 +199,9 @@ const API = '';
 let token = localStorage.getItem('admin_token') || '';
 let currentStatus = '';
 let allItems = [];
+let refreshTimer = null;
+function startAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer=setInterval(()=>{ if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) return; loadOrders(); load(); }, 15000); }
+function stopAutoRefresh(){ if(refreshTimer){ clearInterval(refreshTimer); refreshTimer=null; } }
 
 const $ = (id) => document.getElementById(id);
 function toast(msg, ok=false){
@@ -222,7 +225,7 @@ async function login(){
     await showApp();
   }catch(e){ toast(e.message); } finally{ $('loginBtn').disabled=false; }
 }
-function logout(){ token=''; localStorage.removeItem('admin_token'); $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); }
+function logout(){ stopAutoRefresh(); token=''; localStorage.removeItem('admin_token'); $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); }
 
 async function showApp(){
   $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
@@ -235,6 +238,7 @@ async function showApp(){
   await loadRiders();
   await loadOrders();
   await loadCatalogue();
+  startAutoRefresh();
 }
 
 let orderStatus='';

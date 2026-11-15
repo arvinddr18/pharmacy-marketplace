@@ -73,6 +73,9 @@
 <script>
 const $=(id)=>document.getElementById(id);
 let token=localStorage.getItem('rider_token')||'';
+let refreshTimer=null;
+function startAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer=setInterval(()=>{ if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) return; load(); }, 15000); }
+function stopAutoRefresh(){ if(refreshTimer){ clearInterval(refreshTimer); refreshTimer=null; } }
 function toast(m,ok=false){const t=document.createElement('div');t.className='toast '+(ok?'ok':'err');t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3200);}
 async function api(path,opts={}){
   const r=await fetch(path,{...opts,headers:{'Content-Type':'application/json',...(token?{'Authorization':'Bearer '+token}:{}),...(opts.headers||{})}});
@@ -87,13 +90,14 @@ async function login(){
     token=d.accessToken; localStorage.setItem('rider_token',token); await showApp();
   }catch(e){ toast(e.message); } finally{ $('loginBtn').disabled=false; }
 }
-function logout(){ token=''; localStorage.removeItem('rider_token'); $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); }
+function logout(){ stopAutoRefresh(); token=''; localStorage.removeItem('rider_token'); $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); }
 
 async function showApp(){
   $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
   try{ const me=await api('/api/auth/me'); if(me.user.role!=='rider') return logout(); $('whoami').textContent=me.user.name; }
   catch{ return logout(); }
   await load();
+  startAutoRefresh();
 }
 
 async function load(){
