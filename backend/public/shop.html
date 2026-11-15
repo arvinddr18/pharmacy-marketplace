@@ -204,9 +204,10 @@ async function renderHome(){
     <div class="cats" id="cats"></div>
     <h2>Medical shops</h2>
     <div id="shopList" class="grid shops"><p class="muted">Loading shops…</p></div>
-    <h2>Popular medicines</h2>
+    <div class="row" style="justify-content:space-between;align-items:center;margin:22px 0 10px"><h2 style="margin:0">All medicines</h2><span id="seeAllMeds" class="ghost small" style="color:var(--blue);cursor:pointer;font-weight:700">See all →</span></div>
     <div id="popList" class="grid prods"><p class="muted">Loading…</p></div>
   `;
+  $('seeAllMeds').onclick=()=>{ state._searchQ=''; go('search',''); };
   $('heroBtn').onclick=()=>{ const q=$('heroSearch').value.trim(); if(q){ $('globalSearch').value=q; go('search',q); } };
   $('heroSearch').addEventListener('keydown',e=>{ if(e.key==='Enter') $('heroBtn').click(); });
   $('rxBtn').onclick=()=>toast('Prescription upload is coming soon — you can search and order medicines now.',true);
@@ -223,7 +224,7 @@ async function renderHome(){
 
   try{
     const d=await api('/api/discover/medicines');
-    const meds=(d.items||[]).slice(0,8);
+    const meds=(d.items||[]);
     $('popList').innerHTML = meds.length ? '' : '<p class="muted">No medicines listed yet.</p>';
     for(const m of meds) $('popList').appendChild(medCatalogueCard(m));
   }catch(e){ $('popList').innerHTML='<p class="muted">Could not load medicines.</p>'; }

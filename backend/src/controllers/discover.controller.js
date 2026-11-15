@@ -22,7 +22,7 @@ export const searchMedicines = asyncHandler(async (req, res) => {
   } else {
     query = MedicineCatalogue.find(filter).sort({ name: 1 });
   }
-  const items = await query.limit(24);
+  const items = await query.limit(60);
   res.json({ items });
 });
 
