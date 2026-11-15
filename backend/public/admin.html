@@ -7,21 +7,27 @@
 <style>
   :root{
     --bg:#F8FAFC; --card:#FFFFFF; --text:#172033; --muted:#64748B;
-    --blue:#2563EB; --blue-light:#EFF6FF; --border:#E5E7EB;
+    --blue:#0D9488; --blue-dark:#0F766E; --blue-light:#F0FDFA; --border:#E5E7EB;
     --success:#16A34A; --warning:#F59E0B; --error:#DC2626;
+    --shadow:0 1px 2px rgba(16,24,40,.05); --shadow-lg:0 8px 24px rgba(16,24,40,.10);
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
   .hidden{display:none !important}
-  button{font:inherit;cursor:pointer;border:none;border-radius:8px;padding:9px 14px;background:var(--blue);color:#fff;font-weight:600}
+  button{font:inherit;cursor:pointer;border:none;border-radius:10px;padding:9px 14px;background:var(--blue);color:#fff;font-weight:600}
+  button:hover{background:var(--blue-dark)}
   button.secondary{background:var(--blue-light);color:var(--blue)}
+  button.secondary:hover{filter:brightness(.97)}
   button.ghost{background:transparent;color:var(--muted);font-weight:500}
-  button.ok{background:var(--success)} button.warn{background:var(--warning)} button.danger{background:var(--error)}
+  button.ghost:hover{background:var(--blue-light);color:var(--blue)}
+  button.ok{background:var(--success)} button.ok:hover{filter:brightness(.95)}
+  button.warn{background:var(--warning)} button.warn:hover{filter:brightness(.95)}
+  button.danger{background:var(--error)} button.danger:hover{filter:brightness(.95)}
   button:disabled{opacity:.5;cursor:not-allowed}
-  button.small{padding:6px 10px;font-size:13px}
-  input,select,textarea{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text)}
+  button.small{padding:7px 11px;font-size:13px;border-radius:8px}
+  input,select,textarea{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text)}
   label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:20px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:20px}
   .muted{color:var(--muted)}
   .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;text-transform:capitalize}
   .pill.approved{background:#DCFCE7;color:var(--success)}
@@ -41,13 +47,15 @@
   th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
   .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .grow{flex:1}
-  .toast{position:fixed;right:16px;bottom:16px;max-width:360px;padding:12px 16px;border-radius:10px;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.15);font-size:14px;z-index:50}
+  .toast{position:fixed;right:16px;bottom:16px;max-width:360px;padding:12px 16px;border-radius:10px;color:#fff;box-shadow:var(--shadow-lg);font-size:14px;z-index:50}
   .toast.err{background:var(--error)} .toast.ok{background:var(--success)}
-  .topbar{background:#fff;border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:12px}
-  .brand{font-weight:700;color:var(--blue)}
-  .badge{background:var(--text);color:#fff;font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600}
+  .topbar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--border);box-shadow:var(--shadow)}
+  .topbar-in{max-width:1040px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:12px 20px}
+  .brand{font-weight:800;color:var(--blue);font-size:18px;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+  .brand .logo{width:30px;height:30px;border-radius:8px;background:var(--blue);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:16px}
+  .badge{background:var(--text);color:#fff;font-size:11px;padding:2px 8px;border-radius:6px;font-weight:700;letter-spacing:.02em}
   .wrap{max-width:1040px;margin:0 auto;padding:20px}
-  .stat{flex:1;min-width:150px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px}
+  .stat{flex:1;min-width:150px;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:16px}
   .stat .n{font-size:24px;font-weight:700}
   .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
   .login-card{width:100%;max-width:380px}
@@ -63,10 +71,11 @@
 </head>
 <body>
 
+<!-- ================= LOGIN ================= -->
 <div id="loginView" class="login-wrap">
   <div class="card login-card">
-    <div class="row" style="gap:8px"><span class="brand" style="font-size:18px">Pharmacy Marketplace</span><span class="badge">ADMIN</span></div>
-    <p class="muted" style="margin:4px 0 16px">Platform admin — sign in</p>
+    <div class="brand"><span class="logo">+</span> MedMart <span class="badge">ADMIN</span></div>
+    <p class="muted" style="margin:10px 0 16px">Platform admin — sign in</p>
     <label>Email</label>
     <input id="email" type="email" value="admin@pharmacy.test" autocomplete="username" />
     <label>Password</label>
@@ -76,14 +85,14 @@
   </div>
 </div>
 
+<!-- ================= APP ================= -->
 <div id="appView" class="hidden">
-  <div class="topbar">
-    <span class="brand">Pharmacy Marketplace</span>
-    <span class="badge">ADMIN</span>
+  <div class="topbar"><div class="topbar-in">
+    <span class="brand"><span class="logo">+</span> MedMart <span class="badge">ADMIN</span></span>
     <span class="grow"></span>
     <span id="whoami" class="muted"></span>
     <button class="ghost" id="logoutBtn">Log out</button>
-  </div>
+  </div></div>
 
   <div class="wrap">
     <h1>Platform overview</h1>
@@ -145,9 +154,34 @@
       </div>
       <div id="riderList" style="margin-top:12px"></div>
     </div>
+
+    <div class="row" style="justify-content:space-between;align-items:flex-end;margin-top:28px">
+      <h2 style="margin:0">Medicine catalogue</h2>
+      <button class="secondary small" id="refreshCatBtn">Refresh</button>
+    </div>
+    <div class="card">
+      <div class="row" style="align-items:flex-end">
+        <div class="grow"><label>Medicine name *</label><input id="cName" placeholder="e.g. Paracetamol 500 mg" /></div>
+        <div style="width:120px"><label>Strength</label><input id="cStrength" placeholder="500 mg" /></div>
+        <div style="width:140px"><label>Pack size</label><input id="cPack" placeholder="10 tablets" /></div>
+      </div>
+      <div class="row" style="align-items:flex-end;margin-top:8px">
+        <div class="grow"><label>Image URL (photo of the medicine)</label><input id="cImage" placeholder="https://…/medicine.jpg" /></div>
+        <label style="display:flex;align-items:center;gap:6px;width:auto;margin:0 0 10px"><input type="checkbox" id="cRx" style="width:auto" /> Prescription (Rx)</label>
+        <div><button id="addCatBtn">Add medicine</button></div>
+      </div>
+      <p class="muted" style="font-size:12px;margin:8px 0 0">Paste a public image link (ending in .jpg or .png). It shows as the medicine's photo in the customer shop.</p>
+    </div>
+    <div class="card" style="padding:8px 12px;margin-top:12px">
+      <table>
+        <thead><tr><th>Photo</th><th>Medicine</th><th>Rx</th><th style="text-align:right">Image</th></tr></thead>
+        <tbody id="catRows"><tr><td colspan="4" class="muted" style="padding:16px">Loading…</td></tr></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
+<!-- reject reason modal -->
 <div id="modal" class="overlay hidden">
   <div class="modal">
     <h2 id="modalTitle">Reject pharmacy</h2>
@@ -200,9 +234,9 @@ async function showApp(){
   await load();
   await loadRiders();
   await loadOrders();
+  await loadCatalogue();
 }
 
-// ---------- orders (all pharmacies) ----------
 let orderStatus='';
 async function loadOrders(){
   try{
@@ -274,13 +308,53 @@ async function assign(orderId, riderId){
   catch(e){ toast(e.message); }
 }
 
-// ---------- data ----------
+async function loadCatalogue(){
+  try{
+    const d=await api('/api/catalogue?limit=100'); const items=d.items||[];
+    const body=$('catRows');
+    if(!items.length){ body.innerHTML='<tr><td colspan="4" class="muted" style="padding:16px">No medicines yet. Add one above.</td></tr>'; return; }
+    body.innerHTML='';
+    for(const m of items){
+      const tr=document.createElement('tr');
+      const thumb = m.imageUrl ? `<img src="${m.imageUrl}" style="width:40px;height:40px;object-fit:contain;border:1px solid var(--border);border-radius:8px;background:#fff" onerror="this.replaceWith(document.createTextNode('—'))"/>` : '<span class="muted">—</span>';
+      tr.innerHTML=`
+        <td>${thumb}</td>
+        <td><strong>${m.name||''}</strong><div class="muted" style="font-size:12px">${[m.strength,m.packSize].filter(Boolean).join(' · ')}</div></td>
+        <td>${m.prescriptionRequired?'<span class="pill rx">Rx</span>':'<span class="muted">—</span>'}</td>
+        <td style="text-align:right"><button class="small secondary" data-id="${m._id}">Set image</button></td>`;
+      body.appendChild(tr);
+    }
+    body.querySelectorAll('button[data-id]').forEach(b=>b.addEventListener('click',()=>setCatImage(b.dataset.id)));
+  }catch(e){ toast(e.message); }
+}
+async function addCatalogueMed(){
+  const name=$('cName').value.trim();
+  if(!name) return toast('Enter a medicine name');
+  const body={ name, prescriptionRequired:$('cRx').checked };
+  const strength=$('cStrength').value.trim(); if(strength) body.strength=strength;
+  const packSize=$('cPack').value.trim(); if(packSize) body.packSize=packSize;
+  const imageUrl=$('cImage').value.trim(); if(imageUrl) body.imageUrl=imageUrl;
+  try{
+    await api('/api/catalogue',{method:'POST',body:JSON.stringify(body)});
+    toast('Medicine added to catalogue',true);
+    $('cName').value='';$('cStrength').value='';$('cPack').value='';$('cImage').value='';$('cRx').checked=false;
+    loadCatalogue();
+  }catch(e){ toast(e.message); }
+}
+async function setCatImage(id){
+  const url=prompt('Paste the image URL for this medicine (public link ending in .jpg or .png):');
+  if(url===null) return;
+  if(!url.trim()) return toast('Enter an image URL');
+  try{ await api('/api/catalogue/'+id,{method:'PATCH',body:JSON.stringify({imageUrl:url.trim()})}); toast('Image updated',true); loadCatalogue(); }
+  catch(e){ toast(e.message); }
+}
+
 async function load(){
   try{
     const data=await api('/api/admin/pharmacies?limit=100');
     allItems=data.items||[];
     renderStats(); renderRows();
-  }catch(e){ toast(e.message); }
+  }catch(e){ toast(e.message); if(/token|Unauthorized|403/i.test(e.message)) {} }
 }
 function renderStats(){
   const by=(s)=>allItems.filter(p=>p.status===s).length;
@@ -302,7 +376,7 @@ function renderRows(){
       <td>${p.ownerName||'—'}<div class="muted" style="font-size:12px">${p.phone||''}</div></td>
       <td>${a.city||'—'}</td>
       <td><span class="pill ${p.status}">${p.status}</span></td>
-      <td><div class="actions"></div></td>`;
+      <td><div class="actions" data-id="${p._id}" data-name="${(p.name||'').replace(/"/g,'')}" data-status="${p.status}"></div></td>`;
     body.appendChild(tr);
     renderActions(tr.querySelector('.actions'), p);
   }
@@ -359,6 +433,8 @@ $('tabs').addEventListener('click',(e)=>{
 });
 $('refreshOrdersBtn').addEventListener('click',loadOrders);
 $('addRiderBtn').addEventListener('click',addRider);
+$('addCatBtn').addEventListener('click',addCatalogueMed);
+$('refreshCatBtn').addEventListener('click',loadCatalogue);
 $('orderTabs').addEventListener('click',(e)=>{
   const tab=e.target.closest('.tab'); if(!tab) return;
   $('orderTabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));

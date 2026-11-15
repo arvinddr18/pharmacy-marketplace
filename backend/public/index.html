@@ -7,21 +7,26 @@
 <style>
   :root{
     --bg:#F8FAFC; --card:#FFFFFF; --text:#172033; --muted:#64748B;
-    --blue:#2563EB; --blue-light:#EFF6FF; --border:#E5E7EB;
+    --blue:#0D9488; --blue-dark:#0F766E; --blue-light:#F0FDFA; --border:#E5E7EB;
     --success:#16A34A; --warning:#F59E0B; --error:#DC2626;
+    --shadow:0 1px 2px rgba(16,24,40,.05); --shadow-lg:0 8px 24px rgba(16,24,40,.10);
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
   .hidden{display:none !important}
-  button{font:inherit;cursor:pointer;border:none;border-radius:8px;padding:10px 16px;background:var(--blue);color:#fff;font-weight:600}
-  button.secondary{background:var(--blue-light);color:var(--blue)}
+  button{font:inherit;cursor:pointer;border:none;border-radius:10px;padding:10px 16px;background:var(--blue);color:#fff;font-weight:600}
+  button:hover{background:var(--blue-dark)}
+  button.secondary,button.light{background:var(--blue-light);color:var(--blue)}
+  button.secondary:hover,button.light:hover{filter:brightness(.97)}
   button.ghost{background:transparent;color:var(--muted);font-weight:500}
-  button.ok{background:var(--success)} button.danger{background:var(--error)}
-  button.small{padding:6px 10px;font-size:13px}
+  button.ghost:hover{background:var(--blue-light);color:var(--blue)}
+  button.ok{background:var(--success)} button.ok:hover{filter:brightness(.95)}
+  button.danger{background:var(--error)} button.danger:hover{filter:brightness(.95)}
+  button.small{padding:7px 11px;font-size:13px;border-radius:8px}
   button:disabled{opacity:.5;cursor:not-allowed}
-  input,select{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text)}
+  input,select{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text)}
   label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:20px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:20px}
   .muted{color:var(--muted)}
   .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
   .pill.ok{background:#DCFCE7;color:var(--success)}
@@ -29,6 +34,8 @@
   .pill.placed{background:#FEF3C7;color:#92400E}
   .pill.accepted{background:#DBEAFE;color:#1e40af}
   .pill.ready{background:#E0E7FF;color:#3730a3}
+  .pill.assigned{background:#FEF3C7;color:#92400E}
+  .pill.out_for_delivery{background:#DBEAFE;color:#1e40af}
   .pill.delivered{background:#DCFCE7;color:var(--success)}
   .pill.rejected,.pill.cancelled{background:#FEE2E2;color:var(--error)}
   table{width:100%;border-collapse:collapse;margin-top:8px}
@@ -36,14 +43,17 @@
   th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
   .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .grow{flex:1}
-  .toast{position:fixed;right:16px;bottom:16px;max-width:360px;padding:12px 16px;border-radius:10px;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.15);font-size:14px}
+  .toast{position:fixed;right:16px;bottom:16px;max-width:360px;padding:12px 16px;border-radius:10px;color:#fff;box-shadow:var(--shadow-lg);font-size:14px;z-index:60}
   .toast.err{background:var(--error)} .toast.ok{background:var(--success)}
 
   /* layout */
-  .topbar{background:#fff;border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:12px}
-  .brand{font-weight:700;color:var(--blue)}
+  .topbar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--border);box-shadow:var(--shadow)}
+  .topbar-in{max-width:1000px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:12px 20px}
+  .brand{font-weight:800;color:var(--blue);font-size:18px;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+  .brand .logo{width:30px;height:30px;border-radius:8px;background:var(--blue);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:16px}
+  .rolebadge{background:var(--text);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;letter-spacing:.02em}
   .wrap{max-width:1000px;margin:0 auto;padding:20px}
-  .stat{flex:1;min-width:150px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px}
+  .stat{flex:1;min-width:150px;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:16px}
   .stat .n{font-size:24px;font-weight:700}
   .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
   .login-card{width:100%;max-width:380px}
@@ -57,8 +67,8 @@
 <!-- ================= LOGIN ================= -->
 <div id="loginView" class="login-wrap">
   <div class="card login-card">
-    <div class="brand" style="font-size:18px">Pharmacy Marketplace</div>
-    <p class="muted" style="margin:4px 0 16px">Pharmacy dashboard — sign in</p>
+    <div class="brand"><span class="logo">+</span> MedMart <span class="rolebadge">Pharmacy</span></div>
+    <p class="muted" style="margin:10px 0 16px">Pharmacy dashboard — sign in</p>
     <label>Email</label>
     <input id="email" type="email" value="owner.a@pharmacy.test" autocomplete="username" />
     <label>Password</label>
@@ -72,15 +82,14 @@
 
 <!-- ================= DASHBOARD ================= -->
 <div id="appView" class="hidden">
-  <div class="topbar">
-    <span class="brand">Pharmacy Marketplace</span>
+  <div class="topbar"><div class="topbar-in">
+    <span class="brand"><span class="logo">+</span> MedMart <span class="rolebadge">Pharmacy</span></span>
     <span class="grow"></span>
     <span id="whoami" class="muted"></span>
     <button class="ghost" id="logoutBtn">Log out</button>
-  </div>
+  </div></div>
 
   <div class="wrap">
-    <!-- profile + stats -->
     <div class="row" style="margin-bottom:8px">
       <div>
         <h1 id="phName">—</h1>
@@ -96,7 +105,6 @@
       <div class="stat"><div class="muted">Low / out of stock</div><div class="n" id="statLow">0</div></div>
     </div>
 
-    <!-- orders -->
     <div class="sectionhead">
       <h2>Orders</h2>
       <button class="secondary" id="refreshOrdersBtn">Refresh</button>
@@ -108,7 +116,6 @@
       </table>
     </div>
 
-    <!-- add a medicine -->
     <div class="sectionhead">
       <h2>Add a medicine from the catalogue</h2>
     </div>
@@ -130,7 +137,6 @@
       <div id="catResults" style="margin-top:10px"></div>
     </div>
 
-    <!-- listings -->
     <div class="sectionhead">
       <h2>Your medicines</h2>
       <button class="secondary" id="refreshBtn">Refresh</button>
@@ -142,7 +148,6 @@
       </table>
     </div>
 
-    <!-- batches panel -->
     <div id="batchPanel" class="hidden">
       <div class="sectionhead">
         <h2 id="batchTitle">Stock batches</h2>
@@ -166,7 +171,7 @@
 </div>
 
 <script>
-const API = ''; // same origin as this page (served by the backend)
+const API = '';
 let token = localStorage.getItem('token') || '';
 let currentListingId = null;
 
@@ -187,7 +192,6 @@ async function api(path, opts={}){
   return data;
 }
 
-// ---------- auth ----------
 async function login(){
   try{
     $('loginBtn').disabled=true;
@@ -203,7 +207,6 @@ async function showApp(){
   await loadProfile(); await loadListings(); await loadOrders();
 }
 
-// ---------- orders ----------
 async function loadOrders(){
   try{
     const data = await api('/api/pharmacy/orders');
@@ -255,7 +258,6 @@ async function loadProfile(){
   }catch(e){ toast(e.message); if(/token|Unauthorized/i.test(e.message)) logout(); }
 }
 
-// ---------- listings ----------
 async function loadListings(){
   try{
     const data = await api('/api/pharmacy/listings');
@@ -267,7 +269,6 @@ async function loadListings(){
     let totalStock=0, low=0;
     for(const l of items){
       const med = l.medicine||{};
-      // fetch stock for this listing
       let avail=0;
       try{ const b = await api('/api/pharmacy/listings/'+l._id+'/batches'); avail=b.availableTotal||0; }catch{}
       totalStock+=avail; if(avail<=10) low++;
@@ -285,7 +286,6 @@ async function loadListings(){
   }catch(e){ toast(e.message); }
 }
 
-// ---------- catalogue search + add listing ----------
 let searchTimer=null;
 function onSearch(){
   clearTimeout(searchTimer);
@@ -318,7 +318,6 @@ async function addListing(medicineId){
   }catch(e){ toast(e.message); }
 }
 
-// ---------- batches ----------
 async function openBatches(listingId, name){
   currentListingId=listingId;
   $('batchPanel').classList.remove('hidden');
@@ -355,7 +354,6 @@ async function adjust(batchId, delta){
   catch(e){ toast(e.message); }
 }
 
-// ---------- wire up ----------
 $('loginBtn').addEventListener('click',login);
 $('password').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
 $('logoutBtn').addEventListener('click',logout);
@@ -365,7 +363,6 @@ $('catSearch').addEventListener('input',onSearch);
 $('addBatchBtn').addEventListener('click',addBatch);
 $('closeBatch').addEventListener('click',()=>$('batchPanel').classList.add('hidden'));
 
-// auto-login if token present
 if(token){ showApp().catch(()=>logout()); }
 </script>
 </body>

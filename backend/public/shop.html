@@ -7,7 +7,7 @@
 <style>
   :root{
     --bg:#F8FAFC; --card:#FFFFFF; --text:#172033; --muted:#64748B;
-    --blue:#2563EB; --blue-dark:#1D4ED8; --blue-light:#EFF6FF; --border:#E5E7EB;
+    --blue:#0D9488; --blue-dark:#0F766E; --blue-light:#F0FDFA; --border:#E5E7EB;
     --success:#16A34A; --warning:#F59E0B; --error:#DC2626;
     --shadow:0 1px 2px rgba(16,24,40,.05); --shadow-lg:0 8px 24px rgba(16,24,40,.10);
   }
@@ -45,7 +45,7 @@
   .row{display:flex;gap:10px;align-items:center}
   .sp{flex:1}
 
-  .hero{background:linear-gradient(120deg,var(--blue),#60A5FA);color:#fff;border-radius:18px;padding:26px 22px;margin-bottom:8px}
+  .hero{background:linear-gradient(120deg,var(--blue),#2DD4BF);color:#fff;border-radius:18px;padding:26px 22px;margin-bottom:8px}
   .hero h1{color:#fff;font-size:24px} .hero p{margin:6px 0 16px;opacity:.95}
   .hero .herosearch{display:flex;max-width:560px;background:#fff;border-radius:12px;padding:5px;gap:6px}
   .hero .herosearch input{border:none;padding:11px 14px}
@@ -84,6 +84,7 @@
   .empty{text-align:center;color:var(--muted);padding:50px 16px}
   .empty .big{font-size:40px;margin-bottom:8px}
 
+  /* auth + checkout panels */
   .panel{max-width:460px;margin:0 auto}
   .banner{border-radius:12px;padding:12px 14px;font-size:14px;margin:10px 0}
   .banner.info{background:var(--blue-light);color:var(--blue-dark)}
@@ -94,6 +95,13 @@
   .toast.err{background:var(--error)} .toast.ok{background:var(--success)}
 
   .sticky-sum{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--border);padding:12px 0;margin-top:14px}
+  .trust{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--muted);font-weight:600}
+  .promo{display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:14px;padding:14px 16px;margin:16px 0}
+  .promo-ic{width:42px;height:42px;border-radius:10px;background:#10B981;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+  .cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
+  .cat{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 8px;text-align:center;cursor:pointer;font-size:12.5px;font-weight:700;color:var(--text);transition:box-shadow .15s,transform .15s}
+  .cat:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);border-color:var(--blue)}
+  .cat .ce{font-size:26px;margin-bottom:6px}
   @media(max-width:640px){
     .brand span.full{display:none}
     .navbtns button.small{padding:8px 10px}
@@ -131,8 +139,9 @@ function updateCartCount(){ const n=state.cart.reduce((s,i)=>s+i.qty,0); const e
 function toast(m,ok=false){ const t=document.createElement('div'); t.className='toast '+(ok?'ok':'err'); t.textContent=m; document.body.appendChild(t); setTimeout(()=>t.remove(),3200); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function money(n){ return '₹'+Number(n||0).toFixed(0); }
-function colorFor(s){ const c=['#2563EB','#7C3AED','#059669','#DB2777','#D97706','#0891B2','#DC2626','#4F46E5']; let h=0; for(const ch of String(s||'')) h=(h*31+ch.charCodeAt(0))>>>0; return c[h%c.length]; }
+function colorFor(s){ const c=['#0D9488','#0891B2','#059669','#7C3AED','#D97706','#DB2777','#2563EB','#4F46E5']; let h=0; for(const ch of String(s||'')) h=(h*31+ch.charCodeAt(0))>>>0; return c[h%c.length]; }
 function initials(s){ return String(s||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase()||'?'; }
+function thumbHtml(o){ return o && o.imageUrl ? `<div class="thumb" style="background:#fff;border:1px solid var(--border);padding:8px"><img src="${esc(o.imageUrl)}" alt="" style="max-height:100%;max-width:100%;object-fit:contain" onerror="this.parentNode.innerHTML='💊';this.parentNode.style.background='${colorFor(o.name)}';this.parentNode.style.color='#fff'"/></div>` : `<div class="thumb" style="background:${colorFor(o.name)}">💊</div>`; }
 
 async function api(path,opts={}){
   const r=await fetch(path,{...opts,headers:{'Content-Type':'application/json',...(state.token?{'Authorization':'Bearer '+state.token}:{}),...(opts.headers||{})}});
@@ -173,6 +182,9 @@ function backLink(label,onclick){ const d=document.createElement('div'); d.class
 /* ---------------- HOME ---------------- */
 async function renderHome(){
   view.innerHTML=`
+    <div class="trust">
+      <span>🚚 Fast local delivery</span><span>✅ Genuine medicines</span><span>🏥 Licensed pharmacies</span><span>💸 Best local prices</span>
+    </div>
     <div class="hero">
       <h1>Medicines from your local shops</h1>
       <p>Order from trusted pharmacies near you — delivered to your door.</p>
@@ -181,6 +193,15 @@ async function renderHome(){
         <button id="heroBtn">Search</button>
       </div>
     </div>
+    <div class="promo" id="rxPromo">
+      <div class="row" style="gap:12px">
+        <div class="promo-ic">📄</div>
+        <div><div style="font-weight:800">Have a prescription?</div><div class="sub" style="color:#047857">Upload it and we'll get your medicines from a nearby pharmacy.</div></div>
+      </div>
+      <button class="light" id="rxBtn">Upload prescription</button>
+    </div>
+    <h2>Shop by category</h2>
+    <div class="cats" id="cats"></div>
     <h2>Medical shops</h2>
     <div id="shopList" class="grid shops"><p class="muted">Loading shops…</p></div>
     <h2>Popular medicines</h2>
@@ -188,6 +209,10 @@ async function renderHome(){
   `;
   $('heroBtn').onclick=()=>{ const q=$('heroSearch').value.trim(); if(q){ $('globalSearch').value=q; go('search',q); } };
   $('heroSearch').addEventListener('keydown',e=>{ if(e.key==='Enter') $('heroBtn').click(); });
+  $('rxBtn').onclick=()=>toast('Prescription upload is coming soon — you can search and order medicines now.',true);
+  const cats=[['Pain & Fever','paracetamol','🤒'],['Allergy','cetirizine','🤧'],['Antibiotics','amoxicillin','💊'],['Vitamins','vitamin','🟠'],['Diabetes','metformin','🩸'],['Cough & Cold','cough','😷'],['Stomach care','antacid','🌿'],['Skin care','cream','🧴']];
+  const catBox=$('cats');
+  for(const [label,q,emoji] of cats){ const d=document.createElement('div'); d.className='cat'; d.innerHTML=`<div class="ce">${emoji}</div>${label}`; d.onclick=()=>{ $('globalSearch').value=q; state._searchQ=q; go('search',q); }; catBox.appendChild(d); }
 
   try{
     const d=await api('/api/discover/pharmacies');
@@ -226,7 +251,7 @@ function medCatalogueCard(m){
   const c=document.createElement('div'); c.className='card clickable';
   const meta=[m.strength,m.packSize].filter(Boolean).join(' · ');
   c.innerHTML=`
-    <div class="thumb" style="background:${colorFor(m.name)}">💊</div>
+    ${thumbHtml(m)}
     <strong>${esc(m.name)}</strong>
     <div class="sub">${esc(meta||m.brand||'Medicine')}</div>
     ${m.prescriptionRequired?'<span class="pill rx" style="margin-top:8px">Rx</span>':''}
@@ -267,7 +292,7 @@ function productCard(p){
   const meta=[p.strength,p.packSize].filter(Boolean).join(' · ');
   const off=(p.mrp>p.sellingPrice)?Math.round((1-p.sellingPrice/p.mrp)*100):0;
   c.innerHTML=`
-    <div class="thumb" style="background:${colorFor(p.name)}">💊</div>
+    ${thumbHtml(p)}
     <strong>${esc(p.name)}</strong>
     <div class="sub">${esc(meta||p.brand||'')}</div>
     <div style="margin:8px 0">
@@ -310,7 +335,7 @@ async function renderMedicine(id){
     const meta=[m.strength,m.dosageForm,m.packSize].filter(Boolean).join(' · ');
     const head=document.createElement('div'); head.className='card'; head.innerHTML=`
       <div class="row">
-        <div class="avatar" style="background:${colorFor(m.name)}">💊</div>
+        ${thumbHtml(m).replace('thumb','avatar').replace('height:92px','').replace('font-size:30px','font-size:20px')}
         <div><h1>${esc(m.name)}</h1><div class="sub">${esc(meta||m.brand||'')}</div>
         ${m.prescriptionRequired?'<span class="pill rx" style="margin-top:6px">Prescription required</span>':''}</div>
       </div>`;
@@ -447,7 +472,7 @@ function renderAccount(){
     <label>Email</label><input id="loginEmail" type="email" placeholder="you@example.com" />
     <label>Password</label><input id="loginPass" type="password" placeholder="your password" />
     <button id="loginBtn" style="width:100%;margin-top:14px">Sign in</button>
-    <div class="banner info" style="margin-top:14px">Testing the app? Use <strong>Demo customer</strong> to jump straight in — no signup needed.</div>
+    <div class="banner info" style="margin-top:14px">Customers: tap <strong>Demo customer</strong> to jump in — no signup needed. Pharmacy, admin or delivery staff: sign in above and you'll be taken to your own dashboard.</div>
     <button class="light" id="demoBtn" style="width:100%">Continue as demo customer</button>`;
   view.appendChild(c);
   $('loginBtn').onclick=doLogin;
@@ -457,11 +482,9 @@ function renderAccount(){
 
 async function afterAuth(d){
   const role=d.user?.role;
-  // Staff accounts: hand the token to their dashboard and route them there (one login for everyone).
   if(role==='admin'||role==='super_admin'){ localStorage.setItem('admin_token',d.accessToken); toast('Signed in — opening admin…',true); setTimeout(()=>location.href='/admin',500); return true; }
   if(role==='pharmacy_owner'||role==='pharmacy_staff'){ localStorage.setItem('token',d.accessToken); toast('Signed in — opening your shop dashboard…',true); setTimeout(()=>location.href='/pharmacy',500); return true; }
   if(role==='rider'){ localStorage.setItem('rider_token',d.accessToken); toast('Signed in — opening deliveries…',true); setTimeout(()=>location.href='/rider',500); return true; }
-  // Customer stays in the shop.
   state.token=d.accessToken; localStorage.setItem('cust_token',state.token);
   try{ const me=await api('/api/auth/me'); state.user=me.user; }catch{ state.user=d.user||null; }
   toast('Welcome'+(state.user?.name?(', '+state.user.name.split(' ')[0]):'')+'!',true);
