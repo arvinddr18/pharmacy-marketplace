@@ -84,7 +84,6 @@
   .empty{text-align:center;color:var(--muted);padding:50px 16px}
   .empty .big{font-size:40px;margin-bottom:8px}
 
-  /* auth + checkout panels */
   .panel{max-width:460px;margin:0 auto}
   .banner{border-radius:12px;padding:12px 14px;font-size:14px;margin:10px 0}
   .banner.info{background:var(--blue-light);color:var(--blue-dark)}
@@ -102,6 +101,19 @@
   .cat{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 8px;text-align:center;cursor:pointer;font-size:12.5px;font-weight:700;color:var(--text);transition:box-shadow .15s,transform .15s}
   .cat:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);border-color:var(--blue)}
   .cat .ce{font-size:26px;margin-bottom:6px}
+  .track{display:flex;align-items:flex-start;margin-top:12px;overflow-x:auto;padding-bottom:4px}
+  .tstep{display:flex;flex-direction:column;align-items:center;min-width:62px;flex:none}
+  .tdot{width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid var(--border)}
+  .tstep.done .tdot{background:var(--blue);border-color:var(--blue)}
+  .tstep.cur .tdot{background:#fff;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-light)}
+  .tlabel{font-size:11px;color:var(--muted);text-align:center;margin-top:6px;font-weight:600;line-height:1.3}
+  .tstep.done .tlabel{color:var(--text)}
+  .ttime{font-size:10px;color:var(--muted);font-weight:400;margin-top:2px}
+  .tline{height:2px;background:var(--border);flex:1;margin-top:7px;min-width:14px}
+  .tline.done{background:var(--blue)}
+  .live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--success);font-weight:600}
+  .live .ld{width:7px;height:7px;border-radius:50%;background:var(--success);animation:lp 1.4s ease-in-out infinite}
+  @keyframes lp{0%,100%{opacity:.35}50%{opacity:1}}
   @media(max-width:640px){
     .brand span.full{display:none}
     .navbtns button.small{padding:8px 10px}
@@ -168,6 +180,7 @@ function cartTotal(){ return state.cart.reduce((s,i)=>s+i.sellingPrice*i.qty,0);
 
 /* ---------------- navigation ---------------- */
 function go(v,arg){ state.view=v; window.scrollTo(0,0);
+  if(state._pollTimer && v!=='orders'){ clearInterval(state._pollTimer); state._pollTimer=null; }
   if(v==='home') renderHome();
   else if(v==='shop') renderShop(arg);
   else if(v==='search') renderSearch(arg);
@@ -336,7 +349,7 @@ async function renderMedicine(id){
     const meta=[m.strength,m.dosageForm,m.packSize].filter(Boolean).join(' · ');
     const head=document.createElement('div'); head.className='card'; head.innerHTML=`
       <div class="row">
-        ${thumbHtml(m).replace('thumb','avatar').replace('height:92px','').replace('font-size:30px','font-size:20px')}
+        <div class="avatar" style="background:${colorFor(m.name)}">💊</div>
         <div><h1>${esc(m.name)}</h1><div class="sub">${esc(meta||m.brand||'')}</div>
         ${m.prescriptionRequired?'<span class="pill rx" style="margin-top:6px">Prescription required</span>':''}</div>
       </div>`;
@@ -506,30 +519,59 @@ async function doDemoLogin(){
   catch(e){ toast(e.message||'Demo login is disabled'); } finally{ if($('demoBtn')) $('demoBtn').disabled=false; }
 }
 
-/* ---------------- MY ORDERS ---------------- */
+/* ---------------- MY ORDERS (live tracking) ---------------- */
+function trackerHtml(o){
+  if(o.status==='rejected'||o.status==='cancelled'){
+    return `<div class="banner" style="background:#FEE2E2;color:#991B1B;margin-top:10px">${o.status==='rejected'?'This order was rejected by the pharmacy.':'This order was cancelled.'}</div>`;
+  }
+  const steps=[['placed','Placed'],['accepted','Accepted'],['ready','Ready'],['out_for_delivery','On the way'],['delivered','Delivered']];
+  const idx={placed:0,accepted:1,ready:2,assigned:2,out_for_delivery:3,delivered:4};
+  const cur=idx[o.status]??0;
+  const times={}; (o.timeline||[]).forEach(t=>{ times[t.status]=t.at; });
+  let html='<div class="track">';
+  steps.forEach((s,i)=>{
+    const done=i<=cur, isCur=i===cur;
+    const t=times[s[0]]; const when=(t&&done)?new Date(t).toLocaleString([], {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+    html+=`<div class="tstep ${done?'done':''} ${isCur?'cur':''}"><div class="tdot"></div><div class="tlabel">${s[1]}${when?`<div class="ttime">${when}</div>`:''}</div></div>`;
+    if(i<steps.length-1) html+=`<div class="tline ${i<cur?'done':''}"></div>`;
+  });
+  html+='</div>';
+  return html;
+}
+
+function orderCard(o){
+  const it=o.items&&o.items[0]||{};
+  const card=document.createElement('div'); card.className='card'; card.style.marginBottom='10px';
+  const otp=(o.status==='out_for_delivery'&&o.deliveryOtp)?`<div class="banner okb" style="margin-top:10px"><strong>Delivery OTP: ${esc(o.deliveryOtp)}</strong> — give this to the delivery person at your door.</div>`:'';
+  card.innerHTML=`
+    <div class="row"><strong>${esc(o.orderNumber)}</strong><span class="pill ${o.status}">${esc(String(o.status).replace(/_/g,' '))}</span>
+      <span class="sp"></span><span class="price">${money(o.total)}</span></div>
+    <div class="sub" style="margin-top:4px">${esc(it.name||'')} × ${it.quantity||1} · ${esc(o.pharmacy?.name||'')}</div>
+    ${trackerHtml(o)}
+    ${otp}
+    <div class="mtc" style="margin-top:8px"></div>`;
+  if(o.status==='placed'){ const b=document.createElement('button'); b.className='ghost small'; b.textContent='Cancel order'; b.onclick=()=>cancelOrder(o._id); card.querySelector('.mtc').appendChild(b); }
+  return card;
+}
+
+async function loadOrdersList(){
+  const list=$('ordersList'); if(!list) return;
+  try{
+    const d=await api('/api/customer/orders'); const orders=d.items||[];
+    list.innerHTML = orders.length ? '' : '<div class="empty"><div class="big">📦</div>No orders yet.</div>';
+    for(const o of orders) list.appendChild(orderCard(o));
+  }catch(e){ if(!list.children.length) list.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
+}
+
 async function renderOrders(){
   if(!state.token){ state._afterLogin='orders'; go('account'); return; }
   view.innerHTML='';
   view.appendChild(backLink('Back to home',()=>go('home')));
-  const h=document.createElement('h1'); h.textContent='My orders'; view.appendChild(h);
-  const list=document.createElement('div'); list.style.marginTop='12px'; list.innerHTML='<p class="muted">Loading…</p>'; view.appendChild(list);
-  try{
-    const d=await api('/api/customer/orders'); const orders=d.items||[];
-    list.innerHTML = orders.length ? '' : '<div class="empty"><div class="big">📦</div>No orders yet.</div>';
-    for(const o of orders){
-      const it=o.items&&o.items[0]||{};
-      const card=document.createElement('div'); card.className='card'; card.style.marginBottom='10px';
-      const otp=(o.status==='out_for_delivery'&&o.deliveryOtp)?`<div class="banner okb"><strong>Delivery OTP: ${esc(o.deliveryOtp)}</strong> — give this to the delivery person at your door.</div>`:'';
-      card.innerHTML=`
-        <div class="row"><strong>${esc(o.orderNumber)}</strong><span class="pill ${o.status}">${esc(String(o.status).replace(/_/g,' '))}</span>
-          <span class="sp"></span><span class="price">${money(o.total)}</span></div>
-        <div class="sub" style="margin-top:4px">${esc(it.name||'')} × ${it.quantity||1} · ${esc(o.pharmacy?.name||'')}</div>
-        ${otp}
-        <div class="mtc" style="margin-top:8px"></div>`;
-      if(o.status==='placed'){ const b=document.createElement('button'); b.className='ghost small'; b.textContent='Cancel order'; b.onclick=()=>cancelOrder(o._id); card.querySelector('.mtc').appendChild(b); }
-      list.appendChild(card);
-    }
-  }catch(e){ list.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
+  const head=document.createElement('div'); head.className='row'; head.innerHTML='<h1>My orders</h1><span class="sp"></span><span class="live"><span class="ld"></span>Live</span>'; view.appendChild(head);
+  const list=document.createElement('div'); list.id='ordersList'; list.style.marginTop='12px'; list.innerHTML='<p class="muted">Loading…</p>'; view.appendChild(list);
+  await loadOrdersList();
+  if(state._pollTimer) clearInterval(state._pollTimer);
+  state._pollTimer=setInterval(()=>{ if(state.view==='orders') loadOrdersList(); else { clearInterval(state._pollTimer); state._pollTimer=null; } }, 12000);
 }
 async function cancelOrder(id){
   try{ await api('/api/customer/orders/'+id+'/cancel',{method:'POST'}); toast('Order cancelled',true); renderOrders(); }
