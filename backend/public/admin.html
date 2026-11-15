@@ -157,7 +157,7 @@
 
     <div class="row" style="justify-content:space-between;align-items:flex-end;margin-top:28px">
       <h2 style="margin:0">Medicine catalogue</h2>
-      <button class="secondary small" id="refreshCatBtn">Refresh</button>
+      <div class="row" style="gap:8px"><button class="small" id="starterBtn">+ Load starter medicines</button><button class="secondary small" id="refreshCatBtn">Refresh</button></div>
     </div>
     <div class="card">
       <div class="row" style="align-items:flex-end">
@@ -175,7 +175,7 @@
     <div class="card" style="padding:8px 12px;margin-top:12px">
       <table>
         <thead><tr><th>Photo</th><th>Medicine</th><th>Rx</th><th style="text-align:right">Image</th></tr></thead>
-        <tbody id="catRows"><tr><td colspan="4" class="muted" style="padding:16px">Loading…</td></tr></tbody>
+        <tbody id="catRows"><tr><td colspan="4" class="muted" style="padding:16px">Loading…</td></tbody>
       </table>
     </div>
   </div>
@@ -349,6 +349,51 @@ async function setCatImage(id){
   catch(e){ toast(e.message); }
 }
 
+const STARTER_MEDS=[
+  {name:'Paracetamol 500 mg', strength:'500 mg', packSize:'10 tablets', dosageForm:'tablet', prescriptionRequired:false},
+  {name:'Paracetamol 650 mg', strength:'650 mg', packSize:'15 tablets', dosageForm:'tablet', prescriptionRequired:false},
+  {name:'Ibuprofen 400 mg', strength:'400 mg', packSize:'10 tablets', dosageForm:'tablet', prescriptionRequired:false},
+  {name:'Aspirin 75 mg', strength:'75 mg', packSize:'14 tablets', dosageForm:'tablet', prescriptionRequired:false},
+  {name:'Cetirizine 10 mg', strength:'10 mg', packSize:'10 tablets', dosageForm:'tablet', prescriptionRequired:false},
+  {name:'Levocetirizine 5 mg', strength:'5 mg', packSize:'10 tablets', dosageForm:'tablet', prescriptionRequired:false},
+  {name:'Amoxicillin 500 mg', strength:'500 mg', packSize:'10 capsules', dosageForm:'capsule', prescriptionRequired:true},
+  {name:'Azithromycin 500 mg', strength:'500 mg', packSize:'3 tablets', dosageForm:'tablet', prescriptionRequired:true},
+  {name:'Amoxicillin + Clavulanic Acid 625 mg', strength:'625 mg', packSize:'10 tablets', dosageForm:'tablet', prescriptionRequired:true},
+  {name:'Metformin 500 mg', strength:'500 mg', packSize:'15 tablets', dosageForm:'tablet', prescriptionRequired:true},
+  {name:'Glimepiride 2 mg', strength:'2 mg', packSize:'10 tablets', dosageForm:'tablet', prescriptionRequired:true},
+  {name:'Amlodipine 5 mg', strength:'5 mg', packSize:'10 tablets', dosageForm:'tablet', prescriptionRequired:true},
+  {name:'Telmisartan 40 mg', strength:'40 mg', packSize:'10 tablets', dosageForm:'tablet', prescriptionRequired:true},
+  {name:'Atorvastatin 10 mg', strength:'10 mg', packSize:'10 tablets', dosageForm:'tablet', prescriptionRequired:true},
+  {name:'Pantoprazole 40 mg', strength:'40 mg', packSize:'10 tablets', dosageForm:'tablet', prescriptionRequired:true},
+  {name:'Omeprazole 20 mg', strength:'20 mg', packSize:'10 capsules', dosageForm:'capsule', prescriptionRequired:false},
+  {name:'Antacid Suspension 170 ml', packSize:'170 ml', dosageForm:'suspension', prescriptionRequired:false},
+  {name:'Domperidone 10 mg', strength:'10 mg', packSize:'10 tablets', dosageForm:'tablet', prescriptionRequired:true},
+  {name:'Ondansetron 4 mg', strength:'4 mg', packSize:'10 tablets', dosageForm:'tablet', prescriptionRequired:true},
+  {name:'Montelukast 10 mg', strength:'10 mg', packSize:'10 tablets', dosageForm:'tablet', prescriptionRequired:true},
+  {name:'ORS Sachet', packSize:'1 sachet', dosageForm:'sachet', prescriptionRequired:false},
+  {name:'Vitamin C 500 mg', strength:'500 mg', packSize:'15 tablets', dosageForm:'tablet', prescriptionRequired:false},
+  {name:'Vitamin D3 60000 IU', strength:'60000 IU', packSize:'4 sachets', dosageForm:'sachet', prescriptionRequired:false},
+  {name:'Multivitamin Tablets', packSize:'15 tablets', dosageForm:'tablet', prescriptionRequired:false},
+  {name:'Calcium + Vitamin D3', packSize:'15 tablets', dosageForm:'tablet', prescriptionRequired:false},
+  {name:'Cough Syrup 100 ml', packSize:'100 ml', dosageForm:'syrup', prescriptionRequired:false},
+  {name:'Diclofenac Gel 30 g', packSize:'30 g', dosageForm:'gel', prescriptionRequired:false},
+  {name:'Antifungal Cream 15 g', packSize:'15 g', dosageForm:'cream', prescriptionRequired:false}
+];
+async function loadStarter(){
+  if(!confirm('Add '+STARTER_MEDS.length+' common medicines to the catalogue? Duplicates are skipped.')) return;
+  $('starterBtn').disabled=true; const orig=$('starterBtn').textContent; $('starterBtn').textContent='Adding…';
+  let existing=[];
+  try{ const d=await api('/api/catalogue?limit=200'); existing=(d.items||[]).map(m=>(m.name||'').toLowerCase()); }catch{}
+  let added=0, skipped=0;
+  for(const m of STARTER_MEDS){
+    if(existing.includes(m.name.toLowerCase())){ skipped++; continue; }
+    try{ await api('/api/catalogue',{method:'POST',body:JSON.stringify(m)}); added++; }catch(e){}
+  }
+  $('starterBtn').disabled=false; $('starterBtn').textContent=orig;
+  toast('Added '+added+' medicines'+(skipped?(' · '+skipped+' already existed'):''),true);
+  loadCatalogue();
+}
+
 async function load(){
   try{
     const data=await api('/api/admin/pharmacies?limit=100');
@@ -435,6 +480,7 @@ $('refreshOrdersBtn').addEventListener('click',loadOrders);
 $('addRiderBtn').addEventListener('click',addRider);
 $('addCatBtn').addEventListener('click',addCatalogueMed);
 $('refreshCatBtn').addEventListener('click',loadCatalogue);
+$('starterBtn').addEventListener('click',loadStarter);
 $('orderTabs').addEventListener('click',(e)=>{
   const tab=e.target.closest('.tab'); if(!tab) return;
   $('orderTabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
