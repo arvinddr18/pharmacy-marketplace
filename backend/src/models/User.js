@@ -41,6 +41,16 @@ const userSchema = new Schema(
 
     lastLoginAt: { type: Date },
 
+    // Saved delivery addresses for customers (pick one at checkout).
+    addresses: [{
+      label: { type: String, trim: true, maxlength: 40 },
+      line1: { type: String, trim: true, maxlength: 200 },
+      city: { type: String, trim: true, maxlength: 80 },
+      pincode: { type: String, trim: true },
+      phone: { type: String, trim: true },
+      instructions: { type: String, trim: true, maxlength: 200 },
+    }],
+
     // Soft-delete marker.
     deletedAt: { type: Date, default: null },
   },

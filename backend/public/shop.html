@@ -452,7 +452,7 @@ function renderCart(){
 }
 
 /* ---------------- CHECKOUT ---------------- */
-function renderCheckout(){
+async function renderCheckout(){
   view.innerHTML='';
   view.appendChild(backLink('Back to cart',()=>go('cart')));
   const h=document.createElement('h1'); h.textContent='Checkout'; view.appendChild(h);
@@ -464,6 +464,9 @@ function renderCheckout(){
     return;
   }
 
+  let saved=[];
+  try{ const d=await api('/api/customer/addresses'); saved=d.items||[]; }catch{}
+
   const panel=document.createElement('div'); panel.className='panel';
   const groups=new Set(state.cart.map(i=>i.pharmacyName));
   const hasRx=state.cart.some(i=>i.prescriptionRequired);
@@ -474,14 +477,22 @@ function renderCheckout(){
       <input id="rxFile" type="file" accept="image/*" capture="environment" style="padding:9px" />
       <div id="rxPreview" style="margin-top:10px"></div>
     </div>` : '';
-  panel.innerHTML=`
+  const savedHtml = saved.length ? `
     <div class="card">
+      <h2 style="margin-top:0">Saved addresses</h2>
+      <div class="chips" id="savedAddrs">${saved.map(a=>`<span class="chip" data-aid="${a._id}">${esc(a.label||'Address')} · ${esc(a.pincode||'')}</span>`).join('')}</div>
+      <p class="sub" style="margin:8px 0 0">Tap one to fill the form below.</p>
+    </div>` : '';
+  panel.innerHTML=`
+    ${savedHtml}
+    <div class="card" style="margin-top:${saved.length?'12px':'0'}">
       <h2 style="margin-top:0">Delivery address</h2>
       <label>Full address *</label><input id="coLine1" placeholder="House no, street, area" />
       <label>City</label><input id="coCity" value="Tarikere" />
       <label>PIN code *</label><input id="coPin" maxlength="6" placeholder="577228" />
       <label>Phone</label><input id="coPhone" placeholder="10-digit mobile" />
       <label>Delivery note (optional)</label><input id="coNote" placeholder="Landmark, instructions" />
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;color:var(--text)"><input type="checkbox" id="saveAddr" style="width:auto" /> Save this address for next time</label>
     </div>
     ${rxCard}
     <div class="banner info" style="margin-top:12px">Items from ${groups.size} shop${groups.size===1?'':'s'} · Total <strong>${money(cartTotal())}</strong></div>
@@ -490,6 +501,14 @@ function renderCheckout(){
   view.appendChild(panel);
   $('coPin').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
   $('coPhone').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  if(saved.length){
+    $('savedAddrs').querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+      const a=saved.find(x=>String(x._id)===c.dataset.aid); if(!a) return;
+      $('coLine1').value=a.line1||''; $('coCity').value=a.city||'Tarikere'; $('coPin').value=a.pincode||''; $('coPhone').value=a.phone||''; $('coNote').value=a.instructions||'';
+      $('savedAddrs').querySelectorAll('.chip').forEach(x=>x.classList.remove('active')); c.classList.add('active');
+      $('saveAddr').checked=false;
+    }));
+  }
   if(hasRx){
     const showPrev=(data)=>{ $('rxPreview').innerHTML=`<img src="${data}" style="max-width:170px;max-height:170px;border-radius:10px;border:1px solid var(--border);display:block"/><div class="sub" style="color:var(--success);margin-top:6px">✓ Prescription attached — choose again to change</div>`; };
     if(state._prescription) showPrev(state._prescription);
@@ -504,6 +523,7 @@ async function placeOrders(){
   if(!/^\d{6}$/.test(addr.pincode)){ toast('Enter a valid 6-digit PIN code'); return; }
   const hasRx=state.cart.some(i=>i.prescriptionRequired);
   if(hasRx && !state._prescription){ toast('Please upload your prescription for the Rx medicines'); return; }
+  const wantSave = $('saveAddr') && $('saveAddr').checked;
   $('placeBtn').disabled=true; $('placeBtn').textContent='Placing order…';
   const ok=[], fail=[];
   for(const i of state.cart){
@@ -514,7 +534,10 @@ async function placeOrders(){
   }
   // remove successful lines
   state.cart=state.cart.filter(i=>!ok.includes(i)); saveCart();
-  if(fail.length===0){ state._prescription=null; toast('Order placed! 🎉',true); go('orders'); }
+  if(fail.length===0){
+    if(wantSave){ try{ await api('/api/customer/addresses',{method:'POST',body:JSON.stringify({ label:addr.city||'Home', line1:addr.line1, city:addr.city, pincode:addr.pincode, phone:addr.phone, instructions:addr.instructions })}); }catch{} }
+    state._prescription=null; toast('Order placed! 🎉',true); go('orders');
+  }
   else{
     $('placeBtn').disabled=false; $('placeBtn').textContent='Place order · '+money(cartTotal());
     toast(ok.length?`${ok.length} placed, ${fail.length} failed: ${fail[0].msg}`:fail[0].msg);
@@ -537,6 +560,10 @@ function renderAccount(){
     view.appendChild(c);
     $('ordersBtn').onclick=()=>go('orders');
     $('logoutBtn').onclick=()=>{ state.token=''; state.user=null; localStorage.removeItem('cust_token'); toast('Logged out',true); go('home'); };
+    const ac=document.createElement('div'); ac.className='card panel'; ac.style.marginTop='12px';
+    ac.innerHTML='<h2 style="margin-top:0">Saved addresses</h2><div id="addrList"><p class="muted">Loading…</p></div>';
+    view.appendChild(ac);
+    loadAddrList();
     return;
   }
   const c=document.createElement('div'); c.className='card panel'; c.innerHTML=`
@@ -550,6 +577,25 @@ function renderAccount(){
   $('loginBtn').onclick=doLogin;
   $('loginPass').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
   $('demoBtn').onclick=doDemoLogin;
+}
+
+async function loadAddrList(){
+  const box=$('addrList'); if(!box) return;
+  let items=[];
+  try{ const d=await api('/api/customer/addresses'); items=d.items||[]; }
+  catch{ box.innerHTML='<p class="muted">Could not load addresses.</p>'; return; }
+  if(!box) return;
+  if(!items.length){ box.innerHTML='<p class="muted">No saved addresses yet. Tick "Save this address" at checkout to add one.</p>'; return; }
+  box.innerHTML=items.map(a=>`
+    <div class="row" style="justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--border);padding:10px 0">
+      <div><strong>${esc(a.label||'Address')}</strong><div class="sub">${esc(a.line1||'')}${a.city?', '+esc(a.city):''} · ${esc(a.pincode||'')}${a.phone?' · '+esc(a.phone):''}</div></div>
+      <button class="ghost" data-del="${a._id}" style="width:auto;padding:6px 12px">Remove</button>
+    </div>`).join('');
+  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>delAddr(b.dataset.del));
+}
+async function delAddr(id){
+  try{ await api('/api/customer/addresses/'+id,{method:'DELETE'}); toast('Address removed',true); loadAddrList(); }
+  catch(e){ toast(e.message); }
 }
 
 async function afterAuth(d){

@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import { Order, ORDER_STATUS } from '../models/Order.js';
 import { PharmacyMedicineListing } from '../models/PharmacyMedicineListing.js';
 import { InventoryBatch } from '../models/InventoryBatch.js';
+import { Pharmacy } from '../models/Pharmacy.js';
+import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { env } from '../config/env.js';
@@ -12,6 +14,14 @@ function newOrderNumber() {
   return 'ORD-' + crypto.randomBytes(3).toString('hex').toUpperCase();
 }
 
+/**
+ * POST /api/customer/orders  (customer auth)
+ * Places a single-pharmacy order and reserves stock atomically.
+ * Body: { listingId, quantity, deliveryAddress:{line1,city,pincode,phone,instructions?} }
+ *
+ * While FEATURE_LIVE_ORDERS is off, orders are marked isDemo (no real payment
+ * or dispensing). The flow still works end to end for testing.
+ */
 export const createOrder = asyncHandler(async (req, res) => {
   const { listingId, quantity } = req.body;
   const qty = parseInt(quantity, 10);
@@ -23,9 +33,10 @@ export const createOrder = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('A delivery address with a valid 6-digit PIN code is required');
   }
 
+  // Optional prescription photo (base64 data URL). Kept small by client-side compression.
   const presc = typeof req.body.prescriptionImage === 'string' ? req.body.prescriptionImage : '';
   if (presc && !presc.startsWith('data:image/')) throw ApiError.badRequest('Invalid prescription image');
-  if (presc && presc.length > 4000000) throw ApiError.badRequest('Prescription image is too large — please use a smaller photo');
+  if (presc && presc.length > 4_000_000) throw ApiError.badRequest('Prescription image is too large — please use a smaller photo');
 
   const listing = await PharmacyMedicineListing.findOne({ _id: listingId, active: true, deletedAt: null })
     .populate('medicine', 'name prescriptionRequired')
@@ -35,6 +46,8 @@ export const createOrder = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('This pharmacy is not currently active');
   }
 
+  // Server-side rule: a prescription-required medicine can never be ordered
+  // without a prescription photo (enforced here, not just in the app).
   const requiresRx = Boolean(listing.prescriptionRequired || listing.medicine?.prescriptionRequired);
   if (requiresRx && !presc) throw ApiError.badRequest('A prescription photo is required for this medicine');
 
@@ -42,6 +55,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   try {
     let order;
     await session.withTransaction(async () => {
+      // Reserve `qty` units across non-expired batches, earliest expiry first.
       const now = new Date();
       const batches = await InventoryBatch.find({ listing: listing._id, deletedAt: null, expiryDate: { $gt: now } })
         .sort({ expiryDate: 1 })
@@ -106,6 +120,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
 });
 
+/** GET /api/customer/orders — this customer's orders, newest first. */
 export const myOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ customer: req.user._id })
     .select('-prescriptionImage')
@@ -114,12 +129,43 @@ export const myOrders = asyncHandler(async (req, res) => {
   res.json({ items: orders });
 });
 
+/** GET /api/customer/orders/:id — one of this customer's orders. */
 export const getMyOrder = asyncHandler(async (req, res) => {
   const order = await Order.findOne({ _id: req.params.id, customer: req.user._id }).populate('pharmacy', 'name');
   if (!order) throw ApiError.notFound('Order not found');
   res.json({ order });
 });
 
+/** GET /api/customer/addresses — this customer's saved delivery addresses. */
+export const listAddresses = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select('addresses');
+  res.json({ items: user?.addresses || [] });
+});
+
+/** POST /api/customer/addresses — save a new delivery address. */
+export const addAddress = asyncHandler(async (req, res) => {
+  const { label, line1, city, pincode, phone, instructions } = req.body;
+  if (!line1 || !/^\d{6}$/.test(pincode || '')) {
+    throw ApiError.badRequest('An address with a valid 6-digit PIN code is required');
+  }
+  const user = await User.findById(req.user._id);
+  user.addresses.push({
+    label: (label || 'Home').slice(0, 40), line1, city: city || '', pincode,
+    phone: phone || '', instructions: instructions || '',
+  });
+  await user.save();
+  res.status(201).json({ items: user.addresses });
+});
+
+/** DELETE /api/customer/addresses/:id — remove a saved address. */
+export const deleteAddress = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  user.addresses = user.addresses.filter((a) => String(a._id) !== String(req.params.id));
+  await user.save();
+  res.json({ items: user.addresses });
+});
+
+/** POST /api/customer/orders/:id/cancel — customer cancels before pharmacy accepts; releases stock. */
 export const cancelMyOrder = asyncHandler(async (req, res) => {
   const session = await mongoose.startSession();
   try {
@@ -130,6 +176,7 @@ export const cancelMyOrder = asyncHandler(async (req, res) => {
       if (order.status !== ORDER_STATUS.PLACED) {
         throw ApiError.badRequest('Only an order that is still "placed" can be cancelled');
       }
+      // release reserved stock
       for (const r of order.reservations) {
         await InventoryBatch.updateOne({ _id: r.batch }, { $inc: { reserved: -r.quantity } }, { session });
       }
