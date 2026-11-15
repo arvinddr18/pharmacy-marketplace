@@ -154,6 +154,11 @@ function money(n){ return '₹'+Number(n||0).toFixed(0); }
 function colorFor(s){ const c=['#0D9488','#0891B2','#059669','#7C3AED','#D97706','#DB2777','#2563EB','#4F46E5']; let h=0; for(const ch of String(s||'')) h=(h*31+ch.charCodeAt(0))>>>0; return c[h%c.length]; }
 function initials(s){ return String(s||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase()||'?'; }
 function thumbHtml(o){ return o && o.imageUrl ? `<div class="thumb" style="background:#fff;border:1px solid var(--border);padding:8px"><img src="${esc(o.imageUrl)}" alt="" style="max-height:100%;max-width:100%;object-fit:contain" onerror="this.parentNode.innerHTML='💊';this.parentNode.style.background='${colorFor(o.name)}';this.parentNode.style.color='#fff'"/></div>` : `<div class="thumb" style="background:${colorFor(o.name)}">💊</div>`; }
+function compressImage(file, cb){
+  const reader=new FileReader();
+  reader.onload=e=>{ const img=new Image(); img.onload=()=>{ const max=1200; let w=img.width,h=img.height; if(w>max||h>max){ if(w>h){ h=Math.round(h*max/w); w=max; } else { w=Math.round(w*max/h); h=max; } } const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); try{ cb(c.toDataURL('image/jpeg',0.6)); }catch{ cb(null); } }; img.onerror=()=>cb(null); img.src=e.target.result; };
+  reader.onerror=()=>cb(null); reader.readAsDataURL(file);
+}
 
 async function api(path,opts={}){
   const r=await fetch(path,{...opts,headers:{'Content-Type':'application/json',...(state.token?{'Authorization':'Bearer '+state.token}:{}),...(opts.headers||{})}});
@@ -427,6 +432,14 @@ function renderCheckout(){
 
   const panel=document.createElement('div'); panel.className='panel';
   const groups=new Set(state.cart.map(i=>i.pharmacyName));
+  const hasRx=state.cart.some(i=>i.prescriptionRequired);
+  const rxCard = hasRx ? `
+    <div class="card" style="margin-top:12px">
+      <h2 style="margin-top:0">Prescription <span class="pill rx">Required</span></h2>
+      <p class="sub" style="margin:4px 0 10px">Your cart has prescription (Rx) medicines. Upload a clear photo of your doctor's prescription so the pharmacy can verify it before dispensing.</p>
+      <input id="rxFile" type="file" accept="image/*" capture="environment" style="padding:9px" />
+      <div id="rxPreview" style="margin-top:10px"></div>
+    </div>` : '';
   panel.innerHTML=`
     <div class="card">
       <h2 style="margin-top:0">Delivery address</h2>
@@ -436,12 +449,18 @@ function renderCheckout(){
       <label>Phone</label><input id="coPhone" placeholder="10-digit mobile" />
       <label>Delivery note (optional)</label><input id="coNote" placeholder="Landmark, instructions" />
     </div>
+    ${rxCard}
     <div class="banner info" style="margin-top:12px">Items from ${groups.size} shop${groups.size===1?'':'s'} · Total <strong>${money(cartTotal())}</strong></div>
     <button id="placeBtn" style="width:100%">Place order · ${money(cartTotal())}</button>
   `;
   view.appendChild(panel);
   $('coPin').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
   $('coPhone').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  if(hasRx){
+    const showPrev=(data)=>{ $('rxPreview').innerHTML=`<img src="${data}" style="max-width:170px;max-height:170px;border-radius:10px;border:1px solid var(--border);display:block"/><div class="sub" style="color:var(--success);margin-top:6px">✓ Prescription attached — choose again to change</div>`; };
+    if(state._prescription) showPrev(state._prescription);
+    $('rxFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; $('rxPreview').innerHTML='<span class="muted">Processing photo…</span>'; compressImage(f,(data)=>{ if(!data){ $('rxPreview').innerHTML='<span class="muted">Could not read that image — please try another.</span>'; return; } state._prescription=data; showPrev(data); }); });
+  }
   $('placeBtn').onclick=placeOrders;
 }
 
@@ -449,14 +468,19 @@ async function placeOrders(){
   const addr={ line1:$('coLine1').value.trim(), city:$('coCity').value.trim(), pincode:$('coPin').value.trim(), phone:$('coPhone').value.trim(), instructions:$('coNote').value.trim() };
   if(!addr.line1){ toast('Please enter your address'); return; }
   if(!/^\d{6}$/.test(addr.pincode)){ toast('Enter a valid 6-digit PIN code'); return; }
+  const hasRx=state.cart.some(i=>i.prescriptionRequired);
+  if(hasRx && !state._prescription){ toast('Please upload your prescription for the Rx medicines'); return; }
   $('placeBtn').disabled=true; $('placeBtn').textContent='Placing order…';
   const ok=[], fail=[];
   for(const i of state.cart){
-    try{ await api('/api/customer/orders',{method:'POST',body:JSON.stringify({ listingId:i.listingId, quantity:i.qty, deliveryAddress:addr })}); ok.push(i); }
+    const body={ listingId:i.listingId, quantity:i.qty, deliveryAddress:addr };
+    if(i.prescriptionRequired && state._prescription) body.prescriptionImage=state._prescription;
+    try{ await api('/api/customer/orders',{method:'POST',body:JSON.stringify(body)}); ok.push(i); }
     catch(e){ fail.push({ i, msg:e.message }); }
   }
+  // remove successful lines
   state.cart=state.cart.filter(i=>!ok.includes(i)); saveCart();
-  if(fail.length===0){ toast('Order placed! 🎉',true); go('orders'); }
+  if(fail.length===0){ state._prescription=null; toast('Order placed! 🎉',true); go('orders'); }
   else{
     $('placeBtn').disabled=false; $('placeBtn').textContent='Place order · '+money(cartTotal());
     toast(ok.length?`${ok.length} placed, ${fail.length} failed: ${fail[0].msg}`:fail[0].msg);

@@ -25,7 +25,7 @@ export function createApp() {
   // and it lets the served dashboard and future frontends call the API freely.
   app.use(cors({ origin: true, credentials: true }));
 
-  app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({ limit: '5mb' }));
   app.use(morgan(isProd ? 'combined' : 'dev'));
 
   app.use(rateLimit({ windowMs: 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false }));

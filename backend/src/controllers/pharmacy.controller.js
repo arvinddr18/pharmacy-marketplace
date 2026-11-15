@@ -10,10 +10,18 @@ export const listMyPharmacyOrders = asyncHandler(async (req, res) => {
   const filter = { pharmacy: req.pharmacyId };
   if (req.query.status) filter.status = req.query.status;
   const orders = await Order.find(filter)
+    .select('-prescriptionImage')
     .populate('customer', 'name phone')
     .sort({ createdAt: -1 })
     .limit(100);
   res.json({ items: orders });
+});
+
+export const getOrderPrescription = asyncHandler(async (req, res) => {
+  const order = await Order.findOne({ _id: req.params.id, pharmacy: req.pharmacyId })
+    .select('orderNumber prescriptionImage');
+  if (!order) return res.status(404).json({ error: { message: 'Not found' } });
+  res.json({ orderNumber: order.orderNumber, prescriptionImage: order.prescriptionImage || null });
 });
 
 export const getPharmacyByIdScoped = asyncHandler(async (req, res, next) => {

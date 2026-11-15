@@ -12,6 +12,7 @@ import { ROLES } from '../config/constants.js';
 import {
   getMyPharmacy,
   listMyPharmacyOrders,
+  getOrderPrescription,
   getPharmacyByIdScoped,
 } from '../controllers/pharmacy.controller.js';
 import {
@@ -31,6 +32,7 @@ router.use(authenticate, requireRole(ROLES.PHARMACY_OWNER, ROLES.PHARMACY_STAFF)
 
 router.get('/me', getMyPharmacy);
 router.get('/orders', listMyPharmacyOrders);
+router.get('/orders/:id/prescription', getOrderPrescription);
 router.post('/orders/:id/accept', acceptOrder);
 router.post('/orders/:id/ready', markReady);
 router.post('/orders/:id/reject', rejectOrder);

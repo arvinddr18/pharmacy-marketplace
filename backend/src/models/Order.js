@@ -54,6 +54,8 @@ const orderSchema = new Schema(
     },
 
     prescriptionRequired: { type: Boolean, default: false },
+    prescriptionImage: { type: String },
+    hasPrescription: { type: Boolean, default: false },
     status: { type: String, enum: Object.values(ORDER_STATUS), default: ORDER_STATUS.PLACED, index: true },
     rejectionReason: { type: String },
 

@@ -23,6 +23,10 @@ export const createOrder = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('A delivery address with a valid 6-digit PIN code is required');
   }
 
+  const presc = typeof req.body.prescriptionImage === 'string' ? req.body.prescriptionImage : '';
+  if (presc && !presc.startsWith('data:image/')) throw ApiError.badRequest('Invalid prescription image');
+  if (presc && presc.length > 4000000) throw ApiError.badRequest('Prescription image is too large — please use a smaller photo');
+
   const listing = await PharmacyMedicineListing.findOne({ _id: listingId, active: true, deletedAt: null })
     .populate('medicine', 'name prescriptionRequired')
     .populate('pharmacy', 'name status deletedAt');
@@ -80,6 +84,8 @@ export const createOrder = asyncHandler(async (req, res) => {
           phone: addr.phone || req.user.phone || '', instructions: addr.instructions || '',
         },
         prescriptionRequired,
+        prescriptionImage: presc || undefined,
+        hasPrescription: Boolean(presc),
         status: ORDER_STATUS.PLACED,
         isDemo: !env.features.liveOrders,
         timeline: [{ status: ORDER_STATUS.PLACED, at: new Date(), note: 'Order placed' }],
@@ -99,6 +105,7 @@ export const createOrder = asyncHandler(async (req, res) => {
 
 export const myOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ customer: req.user._id })
+    .select('-prescriptionImage')
     .populate('pharmacy', 'name')
     .sort({ createdAt: -1 });
   res.json({ items: orders });
