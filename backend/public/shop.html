@@ -487,6 +487,7 @@ async function renderCheckout(){
     return;
   }
 
+  state._coupon=null;
   let saved=[];
   try{ const d=await api('/api/customer/addresses'); saved=d.items||[]; }catch{}
 
@@ -518,8 +519,13 @@ async function renderCheckout(){
       <label style="display:flex;align-items:center;gap:8px;margin-top:12px;color:var(--text)"><input type="checkbox" id="saveAddr" style="width:auto" /> Save this address for next time</label>
     </div>
     ${rxCard}
-    <div class="banner info" style="margin-top:12px">Items from ${groups.size} shop${groups.size===1?'':'s'} · Total <strong>${money(cartTotal())}</strong></div>
-    <button id="placeBtn" style="width:100%">Place order · ${money(cartTotal())}</button>
+    <div class="card" style="margin-top:12px">
+      <h2 style="margin-top:0">Have a coupon?</h2>
+      <div class="row"><input id="coCoupon" placeholder="Enter code e.g. SAVE10" style="text-transform:uppercase" /><button class="light" id="applyCoupon" style="width:auto">Apply</button></div>
+      <div id="couponMsg" class="sub" style="margin-top:8px"></div>
+    </div>
+    <div class="banner info" style="margin-top:12px" id="orderSummary"></div>
+    <button id="placeBtn" style="width:100%">Place order</button>
   `;
   view.appendChild(panel);
   $('coPin').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
@@ -542,6 +548,26 @@ async function renderCheckout(){
     if(state._prescription) showPrev(state._prescription);
     $('rxFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; $('rxPreview').innerHTML='<span class="muted">Processing photo…</span>'; compressImage(f,(data)=>{ if(!data){ $('rxPreview').innerHTML='<span class="muted">Could not read that image — please try another.</span>'; return; } state._prescription=data; showPrev(data); }); });
   }
+  const sub=cartTotal();
+  function updateSummary(){
+    const disc=state._coupon?state._coupon.discount:0;
+    const tot=Math.max(0,sub-disc);
+    $('orderSummary').innerHTML = `Items total: <strong>${money(sub)}</strong>`+(disc?` · Coupon ${esc(state._coupon.code)}: <strong style="color:var(--success)">− ${money(disc)}</strong>`:'')+` · To pay: <strong>${money(tot)}</strong>`;
+    $('placeBtn').textContent='Place order · '+money(tot);
+  }
+  updateSummary();
+  $('coCoupon').addEventListener('input',e=>e.target.value=e.target.value.toUpperCase());
+  $('applyCoupon').onclick=async()=>{
+    const code=$('coCoupon').value.trim();
+    if(!code){ state._coupon=null; $('couponMsg').textContent=''; updateSummary(); return; }
+    $('couponMsg').textContent='Checking…';
+    try{
+      const d=await api('/api/customer/coupons/validate',{method:'POST',body:JSON.stringify({code,cartSubtotal:sub})});
+      state._coupon={ code:d.code, discount:d.discount, percent:d.percent };
+      $('couponMsg').innerHTML=`<span style="color:var(--success)">✓ ${d.percent}% off applied — you save ${money(d.discount)}</span>`;
+      updateSummary();
+    }catch(e){ state._coupon=null; $('couponMsg').innerHTML=`<span style="color:var(--error)">${esc(e.message)}</span>`; updateSummary(); }
+  };
   $('placeBtn').onclick=placeOrders;
 }
 
@@ -552,10 +578,12 @@ async function placeOrders(){
   const hasRx=state.cart.some(i=>i.prescriptionRequired);
   if(hasRx && !state._prescription){ toast('Please upload your prescription for the Rx medicines'); return; }
   const wantSave = $('saveAddr') && $('saveAddr').checked;
+  const sub=cartTotal();
   $('placeBtn').disabled=true; $('placeBtn').textContent='Placing order…';
   const ok=[], fail=[];
   for(const i of state.cart){
     const body={ listingId:i.listingId, quantity:i.qty, deliveryAddress:addr };
+    if(state._coupon){ body.couponCode=state._coupon.code; body.cartSubtotal=sub; }
     if(i.prescriptionRequired && state._prescription) body.prescriptionImage=state._prescription;
     try{ await api('/api/customer/orders',{method:'POST',body:JSON.stringify(body)}); ok.push(i); }
     catch(e){ fail.push({ i, msg:e.message }); }
@@ -564,7 +592,7 @@ async function placeOrders(){
   state.cart=state.cart.filter(i=>!ok.includes(i)); saveCart();
   if(fail.length===0){
     if(wantSave){ try{ await api('/api/customer/addresses',{method:'POST',body:JSON.stringify({ label:addr.city||'Home', line1:addr.line1, city:addr.city, pincode:addr.pincode, phone:addr.phone, instructions:addr.instructions })}); }catch{} }
-    state._prescription=null; toast('Order placed! 🎉',true); go('orders');
+    state._prescription=null; state._coupon=null; toast('Order placed! 🎉',true); go('orders');
   }
   else{
     $('placeBtn').disabled=false; $('placeBtn').textContent='Place order · '+money(cartTotal());
@@ -679,6 +707,7 @@ function orderCard(o){
     <div class="row"><strong>${esc(o.orderNumber)}</strong><span class="pill ${o.status}">${esc(String(o.status).replace(/_/g,' '))}</span>
       <span class="sp"></span><span class="price">${money(o.total)}</span></div>
     <div class="sub" style="margin-top:4px">${esc(it.name||'')} × ${it.quantity||1} · ${esc(o.pharmacy?.name||'')}</div>
+    ${o.discount>0?`<div class="sub" style="color:var(--success)">Coupon ${esc(o.couponCode||'')}: − ${money(o.discount)} off</div>`:''}
     ${trackerHtml(o)}
     ${otp}
     <div class="mtc" style="margin-top:8px"></div>`;
