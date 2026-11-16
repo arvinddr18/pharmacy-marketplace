@@ -142,6 +142,17 @@
     </div>
 
     <div class="row" style="justify-content:space-between;align-items:flex-end;margin-top:28px">
+      <h2 style="margin:0">Prescription orders</h2>
+      <button class="secondary small" id="refreshRxBtn">Refresh</button>
+    </div>
+    <div class="card" style="padding:8px 12px">
+      <table>
+        <thead><tr><th>Order</th><th>Customer</th><th>Rx</th><th>Status</th><th style="text-align:right">Send to pharmacy</th></tr></thead>
+        <tbody id="rxRows"><tr><td colspan="5" class="muted" style="padding:16px">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="row" style="justify-content:space-between;align-items:flex-end;margin-top:28px">
       <h2 style="margin:0">Delivery riders</h2>
     </div>
     <div class="card">
@@ -225,7 +236,7 @@ let token = localStorage.getItem('admin_token') || '';
 let currentStatus = '';
 let allItems = [];
 let refreshTimer = null;
-function startAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer=setInterval(()=>{ if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) return; loadOrders(); load(); }, 15000); }
+function startAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer=setInterval(()=>{ if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) return; loadOrders(); load(); loadPrescriptions(); }, 15000); }
 function stopAutoRefresh(){ if(refreshTimer){ clearInterval(refreshTimer); refreshTimer=null; } }
 
 const $ = (id) => document.getElementById(id);
@@ -264,6 +275,7 @@ async function showApp(){
   await loadOrders();
   await loadCatalogue();
   await loadCoupons();
+  await loadPrescriptions();
   startAutoRefresh();
 }
 
@@ -382,6 +394,51 @@ async function setCatImage(id){
   if(!url.trim()) return toast('Enter an image URL');
   try{ await api('/api/catalogue/'+id,{method:'PATCH',body:JSON.stringify({imageUrl:url.trim()})}); toast('Image updated',true); loadCatalogue(); }
   catch(e){ toast(e.message); }
+}
+
+// ---------- prescription orders ----------
+async function loadPrescriptions(){
+  try{
+    const d=await api('/api/admin/orders'); const items=(d.items||[]).filter(o=>o.kind==='prescription');
+    const body=$('rxRows');
+    if(!items.length){ body.innerHTML='<tr><td colspan="5" class="muted" style="padding:16px">No prescription orders yet.</td></tr>'; return; }
+    const approved=(allItems||[]).filter(p=>p.status==='approved');
+    body.innerHTML='';
+    for(const o of items){
+      const cust=o.customer||{};
+      const addr=(o.deliveryAddress&&o.deliveryAddress.line1)||'';
+      const assignCell = o.pharmacy
+        ? `<span class="muted">${o.pharmacy.name||'Assigned'}</span>`
+        : `<select class="rxsel" style="padding:6px;border:1px solid var(--border);border-radius:8px"><option value="">Choose pharmacy…</option>${approved.map(p=>`<option value="${p._id}">${p.name}</option>`).join('')}</select> <button class="small ok rxassign">Send</button>`;
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td><strong>${o.orderNumber}</strong><div class="muted" style="font-size:12px">${new Date(o.createdAt).toLocaleString()}</div></td>
+        <td>${cust.name||'Customer'}<div class="muted" style="font-size:12px">${addr}</div>${o.prescriptionNote?`<div class="muted" style="font-size:12px">“${o.prescriptionNote}”</div>`:''}</td>
+        <td><button class="small secondary rxview">View Rx</button></td>
+        <td><span class="pill ${o.status}">${o.status}</span>${o.total>0?` · ₹${o.total}`:''}</td>
+        <td style="text-align:right">${assignCell}</td>`;
+      body.appendChild(tr);
+      tr.querySelector('.rxview').onclick=()=>viewPrescriptionAdmin(o._id);
+      const assignBtn=tr.querySelector('.rxassign');
+      if(assignBtn) assignBtn.onclick=()=>assignPharmacy(o._id, tr.querySelector('.rxsel').value);
+    }
+  }catch(e){ $('rxRows').innerHTML='<tr><td colspan="5" class="muted" style="padding:16px">'+e.message+'</td></tr>'; }
+}
+async function assignPharmacy(orderId, pharmacyId){
+  if(!pharmacyId){ toast('Choose a pharmacy first'); return; }
+  try{ await api('/api/admin/orders/'+orderId+'/assign-pharmacy',{method:'POST',body:JSON.stringify({pharmacyId})}); toast('Sent to pharmacy',true); loadPrescriptions(); loadOrders(); }
+  catch(e){ toast(e.message); }
+}
+async function viewPrescriptionAdmin(id){
+  try{
+    const d=await api('/api/admin/orders/'+id+'/prescription');
+    if(!d.prescriptionImage){ toast('No prescription image found'); return; }
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.82);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;cursor:zoom-out';
+    ov.onclick=()=>ov.remove();
+    ov.innerHTML='<div style="text-align:center"><img src="'+d.prescriptionImage+'" style="max-width:92vw;max-height:82vh;border-radius:12px;background:#fff"/><div style="color:#fff;margin-top:10px;font-size:13px">Prescription for '+d.orderNumber+' — click anywhere to close</div></div>';
+    document.body.appendChild(ov);
+  }catch(e){ toast(e.message); }
 }
 
 // ---------- discount coupons ----------
@@ -563,6 +620,7 @@ $('refreshCatBtn').addEventListener('click',loadCatalogue);
 $('starterBtn').addEventListener('click',loadStarter);
 $('addCouponBtn').addEventListener('click',addCoupon);
 $('refreshCouponBtn').addEventListener('click',loadCoupons);
+$('refreshRxBtn').addEventListener('click',loadPrescriptions);
 $('orderTabs').addEventListener('click',(e)=>{
   const tab=e.target.closest('.tab'); if(!tab) return;
   $('orderTabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
