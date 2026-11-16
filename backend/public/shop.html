@@ -604,35 +604,90 @@ async function placeOrders(){
 /* ---------------- ACCOUNT / AUTH ---------------- */
 function renderAccount(){
   view.innerHTML='';
-  const h=document.createElement('h1'); h.textContent='Account'; view.appendChild(h);
+  const h=document.createElement('h1'); h.textContent=(state.token&&state.user)?'My account':'Account'; view.appendChild(h);
+
   if(state.token && state.user){
+    const u=state.user;
     const c=document.createElement('div'); c.className='card panel'; c.innerHTML=`
-      <div class="row"><div class="avatar" style="background:${colorFor(state.user.name)}">${esc(initials(state.user.name))}</div>
-      <div><strong>${esc(state.user.name)}</strong><div class="sub">${esc(state.user.email||state.user.phone||'')}</div></div></div>
-      <div style="margin-top:14px" class="row">
-        <button class="light" id="ordersBtn">My orders</button>
-        <button class="ghost" id="logoutBtn">Log out</button>
-      </div>`;
+      <div class="row"><div class="avatar" style="width:56px;height:56px;font-size:22px;background:${colorFor(u.name)}">${esc(initials(u.name))}</div>
+      <div class="sp"><strong style="font-size:18px">${esc(u.name)}</strong><div class="sub">${esc(u.email||'')}</div>${u.phone?`<div class="sub">📱 ${esc(u.phone)}</div>`:''}</div></div>
+      <div style="margin-top:14px" class="row"><button class="ghost" id="logoutBtn">Log out</button></div>`;
     view.appendChild(c);
-    $('ordersBtn').onclick=()=>go('orders');
     $('logoutBtn').onclick=()=>{ state.token=''; state.user=null; localStorage.removeItem('cust_token'); toast('Logged out',true); go('home'); };
+
+    const oc=document.createElement('div'); oc.className='card panel'; oc.style.marginTop='12px';
+    oc.innerHTML=`<div class="row"><h2 style="margin:0">Your orders</h2><span class="sp"></span><span class="ghost small" id="allOrdersLink" style="color:var(--blue);cursor:pointer;font-weight:700">View all →</span></div><div id="acctOrders" style="margin-top:8px"><p class="muted">Loading…</p></div>`;
+    view.appendChild(oc);
+    $('allOrdersLink').onclick=()=>go('orders');
+    loadAccountOrders();
+
     const ac=document.createElement('div'); ac.className='card panel'; ac.style.marginTop='12px';
     ac.innerHTML='<h2 style="margin-top:0">Saved addresses</h2><div id="addrList"><p class="muted">Loading…</p></div>';
     view.appendChild(ac);
     loadAddrList();
     return;
   }
-  const c=document.createElement('div'); c.className='card panel'; c.innerHTML=`
-    <h2 style="margin-top:0">Sign in</h2>
-    <label>Email</label><input id="loginEmail" type="email" placeholder="you@example.com" />
-    <label>Password</label><input id="loginPass" type="password" placeholder="your password" />
-    <button id="loginBtn" style="width:100%;margin-top:14px">Sign in</button>
-    <div class="banner info" style="margin-top:14px">Customers: tap <strong>Demo customer</strong> to jump in — no signup needed. Pharmacy, admin or delivery staff: sign in above and you'll be taken to your own dashboard.</div>
-    <button class="light" id="demoBtn" style="width:100%">Continue as demo customer</button>`;
+
+  // Logged out: sign in / create account.
+  const c=document.createElement('div'); c.className='card panel';
+  c.innerHTML=`
+    <div class="chips" style="margin-bottom:14px">
+      <span class="chip active" id="tabSignin">Sign in</span>
+      <span class="chip" id="tabSignup">Create account</span>
+    </div>
+    <div id="signinBox">
+      <label>Email</label><input id="loginEmail" type="email" placeholder="you@example.com" />
+      <label>Password</label><input id="loginPass" type="password" placeholder="your password" />
+      <button id="loginBtn" style="width:100%;margin-top:14px">Sign in</button>
+    </div>
+    <div id="signupBox" class="hidden">
+      <label>Full name</label><input id="suName" placeholder="Your name" />
+      <label>Email</label><input id="suEmail" type="email" placeholder="you@example.com" />
+      <label>Mobile (optional)</label><input id="suPhone" maxlength="10" placeholder="10-digit mobile" />
+      <label>Password</label><input id="suPass" type="password" placeholder="at least 6 characters" />
+      <button id="signupBtn" style="width:100%;margin-top:14px">Create account</button>
+    </div>
+    <div class="banner info" style="margin-top:14px">New here? Tap <strong>Create account</strong>. Pharmacy, admin or delivery staff: sign in and you'll be taken to your own dashboard.</div>
+    <div style="text-align:center;margin-top:8px"><span class="ghost small" id="demoLink" style="color:var(--muted);cursor:pointer">or just look around as a demo customer</span></div>`;
   view.appendChild(c);
+  const showTab=(signup)=>{
+    $('tabSignin').classList.toggle('active',!signup); $('tabSignup').classList.toggle('active',signup);
+    $('signinBox').classList.toggle('hidden',signup); $('signupBox').classList.toggle('hidden',!signup);
+  };
+  $('tabSignin').onclick=()=>showTab(false);
+  $('tabSignup').onclick=()=>showTab(true);
   $('loginBtn').onclick=doLogin;
   $('loginPass').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
-  $('demoBtn').onclick=doDemoLogin;
+  $('suPhone').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  $('signupBtn').onclick=doSignup;
+  $('suPass').addEventListener('keydown',e=>{ if(e.key==='Enter') doSignup(); });
+  $('demoLink').onclick=doDemoLogin;
+}
+
+async function loadAccountOrders(){
+  const box=$('acctOrders'); if(!box) return;
+  try{
+    const d=await api('/api/customer/orders'); const orders=d.items||[];
+    if(!box) return;
+    if(!orders.length){ box.innerHTML='<p class="muted">No orders yet. Start shopping to see them here.</p>'; return; }
+    box.innerHTML=orders.slice(0,5).map(o=>{
+      const it=o.items&&o.items[0]||{};
+      return `<div class="row" style="border-top:1px solid var(--border);padding:10px 0;align-items:flex-start;cursor:pointer" data-oview="1">
+        <div class="sp"><strong>${esc(o.orderNumber)}</strong> <span class="pill ${o.status}">${esc(String(o.status).replace(/_/g,' '))}</span><div class="sub">${esc(it.name||'')} × ${it.quantity||1} · ${esc(o.pharmacy?.name||'')}</div></div>
+        <div class="price">${money(o.total)}</div></div>`;
+    }).join('');
+    box.querySelectorAll('[data-oview]').forEach(r=>r.onclick=()=>go('orders'));
+  }catch(e){ box.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
+}
+
+async function doSignup(){
+  const name=$('suName').value.trim(), email=$('suEmail').value.trim(), phone=$('suPhone').value.trim(), password=$('suPass').value;
+  if(name.length<2){ toast('Please enter your name'); return; }
+  if(!email){ toast('Enter your email'); return; }
+  if(password.length<6){ toast('Password must be at least 6 characters'); return; }
+  $('signupBtn').disabled=true;
+  try{ const d=await api('/api/auth/register',{method:'POST',body:JSON.stringify({name,email,phone,password})}); await afterAuth(d); }
+  catch(e){ toast(e.message); } finally{ if($('signupBtn')) $('signupBtn').disabled=false; }
 }
 
 async function loadAddrList(){
