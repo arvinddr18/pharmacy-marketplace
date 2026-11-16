@@ -175,7 +175,32 @@
     <div class="card" style="padding:8px 12px;margin-top:12px">
       <table>
         <thead><tr><th>Photo</th><th>Medicine</th><th>Rx</th><th style="text-align:right">Image</th></tr></thead>
-        <tbody id="catRows"><tr><td colspan="4" class="muted" style="padding:16px">Loading…</td></tbody>
+        <tbody id="catRows"><tr><td colspan="4" class="muted" style="padding:16px">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="row" style="justify-content:space-between;align-items:flex-end;margin-top:28px">
+      <h2 style="margin:0">Discount coupons</h2>
+      <button class="secondary small" id="refreshCouponBtn">Refresh</button>
+    </div>
+    <div class="card">
+      <div class="row" style="align-items:flex-end">
+        <div style="width:150px"><label>Code *</label><input id="kCode" placeholder="SAVE10" style="text-transform:uppercase" /></div>
+        <div style="width:110px"><label>% off *</label><input id="kPercent" type="number" min="1" max="90" placeholder="10" /></div>
+        <div style="width:140px"><label>Min order ₹</label><input id="kMin" type="number" min="0" placeholder="0" /></div>
+        <div style="width:160px"><label>Max off ₹ (0 = none)</label><input id="kMax" type="number" min="0" placeholder="0" /></div>
+        <div><button id="addCouponBtn">Add coupon</button></div>
+      </div>
+      <div class="row" style="align-items:flex-end;margin-top:8px">
+        <div class="grow"><label>Description (optional)</label><input id="kDesc" placeholder="e.g. 10% off on all medicines" /></div>
+        <div style="width:170px"><label>Expires on (optional)</label><input id="kExpiry" type="date" /></div>
+      </div>
+      <p class="muted" style="font-size:12px;margin:8px 0 0">Coupons are percentage-based. Customers type the code at checkout to get the discount.</p>
+    </div>
+    <div class="card" style="padding:8px 12px;margin-top:12px">
+      <table>
+        <thead><tr><th>Code</th><th>Off</th><th>Min / Max</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+        <tbody id="couponRows"><tr><td colspan="5" class="muted" style="padding:16px">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -238,6 +263,7 @@ async function showApp(){
   await loadRiders();
   await loadOrders();
   await loadCatalogue();
+  await loadCoupons();
   startAutoRefresh();
 }
 
@@ -355,6 +381,51 @@ async function setCatImage(id){
   if(url===null) return;
   if(!url.trim()) return toast('Enter an image URL');
   try{ await api('/api/catalogue/'+id,{method:'PATCH',body:JSON.stringify({imageUrl:url.trim()})}); toast('Image updated',true); loadCatalogue(); }
+  catch(e){ toast(e.message); }
+}
+
+// ---------- discount coupons ----------
+async function loadCoupons(){
+  try{
+    const d=await api('/api/admin/coupons'); const items=d.items||[];
+    const body=$('couponRows');
+    if(!items.length){ body.innerHTML='<tr><td colspan="5" class="muted" style="padding:16px">No coupons yet. Add one above.</td></tr>'; return; }
+    body.innerHTML='';
+    for(const c of items){
+      const exp=c.expiresAt?new Date(c.expiresAt).toLocaleDateString():'';
+      const expired=c.expiresAt && new Date(c.expiresAt).getTime()<Date.now();
+      const status=!c.active?'<span class="muted">Off</span>':expired?'<span style="color:#DC2626">Expired</span>':'<span style="color:#16A34A">Active</span>';
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td><strong>${c.code}</strong>${c.description?`<div class="muted" style="font-size:12px">${c.description}</div>`:''}</td>
+        <td>${c.percent}% off</td>
+        <td>min ₹${c.minOrder||0}${c.maxDiscount?` · max ₹${c.maxDiscount}`:''}${exp?`<div class="muted" style="font-size:12px">till ${exp}</div>`:''}</td>
+        <td>${status}</td>
+        <td style="text-align:right"><button class="small secondary" data-ctoggle="${c._id}">${c.active?'Turn off':'Turn on'}</button> <button class="small danger" data-cdel="${c._id}">Delete</button></td>`;
+      body.appendChild(tr);
+    }
+    body.querySelectorAll('button[data-ctoggle]').forEach(b=>b.addEventListener('click',()=>toggleCoupon(b.dataset.ctoggle)));
+    body.querySelectorAll('button[data-cdel]').forEach(b=>b.addEventListener('click',()=>deleteCoupon(b.dataset.cdel)));
+  }catch(e){ $('couponRows').innerHTML='<tr><td colspan="5" class="muted" style="padding:16px">'+e.message+'</td></tr>'; }
+}
+async function addCoupon(){
+  const body={ code:$('kCode').value.trim(), percent:$('kPercent').value, minOrder:$('kMin').value||0, maxDiscount:$('kMax').value||0, description:$('kDesc').value.trim(), expiresAt:$('kExpiry').value||undefined };
+  if(!body.code){ toast('Enter a coupon code'); return; }
+  if(!body.percent){ toast('Enter the % off'); return; }
+  try{
+    await api('/api/admin/coupons',{method:'POST',body:JSON.stringify(body)});
+    toast('Coupon created',true);
+    $('kCode').value='';$('kPercent').value='';$('kMin').value='';$('kMax').value='';$('kDesc').value='';$('kExpiry').value='';
+    loadCoupons();
+  }catch(e){ toast(e.message); }
+}
+async function toggleCoupon(id){
+  try{ await api('/api/admin/coupons/'+id+'/toggle',{method:'POST'}); loadCoupons(); }
+  catch(e){ toast(e.message); }
+}
+async function deleteCoupon(id){
+  if(!confirm('Delete this coupon?')) return;
+  try{ await api('/api/admin/coupons/'+id,{method:'DELETE'}); toast('Coupon deleted',true); loadCoupons(); }
   catch(e){ toast(e.message); }
 }
 
@@ -490,6 +561,8 @@ $('addRiderBtn').addEventListener('click',addRider);
 $('addCatBtn').addEventListener('click',addCatalogueMed);
 $('refreshCatBtn').addEventListener('click',loadCatalogue);
 $('starterBtn').addEventListener('click',loadStarter);
+$('addCouponBtn').addEventListener('click',addCoupon);
+$('refreshCouponBtn').addEventListener('click',loadCoupons);
 $('orderTabs').addEventListener('click',(e)=>{
   const tab=e.target.closest('.tab'); if(!tab) return;
   $('orderTabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
