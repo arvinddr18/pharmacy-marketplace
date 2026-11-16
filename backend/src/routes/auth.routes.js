@@ -7,6 +7,7 @@ import {
   refreshHandler,
   meHandler,
   demoLoginHandler,
+  registerCustomerHandler,
 } from '../controllers/auth.controller.js';
 import {
   validateBody,
@@ -23,6 +24,7 @@ const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeade
 
 router.post('/otp/request', authLimiter, validateBody(requestOtpSchema), requestOtpHandler);
 router.post('/otp/verify', authLimiter, validateBody(verifyOtpSchema), verifyOtpHandler);
+router.post('/register', authLimiter, registerCustomerHandler);
 router.post('/login', authLimiter, validateBody(dashboardLoginSchema), dashboardLoginHandler);
 router.post('/refresh', validateBody(refreshSchema), refreshHandler);
 router.post('/demo-login', authLimiter, demoLoginHandler);

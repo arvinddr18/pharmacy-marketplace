@@ -19,6 +19,41 @@ export const demoLoginHandler = asyncHandler(async (req, res) => {
   res.json({ user: user.toSafeJSON(), accessToken: signAccessToken(user), refreshToken: signRefreshToken(user) });
 });
 
+/**
+ * POST /api/auth/register — customer self-signup with email + password.
+ * Creates a CUSTOMER account and signs them in. (Pharmacy/admin/rider
+ * accounts are created through their own flows, never here.)
+ */
+export const registerCustomerHandler = asyncHandler(async (req, res) => {
+  const name = String(req.body.name || '').trim();
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const phone = String(req.body.phone || '').trim();
+  const password = String(req.body.password || '');
+
+  if (name.length < 2) throw ApiError.badRequest('Please enter your name');
+  if (!/^\S+@\S+\.\S+$/.test(email)) throw ApiError.badRequest('Enter a valid email');
+  if (password.length < 6) throw ApiError.badRequest('Password must be at least 6 characters');
+  if (phone && !/^[6-9]\d{9}$/.test(phone)) throw ApiError.badRequest('Enter a valid 10-digit mobile number');
+
+  const emailTaken = await User.findOne({ email });
+  if (emailTaken) throw ApiError.badRequest('An account with this email already exists — please sign in instead');
+  if (phone) {
+    const phoneTaken = await User.findOne({ phone });
+    if (phoneTaken) throw ApiError.badRequest('An account with this phone already exists — please sign in instead');
+  }
+
+  const user = new User({ name, email, phone: phone || undefined, role: ROLES.CUSTOMER });
+  await user.setPassword(password);
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  res.status(201).json({
+    user: user.toSafeJSON(),
+    accessToken: signAccessToken(user),
+    refreshToken: signRefreshToken(user),
+  });
+});
+
 /** POST /api/auth/otp/request — customer/rider OTP login step 1. */
 export const requestOtpHandler = asyncHandler(async (req, res) => {
   const { phone } = req.body;
