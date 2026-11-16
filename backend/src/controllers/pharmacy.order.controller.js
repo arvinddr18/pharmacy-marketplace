@@ -15,8 +15,26 @@ async function scopedOrder(req, session) {
 export const acceptOrder = asyncHandler(async (req, res) => {
   const order = await scopedOrder(req);
   if (order.status !== ORDER_STATUS.PLACED) throw ApiError.badRequest('Only a placed order can be accepted');
+    if (order.kind === 'prescription' && !(order.total > 0)) {
+    throw ApiError.badRequest('Set the amount for this prescription before accepting it');
+  }
   order.status = ORDER_STATUS.ACCEPTED;
   order.timeline.push({ status: ORDER_STATUS.ACCEPTED, at: new Date(), note: 'Accepted by pharmacy' });
+  await order.save();
+  res.json({ order });
+});
+
+export const setOrderAmount = asyncHandler(async (req, res) => {
+  const order = await scopedOrder(req);
+  if (order.kind !== 'prescription') throw ApiError.badRequest('Amount can only be set on prescription orders');
+  if (![ORDER_STATUS.PLACED, ORDER_STATUS.ACCEPTED].includes(order.status)) {
+    throw ApiError.badRequest('The amount can no longer be changed for this order');
+  }
+  const total = Math.round(Number(req.body.total));
+  if (!Number.isFinite(total) || total < 0) throw ApiError.badRequest('Enter a valid amount');
+  order.itemsTotal = total;
+  order.total = total;
+  order.timeline.push({ status: order.status, at: new Date(), note: `Amount set to ₹${total} by pharmacy` });
   await order.save();
   res.json({ order });
 });

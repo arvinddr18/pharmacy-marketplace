@@ -211,6 +211,7 @@ function go(v,arg){ state.view=v; window.scrollTo(0,0);
   else if(v==='checkout') renderCheckout();
   else if(v==='account') renderAccount();
   else if(v==='orders') renderOrders();
+  else if(v==='prescription') renderPrescription();
 }
 function backLink(label,onclick){ const d=document.createElement('div'); d.className='back'; d.innerHTML='← '+esc(label); d.onclick=onclick; return d; }
 
@@ -245,7 +246,7 @@ async function renderHome(){
   $('seeAllMeds').onclick=()=>{ state._searchQ=''; go('search',''); };
   $('heroBtn').onclick=()=>{ const q=$('heroSearch').value.trim(); if(q){ $('globalSearch').value=q; go('search',q); } };
   $('heroSearch').addEventListener('keydown',e=>{ if(e.key==='Enter') $('heroBtn').click(); });
-  $('rxBtn').onclick=()=>toast('Prescription upload is coming soon — you can search and order medicines now.',true);
+  $('rxBtn').onclick=()=>go('prescription');
   const cats=[['Pain & Fever','paracetamol','🤒'],['Allergy','cetirizine','🤧'],['Antibiotics','amoxicillin','💊'],['Vitamins','vitamin','🟠'],['Diabetes','metformin','🩸'],['Cough & Cold','cough','😷'],['Stomach care','antacid','🌿'],['Skin care','cream','🧴']];
   const catBox=$('cats');
   for(const [label,q,emoji] of cats){ const d=document.createElement('div'); d.className='cat'; d.innerHTML=`<div class="ce">${emoji}</div>${label}`; d.onclick=()=>{ $('globalSearch').value=q; state._searchQ=q; go('search',q); }; catBox.appendChild(d); }
@@ -475,7 +476,75 @@ function renderCart(){
 }
 
 /* ---------------- CHECKOUT ---------------- */
-async function renderCheckout(){
+async function renderPrescription(){
+  view.innerHTML='';
+  view.appendChild(backLink('Back to home',()=>go('home')));
+  const h=document.createElement('h1'); h.textContent='Order with prescription'; view.appendChild(h);
+
+  if(!state.token || !state.user){
+    const p=document.createElement('div'); p.className='banner info'; p.innerHTML='Please sign in to upload a prescription and place your order.'; view.appendChild(p);
+    const b=document.createElement('button'); b.textContent='Sign in'; b.onclick=()=>{ state._afterLogin='prescription'; go('account'); }; view.appendChild(b);
+    return;
+  }
+
+  state._rxPhoto=null;
+  let saved=[];
+  try{ const d=await api('/api/customer/addresses'); saved=d.items||[]; }catch{}
+
+  const panel=document.createElement('div'); panel.className='panel';
+  const savedHtml = saved.length ? `
+    <div class="card" style="margin-top:12px">
+      <h2 style="margin-top:0">Saved addresses</h2>
+      <div class="chips" id="savedAddrs">${saved.map(a=>`<span class="chip" data-aid="${a._id}">${esc(a.label||'Address')} · ${esc(a.pincode||'')}</span>`).join('')}</div>
+      <p class="sub" style="margin:8px 0 0">Tap one to fill the form below.</p>
+    </div>` : '';
+  panel.innerHTML=`
+    <div class="card">
+      <h2 style="margin-top:0">Upload prescription <span class="pill rx">Required</span></h2>
+      <p class="sub" style="margin:4px 0 10px">Upload a clear photo of your doctor's prescription. A nearby pharmacy will check it, confirm the price, and deliver your medicines — you don't need to pick a shop.</p>
+      <input id="rxFile" type="file" accept="image/*" capture="environment" style="padding:9px" />
+      <div id="rxPreview" style="margin-top:10px"></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h2 style="margin-top:0">What do you need? <span class="sub" style="font-weight:400">(optional)</span></h2>
+      <textarea id="rxNote" placeholder="e.g. the 3 tablets in the prescription, or any instructions" style="width:100%;min-height:60px;padding:10px;border:1px solid var(--border);border-radius:10px;font:inherit"></textarea>
+    </div>
+    ${savedHtml}
+    <div class="card" style="margin-top:12px">
+      <h2 style="margin-top:0">Delivery address</h2>
+      <label>Full address *</label><input id="coLine1" placeholder="House no, street, area" />
+      <label>City</label><input id="coCity" value="Tarikere" />
+      <label>PIN code *</label><input id="coPin" maxlength="6" placeholder="577228" />
+      <label>Phone</label><input id="coPhone" placeholder="10-digit mobile" />
+      <label>Delivery note (optional)</label><input id="coNote" placeholder="Landmark, instructions" />
+    </div>
+    <div class="banner info" style="margin-top:12px">The pharmacy confirms the amount after checking your prescription — you pay on delivery.</div>
+    <button id="rxPlaceBtn" style="width:100%">Place prescription order</button>
+  `;
+  view.appendChild(panel);
+  $('coPin').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  $('coPhone').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  if(saved.length){
+    const fill=(a,chip)=>{ $('coLine1').value=a.line1||''; $('coCity').value=a.city||'Tarikere'; $('coPin').value=a.pincode||''; $('coPhone').value=a.phone||''; $('coNote').value=a.instructions||''; $('savedAddrs').querySelectorAll('.chip').forEach(x=>x.classList.remove('active')); if(chip) chip.classList.add('active'); };
+    $('savedAddrs').querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{ const a=saved.find(x=>String(x._id)===c.dataset.aid); if(a) fill(a,c); }));
+    fill(saved[saved.length-1], $('savedAddrs').querySelector('.chip:last-child'));
+  }
+  const showPrev=(data)=>{ $('rxPreview').innerHTML=`<img src="${data}" style="max-width:170px;max-height:170px;border-radius:10px;border:1px solid var(--border);display:block"/><div class="sub" style="color:var(--success);margin-top:6px">✓ Prescription attached — choose again to change</div>`; };
+  $('rxFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; $('rxPreview').innerHTML='<span class="muted">Processing photo…</span>'; compressImage(f,(data)=>{ if(!data){ $('rxPreview').innerHTML='<span class="muted">Could not read that image — please try another.</span>'; return; } state._rxPhoto=data; showPrev(data); }); });
+  $('rxPlaceBtn').onclick=doPlacePrescription;
+}
+async function doPlacePrescription(){
+  if(!state._rxPhoto){ toast('Please upload your prescription photo'); return; }
+  const addr={ line1:$('coLine1').value.trim(), city:$('coCity').value.trim(), pincode:$('coPin').value.trim(), phone:$('coPhone').value.trim(), instructions:$('coNote').value.trim() };
+  if(!addr.line1){ toast('Please enter your address'); return; }
+  if(!/^\d{6}$/.test(addr.pincode)){ toast('Enter a valid 6-digit PIN code'); return; }
+  const note=$('rxNote').value.trim();
+  const btn=$('rxPlaceBtn'); btn.disabled=true; btn.textContent='Placing order…';
+  try{
+    await api('/api/customer/prescription-orders',{method:'POST',body:JSON.stringify({ deliveryAddress:addr, prescriptionImage:state._rxPhoto, note })});
+    state._rxPhoto=null; toast('Prescription order placed! 🎉',true); go('orders');
+  }catch(e){ toast(e.message); btn.disabled=false; btn.textContent='Place prescription order'; }
+}
   view.innerHTML='';
   view.appendChild(backLink('Back to cart',()=>go('cart')));
   const h=document.createElement('h1'); h.textContent='Checkout'; view.appendChild(h);
@@ -674,9 +743,12 @@ async function loadAccountOrders(){
     if(!orders.length){ box.innerHTML='<p class="muted">No orders yet. Start shopping to see them here.</p>'; return; }
     box.innerHTML=orders.slice(0,5).map(o=>{
       const it=o.items&&o.items[0]||{};
+      const isRx=o.kind==='prescription';
+      const detail=isRx?`📄 Prescription order${o.pharmacy?.name?' · '+esc(o.pharmacy.name):''}`:`${esc(it.name||'')} × ${it.quantity||1} · ${esc(o.pharmacy?.name||'')}`;
+      const priceHtml=(isRx && !(o.total>0))?'<span class="sub">Pending</span>':`<span class="price">${money(o.total)}</span>`;
       return `<div class="row" style="border-top:1px solid var(--border);padding:10px 0;align-items:flex-start;cursor:pointer" data-oview="1">
-        <div class="sp"><strong>${esc(o.orderNumber)}</strong> <span class="pill ${o.status}">${esc(String(o.status).replace(/_/g,' '))}</span><div class="sub">${esc(it.name||'')} × ${it.quantity||1} · ${esc(o.pharmacy?.name||'')}</div></div>
-        <div class="price">${money(o.total)}</div></div>`;
+        <div class="sp"><strong>${esc(o.orderNumber)}</strong> <span class="pill ${o.status}">${esc(String(o.status).replace(/_/g,' '))}</span><div class="sub">${detail}</div></div>
+        ${priceHtml}</div>`;
     }).join('');
     box.querySelectorAll('[data-oview]').forEach(r=>r.onclick=()=>go('orders'));
   }catch(e){ box.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
@@ -824,10 +896,15 @@ function orderCard(o){
   const it=o.items&&o.items[0]||{};
   const card=document.createElement('div'); card.className='card'; card.style.marginBottom='10px';
   const otp=(o.status==='out_for_delivery'&&o.deliveryOtp)?`<div class="banner okb" style="margin-top:10px"><strong>Delivery OTP: ${esc(o.deliveryOtp)}</strong> — give this to the delivery person at your door.</div>`:'';
+  const isRx=o.kind==='prescription';
+  const priceHtml = (isRx && !(o.total>0)) ? '<span class="sub">Amount pending</span>' : `<span class="price">${money(o.total)}</span>`;
+  const detail = isRx
+    ? `📄 Prescription order${o.pharmacy?.name?' · '+esc(o.pharmacy.name):' · finding a nearby pharmacy'}${o.prescriptionNote?`<div class="sub">“${esc(o.prescriptionNote)}”</div>`:''}`
+    : `${esc(it.name||'')} × ${it.quantity||1} · ${esc(o.pharmacy?.name||'')}`;
   card.innerHTML=`
     <div class="row"><strong>${esc(o.orderNumber)}</strong><span class="pill ${o.status}">${esc(String(o.status).replace(/_/g,' '))}</span>
-      <span class="sp"></span><span class="price">${money(o.total)}</span></div>
-    <div class="sub" style="margin-top:4px">${esc(it.name||'')} × ${it.quantity||1} · ${esc(o.pharmacy?.name||'')}</div>
+      <span class="sp"></span>${priceHtml}</div>
+    <div class="sub" style="margin-top:4px">${detail}</div>
     ${o.discount>0?`<div class="sub" style="color:var(--success)">Coupon ${esc(o.couponCode||'')}: − ${money(o.discount)} off</div>`:''}
     ${trackerHtml(o)}
     ${otp}

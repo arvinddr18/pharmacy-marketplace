@@ -40,9 +40,15 @@ const orderSchema = new Schema(
   {
     orderNumber: { type: String, unique: true, index: true },
     customer: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    pharmacy: { type: Schema.Types.ObjectId, ref: 'Pharmacy', required: true, index: true },
+    // Optional: a prescription order has no pharmacy until the admin assigns one.
+    pharmacy: { type: Schema.Types.ObjectId, ref: 'Pharmacy', index: true },
 
-    items: { type: [itemSchema], required: true },
+    // 'standard' = normal cart order; 'prescription' = customer uploaded an Rx,
+    // no items/pharmacy chosen — the admin routes it to a pharmacy that prices it.
+    kind: { type: String, enum: ['standard', 'prescription'], default: 'standard', index: true },
+    prescriptionNote: { type: String, trim: true, maxlength: 500 },
+
+    items: { type: [itemSchema], default: [] },
     reservations: { type: [reservationSchema], default: [] },
 
     itemsTotal: { type: Number, required: true, min: 0 },

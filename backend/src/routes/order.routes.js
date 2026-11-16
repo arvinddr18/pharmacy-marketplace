@@ -4,6 +4,7 @@ import { ROLES } from '../config/constants.js';
 import {
   createOrder, myOrders, getMyOrder, cancelMyOrder,
   listAddresses, addAddress, deleteAddress, addReview, validateCoupon,
+  createPrescriptionOrder,
 } from '../controllers/order.controller.js';
 
 const router = Router();
@@ -12,6 +13,7 @@ const router = Router();
 router.use(authenticate, requireRole(ROLES.CUSTOMER));
 
 router.post('/orders', createOrder);
+router.post('/prescription-orders', createPrescriptionOrder);
 router.get('/orders', myOrders);
 router.get('/orders/:id', getMyOrder);
 router.post('/orders/:id/cancel', cancelMyOrder);

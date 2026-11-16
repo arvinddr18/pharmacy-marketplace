@@ -143,6 +143,51 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
 });
 
+/**
+ * POST /api/customer/prescription-orders  (customer auth)
+ * Customer uploads a prescription photo + delivery address (no shop chosen).
+ * Created unassigned; the admin routes it to a pharmacy which sets the price.
+ */
+export const createPrescriptionOrder = asyncHandler(async (req, res) => {
+  const addr = req.body.deliveryAddress || {};
+  if (!addr.line1 || !/^\d{6}$/.test(addr.pincode || '')) {
+    throw ApiError.badRequest('A delivery address with a valid 6-digit PIN code is required');
+  }
+  const presc = typeof req.body.prescriptionImage === 'string' ? req.body.prescriptionImage : '';
+  if (!presc) throw ApiError.badRequest('Please upload a photo of your prescription');
+  if (!presc.startsWith('data:image/')) throw ApiError.badRequest('Invalid prescription image');
+  if (presc.length > 4_000_000) throw ApiError.badRequest('Prescription image is too large — please use a smaller photo');
+  const note = typeof req.body.note === 'string' ? req.body.note.trim().slice(0, 500) : '';
+
+  try {
+    const order = await Order.create({
+      orderNumber: newOrderNumber(),
+      customer: req.user._id,
+      kind: 'prescription',
+      items: [],
+      reservations: [],
+      itemsTotal: 0,
+      deliveryFee: 0,
+      total: 0,
+      deliveryAddress: {
+        line1: addr.line1, city: addr.city || '', pincode: addr.pincode,
+        phone: addr.phone || req.user.phone || '', instructions: addr.instructions || '',
+      },
+      prescriptionRequired: true,
+      prescriptionImage: presc,
+      hasPrescription: true,
+      prescriptionNote: note,
+      status: ORDER_STATUS.PLACED,
+      isDemo: !env.features.liveOrders,
+      timeline: [{ status: ORDER_STATUS.PLACED, at: new Date(), note: 'Prescription uploaded' }],
+    });
+    res.status(201).json({ order: { _id: order._id, orderNumber: order.orderNumber } });
+  } catch (err) {
+    if (err.code === 11000) throw ApiError.conflict('Could not place order, please retry');
+    throw err;
+  }
+});
+
 /** GET /api/customer/orders — this customer's orders, newest first. */
 export const myOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ customer: req.user._id })

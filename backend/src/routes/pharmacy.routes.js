@@ -24,7 +24,7 @@ import {
   createBatch,
   adjustBatch,
 } from '../controllers/inventory.controller.js';
-import { acceptOrder, markReady, rejectOrder } from '../controllers/pharmacy.order.controller.js';
+import { acceptOrder, markReady, rejectOrder, setOrderAmount } from '../controllers/pharmacy.order.controller.js';
 
 const router = Router();
 
@@ -34,6 +34,7 @@ router.get('/me', getMyPharmacy);
 router.get('/orders', listMyPharmacyOrders);
 router.get('/orders/:id/prescription', getOrderPrescription);
 router.post('/orders/:id/accept', acceptOrder);
+router.post('/orders/:id/amount', setOrderAmount);
 router.post('/orders/:id/ready', markReady);
 router.post('/orders/:id/reject', rejectOrder);
 
