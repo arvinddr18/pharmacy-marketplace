@@ -502,12 +502,17 @@ async function renderCheckout(){
   $('coPin').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
   $('coPhone').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
   if(saved.length){
-    $('savedAddrs').querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
-      const a=saved.find(x=>String(x._id)===c.dataset.aid); if(!a) return;
+    const fillAddr=(a,chip)=>{
       $('coLine1').value=a.line1||''; $('coCity').value=a.city||'Tarikere'; $('coPin').value=a.pincode||''; $('coPhone').value=a.phone||''; $('coNote').value=a.instructions||'';
-      $('savedAddrs').querySelectorAll('.chip').forEach(x=>x.classList.remove('active')); c.classList.add('active');
+      $('savedAddrs').querySelectorAll('.chip').forEach(x=>x.classList.remove('active')); if(chip) chip.classList.add('active');
       $('saveAddr').checked=false;
+    };
+    $('savedAddrs').querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+      const a=saved.find(x=>String(x._id)===c.dataset.aid); if(a) fillAddr(a,c);
     }));
+    // Auto-pick the most recent saved address so the form is ready immediately.
+    const lastChip=$('savedAddrs').querySelector('.chip:last-child');
+    fillAddr(saved[saved.length-1], lastChip);
   }
   if(hasRx){
     const showPrev=(data)=>{ $('rxPreview').innerHTML=`<img src="${data}" style="max-width:170px;max-height:170px;border-radius:10px;border:1px solid var(--border);display:block"/><div class="sub" style="color:var(--success);margin-top:6px">✓ Prescription attached — choose again to change</div>`; };
