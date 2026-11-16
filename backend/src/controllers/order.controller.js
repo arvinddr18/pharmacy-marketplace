@@ -5,6 +5,7 @@ import { PharmacyMedicineListing } from '../models/PharmacyMedicineListing.js';
 import { InventoryBatch } from '../models/InventoryBatch.js';
 import { Pharmacy } from '../models/Pharmacy.js';
 import { User } from '../models/User.js';
+import { Review } from '../models/Review.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { env } from '../config/env.js';
@@ -125,8 +126,45 @@ export const myOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ customer: req.user._id })
     .select('-prescriptionImage')
     .populate('pharmacy', 'name')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
+  // Attach this customer's own rating for each order (so the app shows
+  // "Rate this order" or the stars they already gave).
+  const reviews = await Review.find({ customer: req.user._id }).select('order rating').lean();
+  const byOrder = {};
+  for (const rv of reviews) byOrder[String(rv.order)] = rv.rating;
+  for (const o of orders) o.myRating = byOrder[String(o._id)] || 0;
   res.json({ items: orders });
+});
+
+/**
+ * POST /api/customer/orders/:id/review  (customer auth)
+ * Rate a delivered order 1–5 with an optional comment. One review per order.
+ */
+export const addReview = asyncHandler(async (req, res) => {
+  const rating = parseInt(req.body.rating, 10);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    throw ApiError.badRequest('Please give a rating between 1 and 5 stars');
+  }
+  const comment = typeof req.body.comment === 'string' ? req.body.comment.trim().slice(0, 500) : '';
+
+  const order = await Order.findOne({ _id: req.params.id, customer: req.user._id });
+  if (!order) throw ApiError.notFound('Order not found');
+  if (order.status !== ORDER_STATUS.DELIVERED) {
+    throw ApiError.badRequest('You can only rate an order after it is delivered');
+  }
+  const existing = await Review.findOne({ order: order._id });
+  if (existing) throw ApiError.badRequest('You have already rated this order');
+
+  const review = await Review.create({
+    customer: req.user._id,
+    pharmacy: order.pharmacy,
+    order: order._id,
+    customerName: req.user.name || '',
+    rating,
+    comment,
+  });
+  res.status(201).json({ review });
 });
 
 /** GET /api/customer/orders/:id — one of this customer's orders. */

@@ -2,6 +2,7 @@ import { MedicineCatalogue } from '../models/MedicineCatalogue.js';
 import { PharmacyMedicineListing } from '../models/PharmacyMedicineListing.js';
 import { InventoryBatch } from '../models/InventoryBatch.js';
 import { Pharmacy } from '../models/Pharmacy.js';
+import { Review } from '../models/Review.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { PHARMACY_STATUS } from '../config/constants.js';
@@ -67,6 +68,13 @@ export const medicineOffers = asyncHandler(async (req, res) => {
     });
   }
 
+  const ratings = await Review.ratingsFor(offers.map((o) => o.pharmacyId));
+  for (const o of offers) {
+    const r = ratings[String(o.pharmacyId)];
+    o.rating = r?.avg || 0;
+    o.ratingCount = r?.count || 0;
+  }
+
   offers.sort((a, b) => a.sellingPrice - b.sellingPrice);
   res.json({ medicine, offers });
 });
@@ -81,10 +89,17 @@ export const listPharmacies = asyncHandler(async (req, res) => {
   const filter = { status: PHARMACY_STATUS.APPROVED, deletedAt: null };
   if (q && q.trim()) filter.name = { $regex: q.trim(), $options: 'i' };
 
-  const items = await Pharmacy.find(filter)
+  const found = await Pharmacy.find(filter)
     .sort({ name: 1 })
     .limit(60)
-    .select('name address operatingHours logoUrl');
+    .select('name address operatingHours logoUrl')
+    .lean();
+
+  const ratings = await Review.ratingsFor(found.map((p) => p._id));
+  const items = found.map((p) => {
+    const r = ratings[String(p._id)];
+    return { ...p, rating: r?.avg || 0, ratingCount: r?.count || 0 };
+  });
 
   res.json({ items });
 });
@@ -100,8 +115,16 @@ export const pharmacyProducts = asyncHandler(async (req, res) => {
     _id: req.params.id,
     status: PHARMACY_STATUS.APPROVED,
     deletedAt: null,
-  }).select('name address operatingHours logoUrl phone');
+  }).select('name address operatingHours logoUrl phone').lean();
   if (!pharmacy) throw ApiError.notFound('Pharmacy not found');
+
+  // Rating summary + recent reviews for this shop.
+  const ratingMap = await Review.ratingsFor([pharmacy._id]);
+  const rs = ratingMap[String(pharmacy._id)];
+  pharmacy.rating = rs?.avg || 0;
+  pharmacy.ratingCount = rs?.count || 0;
+  const reviews = await Review.find({ pharmacy: pharmacy._id })
+    .sort({ createdAt: -1 }).limit(10).select('customerName rating comment createdAt').lean();
 
   const q = (req.query.q || '').trim().toLowerCase();
 
@@ -142,5 +165,5 @@ export const pharmacyProducts = asyncHandler(async (req, res) => {
   }
 
   products.sort((a, b) => a.name.localeCompare(b.name));
-  res.json({ pharmacy, products });
+  res.json({ pharmacy, products, reviews });
 });

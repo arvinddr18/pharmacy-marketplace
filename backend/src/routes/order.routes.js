@@ -3,7 +3,7 @@ import { authenticate, requireRole } from '../middleware/auth.js';
 import { ROLES } from '../config/constants.js';
 import {
   createOrder, myOrders, getMyOrder, cancelMyOrder,
-  listAddresses, addAddress, deleteAddress,
+  listAddresses, addAddress, deleteAddress, addReview,
 } from '../controllers/order.controller.js';
 
 const router = Router();
@@ -15,6 +15,7 @@ router.post('/orders', createOrder);
 router.get('/orders', myOrders);
 router.get('/orders/:id', getMyOrder);
 router.post('/orders/:id/cancel', cancelMyOrder);
+router.post('/orders/:id/review', addReview);
 
 router.get('/addresses', listAddresses);
 router.post('/addresses', addAddress);
