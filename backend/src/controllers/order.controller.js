@@ -6,6 +6,7 @@ import { InventoryBatch } from '../models/InventoryBatch.js';
 import { Pharmacy } from '../models/Pharmacy.js';
 import { User } from '../models/User.js';
 import { Review } from '../models/Review.js';
+import { Coupon } from '../models/Coupon.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { env } from '../config/env.js';
@@ -52,6 +53,19 @@ export const createOrder = asyncHandler(async (req, res) => {
   const requiresRx = Boolean(listing.prescriptionRequired || listing.medicine?.prescriptionRequired);
   if (requiresRx && !presc) throw ApiError.badRequest('A prescription photo is required for this medicine');
 
+  // Optional coupon. Validated server-side; the % is applied to THIS order's
+  // subtotal (so a cart split across shops still gets the same % off each).
+  const couponCode = String(req.body.couponCode || '').toUpperCase().trim();
+  const cartSubtotal = Math.max(0, parseInt(req.body.cartSubtotal, 10) || 0);
+  let coupon = null;
+  if (couponCode) {
+    coupon = await Coupon.findOne({ code: couponCode });
+    if (!coupon || !coupon.isUsable()) throw ApiError.badRequest('This coupon is not valid');
+    if (coupon.minOrder && cartSubtotal < coupon.minOrder) {
+      throw ApiError.badRequest(`Add items worth ₹${coupon.minOrder} to use ${couponCode}`);
+    }
+  }
+
   const session = await mongoose.startSession();
   try {
     let order;
@@ -78,6 +92,12 @@ export const createOrder = asyncHandler(async (req, res) => {
 
       const unitPrice = listing.sellingPrice;
       const lineTotal = unitPrice * qty;
+      let discount = 0;
+      if (coupon) {
+        discount = Math.round((lineTotal * coupon.percent) / 100);
+        if (coupon.maxDiscount) discount = Math.min(discount, coupon.maxDiscount);
+        discount = Math.min(discount, lineTotal);
+      }
       const prescriptionRequired = Boolean(listing.prescriptionRequired || listing.medicine?.prescriptionRequired);
 
       const [created] = await Order.create([{
@@ -96,7 +116,9 @@ export const createOrder = asyncHandler(async (req, res) => {
         reservations,
         itemsTotal: lineTotal,
         deliveryFee: 0,
-        total: lineTotal,
+        couponCode: coupon ? coupon.code : undefined,
+        discount,
+        total: lineTotal - discount,
         deliveryAddress: {
           line1: addr.line1, city: addr.city || '', pincode: addr.pincode,
           phone: addr.phone || req.user.phone || '', instructions: addr.instructions || '',
@@ -201,6 +223,25 @@ export const deleteAddress = asyncHandler(async (req, res) => {
   user.addresses = user.addresses.filter((a) => String(a._id) !== String(req.params.id));
   await user.save();
   res.json({ items: user.addresses });
+});
+
+/** POST /api/customer/coupons/validate — preview a coupon against a cart subtotal. */
+export const validateCoupon = asyncHandler(async (req, res) => {
+  const code = String(req.body.code || '').toUpperCase().trim();
+  const cartSubtotal = Math.max(0, parseInt(req.body.cartSubtotal, 10) || 0);
+  if (!code) throw ApiError.badRequest('Enter a coupon code');
+  const coupon = await Coupon.findOne({ code });
+  if (!coupon || !coupon.isUsable()) throw ApiError.badRequest('This coupon is not valid or has expired');
+  if (coupon.minOrder && cartSubtotal < coupon.minOrder) {
+    throw ApiError.badRequest(`This coupon needs a minimum order of ₹${coupon.minOrder}`);
+  }
+  let discount = Math.round((cartSubtotal * coupon.percent) / 100);
+  if (coupon.maxDiscount) discount = Math.min(discount, coupon.maxDiscount);
+  discount = Math.min(discount, cartSubtotal);
+  res.json({
+    code: coupon.code, percent: coupon.percent, description: coupon.description || '',
+    discount, total: cartSubtotal - discount,
+  });
 });
 
 /** POST /api/customer/orders/:id/cancel — customer cancels before pharmacy accepts; releases stock. */

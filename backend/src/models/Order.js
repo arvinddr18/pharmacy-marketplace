@@ -47,6 +47,8 @@ const orderSchema = new Schema(
 
     itemsTotal: { type: Number, required: true, min: 0 },
     deliveryFee: { type: Number, default: 0, min: 0 },
+    couponCode: { type: String, trim: true, uppercase: true },
+    discount: { type: Number, default: 0, min: 0 },
     total: { type: Number, required: true, min: 0 },
 
     deliveryAddress: {

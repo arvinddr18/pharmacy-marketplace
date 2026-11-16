@@ -13,6 +13,7 @@ import {
 } from '../controllers/admin.pharmacy.controller.js';
 import { listAllOrders, markDelivered } from '../controllers/admin.orders.controller.js';
 import { listRiders, createRider, assignRider } from '../controllers/admin.riders.controller.js';
+import { listCoupons, createCoupon, toggleCoupon, deleteCoupon } from '../controllers/admin.coupons.controller.js';
 
 const router = Router();
 
@@ -29,5 +30,10 @@ router.post('/orders/:id/delivered', markDelivered);
 router.get('/riders', listRiders);
 router.post('/riders', createRider);
 router.post('/orders/:id/assign', assignRider);
+
+router.get('/coupons', listCoupons);
+router.post('/coupons', createCoupon);
+router.post('/coupons/:id/toggle', toggleCoupon);
+router.delete('/coupons/:id', deleteCoupon);
 
 export default router;
