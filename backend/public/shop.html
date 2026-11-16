@@ -638,7 +638,7 @@ async function doPlacePrescription(){
     }catch(e){ state._coupon=null; $('couponMsg').innerHTML=`<span style="color:var(--error)">${esc(e.message)}</span>`; updateSummary(); }
   };
   $('placeBtn').onclick=placeOrders;
-}
+
 
 async function placeOrders(){
   const addr={ line1:$('coLine1').value.trim(), city:$('coCity').value.trim(), pincode:$('coPin').value.trim(), phone:$('coPhone').value.trim(), instructions:$('coNote').value.trim() };
