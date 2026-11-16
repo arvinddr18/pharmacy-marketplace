@@ -119,6 +119,11 @@
   .chips{display:flex;gap:8px;flex-wrap:wrap}
   .chip{padding:7px 14px;border-radius:999px;background:#fff;border:1px solid var(--border);color:var(--muted);font-size:13px;font-weight:600;cursor:pointer}
   .chip.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .stars{color:#F59E0B;letter-spacing:1px}
+  .ratepick{font-size:28px;letter-spacing:4px;color:#F59E0B;cursor:pointer;user-select:none}
+  .ratepick span{cursor:pointer}
+  .reviewitem{border-top:1px solid var(--border);padding:10px 0}
+  .reviewitem:first-child{border-top:none}
   @media(max-width:640px){
     .brand span.full{display:none}
     .navbtns button.small{padding:8px 10px}
@@ -159,6 +164,13 @@ function money(n){ return '₹'+Number(n||0).toFixed(0); }
 function colorFor(s){ const c=['#0D9488','#0891B2','#059669','#7C3AED','#D97706','#DB2777','#2563EB','#4F46E5']; let h=0; for(const ch of String(s||'')) h=(h*31+ch.charCodeAt(0))>>>0; return c[h%c.length]; }
 function initials(s){ return String(s||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase()||'?'; }
 function thumbHtml(o){ return o && o.imageUrl ? `<div class="thumb" style="background:#fff;border:1px solid var(--border);padding:8px"><img src="${esc(o.imageUrl)}" alt="" style="max-height:100%;max-width:100%;object-fit:contain" onerror="this.parentNode.innerHTML='💊';this.parentNode.style.background='${colorFor(o.name)}';this.parentNode.style.color='#fff'"/></div>` : `<div class="thumb" style="background:${colorFor(o.name)}">💊</div>`; }
+function starsHtml(rating,count){
+  const r=Number(rating)||0;
+  if(!r) return '<span class="sub" style="font-size:12px">No ratings yet</span>';
+  const full=Math.round(r); let s='';
+  for(let i=1;i<=5;i++) s+= i<=full?'★':'☆';
+  return `<span class="stars" title="${r} out of 5">${s}</span> <span class="sub" style="font-size:12px">${r.toFixed(1)}${count?' ('+count+')':''}</span>`;
+}
 function compressImage(file, cb){
   const reader=new FileReader();
   reader.onload=e=>{ const img=new Image(); img.onload=()=>{ const max=1200; let w=img.width,h=img.height; if(w>max||h>max){ if(w>h){ h=Math.round(h*max/w); w=max; } else { w=Math.round(w*max/h); h=max; } } const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); try{ cb(c.toDataURL('image/jpeg',0.6)); }catch{ cb(null); } }; img.onerror=()=>cb(null); img.src=e.target.result; };
@@ -260,7 +272,7 @@ function shopCard(s){
   c.innerHTML=`
     <div class="row">
       <div class="avatar" style="background:${colorFor(s.name)}">${esc(initials(s.name))}</div>
-      <div><strong>${esc(s.name)}</strong><div class="sub">${esc(city||'Pharmacy')}</div></div>
+      <div><strong>${esc(s.name)}</strong><div class="sub">${esc(city||'Pharmacy')}</div><div style="margin-top:3px">${starsHtml(s.rating,s.ratingCount)}</div></div>
     </div>
     <div class="row" style="margin-top:12px">
       ${hrs?`<span class="pill open">🕐 ${esc(hrs)}</span>`:''}
@@ -296,7 +308,7 @@ async function renderShop(id){
     const head=document.createElement('div'); head.className='card'; head.innerHTML=`
       <div class="row">
         <div class="avatar" style="background:${colorFor(ph.name)}">${esc(initials(ph.name))}</div>
-        <div><h1>${esc(ph.name)}</h1><div class="sub">${esc(addr||'')}</div></div>
+        <div><h1>${esc(ph.name)}</h1><div class="sub">${esc(addr||'')}</div><div style="margin-top:4px">${starsHtml(ph.rating,ph.ratingCount)}</div></div>
       </div>`;
     view.appendChild(head);
 
@@ -337,6 +349,17 @@ async function renderShop(id){
     $('shopSearch').addEventListener('input',e=>{ curQ=e.target.value.trim().toLowerCase(); applyDraw(); });
     $('sortSel').addEventListener('change',e=>{ curSort=e.target.value; applyDraw(); });
     fb.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{ fb.querySelectorAll('.chip').forEach(x=>x.classList.remove('active')); c.classList.add('active'); curFilter=c.dataset.f; applyDraw(); }));
+
+    const reviews=d.reviews||[];
+    if(reviews.length){
+      const rc=document.createElement('div'); rc.className='card'; rc.style.marginTop='18px';
+      rc.innerHTML='<h2 style="margin-top:0">Customer reviews</h2>'+reviews.map(rv=>`
+        <div class="reviewitem">
+          <div class="row"><strong>${esc(rv.customerName||'Customer')}</strong><span class="sp"></span><span class="stars">${'★'.repeat(rv.rating)}${'☆'.repeat(5-rv.rating)}</span></div>
+          ${rv.comment?`<div class="sub" style="margin-top:4px">${esc(rv.comment)}</div>`:''}
+        </div>`).join('');
+      view.appendChild(rc);
+    }
   }catch(e){ view.innerHTML=''; view.appendChild(backLink('Back to shops',()=>go('home'))); const d=document.createElement('p'); d.className='muted'; d.textContent=e.message; view.appendChild(d); }
 }
 
@@ -401,7 +424,7 @@ async function renderMedicine(id){
       card.innerHTML=`
         <div class="row">
           <div class="avatar" style="background:${colorFor(o.pharmacyName)}">${esc(initials(o.pharmacyName))}</div>
-          <div class="sp"><strong>${esc(o.pharmacyName)}</strong><div class="sub">${esc(o.city||'')} ${o.inStock?'· In stock':'· Out of stock'}</div></div>
+          <div class="sp"><strong>${esc(o.pharmacyName)}</strong><div class="sub">${esc(o.city||'')} ${o.inStock?'· In stock':'· Out of stock'}</div><div style="margin-top:2px">${starsHtml(o.rating,o.ratingCount)}</div></div>
           <div style="text-align:right"><span class="price">${money(o.sellingPrice)}</span>${o.mrp>o.sellingPrice?`<div><span class="mrp">${money(o.mrp)}</span><span class="off">${off}%</span></div>`:''}</div>
         </div>
         <div class="addwrap" style="margin-top:10px"></div>`;
@@ -659,8 +682,36 @@ function orderCard(o){
     ${trackerHtml(o)}
     ${otp}
     <div class="mtc" style="margin-top:8px"></div>`;
-  if(o.status==='placed'){ const b=document.createElement('button'); b.className='ghost small'; b.textContent='Cancel order'; b.onclick=()=>cancelOrder(o._id); card.querySelector('.mtc').appendChild(b); }
+  const mtc=card.querySelector('.mtc');
+  if(o.status==='placed'){ const b=document.createElement('button'); b.className='ghost small'; b.textContent='Cancel order'; b.onclick=()=>cancelOrder(o._id); mtc.appendChild(b); }
+  if(o.status==='delivered'){
+    if(o.myRating>0){
+      mtc.innerHTML=`<div class="sub">You rated <span class="stars">${'★'.repeat(o.myRating)}${'☆'.repeat(5-o.myRating)}</span></div>`;
+    } else {
+      const b=document.createElement('button'); b.className='light small'; b.textContent='⭐ Rate this order'; b.onclick=()=>openRateUI(mtc,o._id); mtc.appendChild(b);
+    }
+  }
   return card;
+}
+
+function openRateUI(box,orderId){
+  let picked=0;
+  box.innerHTML=`
+    <div class="sub" style="margin-bottom:4px">Tap the stars to rate this pharmacy</div>
+    <div class="ratepick" id="rp_${orderId}">${[1,2,3,4,5].map(i=>`<span data-v="${i}">☆</span>`).join('')}</div>
+    <textarea id="rc_${orderId}" placeholder="Add a short comment (optional)" style="width:100%;margin-top:8px;min-height:60px;padding:10px;border:1px solid var(--border);border-radius:10px;font:inherit"></textarea>
+    <div class="row" style="margin-top:8px"><button class="small" id="rs_${orderId}">Submit rating</button><button class="ghost small" id="rx_${orderId}">Cancel</button></div>`;
+  const pick=box.querySelector('#rp_'+orderId);
+  const paint=()=>pick.querySelectorAll('span').forEach(s=>s.textContent = Number(s.dataset.v)<=picked ? '★':'☆');
+  pick.querySelectorAll('span').forEach(s=>s.onclick=()=>{ picked=Number(s.dataset.v); paint(); });
+  box.querySelector('#rx_'+orderId).onclick=()=>loadOrdersList();
+  box.querySelector('#rs_'+orderId).onclick=async()=>{
+    if(!picked){ toast('Please tap a star first'); return; }
+    const comment=box.querySelector('#rc_'+orderId).value.trim();
+    const btn=box.querySelector('#rs_'+orderId); btn.disabled=true; btn.textContent='Submitting…';
+    try{ await api('/api/customer/orders/'+orderId+'/review',{method:'POST',body:JSON.stringify({rating:picked,comment})}); toast('Thanks for your rating!',true); loadOrdersList(); }
+    catch(e){ toast(e.message); btn.disabled=false; btn.textContent='Submit rating'; }
+  };
 }
 
 async function loadOrdersList(){
@@ -680,7 +731,12 @@ async function renderOrders(){
   const list=document.createElement('div'); list.id='ordersList'; list.style.marginTop='12px'; list.innerHTML='<p class="muted">Loading…</p>'; view.appendChild(list);
   await loadOrdersList();
   if(state._pollTimer) clearInterval(state._pollTimer);
-  state._pollTimer=setInterval(()=>{ if(state.view==='orders') loadOrdersList(); else { clearInterval(state._pollTimer); state._pollTimer=null; } }, 12000);
+  state._pollTimer=setInterval(()=>{
+    if(state.view!=='orders'){ clearInterval(state._pollTimer); state._pollTimer=null; return; }
+    const t=document.activeElement&&document.activeElement.tagName;
+    if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT') return; // don't wipe an open rating box
+    loadOrdersList();
+  }, 12000);
 }
 async function cancelOrder(id){
   try{ await api('/api/customer/orders/'+id+'/cancel',{method:'POST'}); toast('Order cancelled',true); renderOrders(); }
