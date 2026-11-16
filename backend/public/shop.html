@@ -545,6 +545,7 @@ async function doPlacePrescription(){
     state._rxPhoto=null; toast('Prescription order placed! 🎉',true); go('orders');
   }catch(e){ toast(e.message); btn.disabled=false; btn.textContent='Place prescription order'; }
 }
+async function renderCheckout(){
   view.innerHTML='';
   view.appendChild(backLink('Back to cart',()=>go('cart')));
   const h=document.createElement('h1'); h.textContent='Checkout'; view.appendChild(h);
@@ -638,7 +639,7 @@ async function doPlacePrescription(){
     }catch(e){ state._coupon=null; $('couponMsg').innerHTML=`<span style="color:var(--error)">${esc(e.message)}</span>`; updateSummary(); }
   };
   $('placeBtn').onclick=placeOrders;
-
+}
 
 async function placeOrders(){
   const addr={ line1:$('coLine1').value.trim(), city:$('coCity').value.trim(), pincode:$('coPin').value.trim(), phone:$('coPhone').value.trim(), instructions:$('coNote').value.trim() };
