@@ -27,6 +27,15 @@ export const env = {
   features: {
     liveOrders: process.env.FEATURE_LIVE_ORDERS === 'true',
   },
+  // Transactional email (verification + password reset). Works with any SMTP
+  // provider; leave SMTP_HOST empty in dev to just log codes to the console.
+  mail: {
+    host: process.env.SMTP_HOST ?? '',
+    port: parseInt(process.env.SMTP_PORT ?? '587', 10),
+    user: process.env.SMTP_USER ?? '',
+    pass: process.env.SMTP_PASS ?? '',
+    from: process.env.MAIL_FROM ?? 'MedMart <no-reply@medmart.app>',
+  },
 };
 
 export const isProd = env.nodeEnv === 'production';
