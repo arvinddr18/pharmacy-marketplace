@@ -199,6 +199,15 @@ function setQty(listingId,qty){
   saveCart(); if(state.view==='cart') renderCart();
 }
 function cartTotal(){ return state.cart.reduce((s,i)=>s+i.sellingPrice*i.qty,0); }
+function reorder(o){
+  if(!o.items || !o.items.length){ toast('Nothing to reorder'); return; }
+  for(const it of o.items){
+    const li={ listingId:it.listing, pharmacyId:o.pharmacy&&o.pharmacy._id, pharmacyName:o.pharmacy&&o.pharmacy.name, name:it.name, sellingPrice:it.unitPrice, mrp:it.unitPrice, prescriptionRequired:it.prescriptionRequired, available:99, qty:it.quantity||1 };
+    const ex=state.cart.find(x=>x.listingId===li.listingId);
+    if(ex) ex.qty=ex.qty+li.qty; else state.cart.push(li);
+  }
+  saveCart(); toast('Added to cart',true); go('cart');
+}
 
 /* ---------------- navigation ---------------- */
 function go(v,arg){ state.view=v; window.scrollTo(0,0);
@@ -918,6 +927,9 @@ function orderCard(o){
     } else {
       const b=document.createElement('button'); b.className='light small'; b.textContent='⭐ Rate this order'; b.onclick=()=>openRateUI(mtc,o._id); mtc.appendChild(b);
     }
+  }
+  if(o.kind!=='prescription' && o.items && o.items.length){
+    const rb=document.createElement('button'); rb.className='ghost small'; rb.textContent='🔁 Order again'; rb.onclick=()=>reorder(o); mtc.appendChild(rb);
   }
   return card;
 }
