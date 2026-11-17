@@ -56,7 +56,7 @@ export const scanMedicines = asyncHandler(async (req, res) => {
   let lastErr = '';
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: reqBody });
+      const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: reqBody, signal: AbortSignal.timeout(15000) });
       const data = await resp.json();
       if (!resp.ok) {
         lastErr = data?.error?.message || ('HTTP ' + resp.status);
