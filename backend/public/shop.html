@@ -689,6 +689,55 @@ async function placeOrders(){
   }
 }
 
+async function showDueRefills(){
+  const box=$('dueRefills'); if(!box) return;
+  try{
+    const d=await api('/api/customer/reminders'); const due=(d.items||[]).filter(r=>r.due);
+    if(!box) return;
+    if(!due.length){ box.innerHTML=''; return; }
+    box.innerHTML=due.map(r=>`<div class="banner okb" style="margin-top:12px;display:flex;align-items:center;gap:10px"><span class="sp">⏰ Time to refill <strong>${esc(r.label)}</strong></span><button class="light small" data-duerefill="${r._id}">Order again</button></div>`).join('');
+    box.querySelectorAll('[data-duerefill]').forEach(b=>b.onclick=()=>{ const r=due.find(x=>String(x._id)===b.dataset.duerefill); if(r) refillNow(r); });
+  }catch{ if(box) box.innerHTML=''; }
+}
+async function loadReminders(){
+  const box=$('remList'); if(!box) return;
+  let items=[];
+  try{ const d=await api('/api/customer/reminders'); items=d.items||[]; }
+  catch{ box.innerHTML='<p class="muted">Could not load reminders.</p>'; return; }
+  if(!box) return;
+  if(!items.length){ box.innerHTML='<p class="muted">No refill reminders yet. On a past order, tap “⏰ Refill reminder”.</p>'; return; }
+  box.innerHTML=items.map(r=>{
+    const next=new Date(r.nextDate).toLocaleDateString();
+    return `<div class="row" style="justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--border);padding:10px 0">
+      <div class="sp"><strong>${esc(r.label)}</strong>${r.due?' <span class="pill rx">Due now</span>':''}<div class="sub">${r.due?'Time to reorder':'Next: '+next} · every ${r.intervalDays} days</div></div>
+      <div class="row" style="gap:6px"><button class="light small" data-refill="${r._id}">Order again</button><button class="ghost small" data-remdel="${r._id}">Remove</button></div>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-refill]').forEach(b=>b.onclick=()=>{ const r=items.find(x=>String(x._id)===b.dataset.refill); if(r) refillNow(r); });
+  box.querySelectorAll('[data-remdel]').forEach(b=>b.onclick=()=>delReminder(b.dataset.remdel));
+}
+function refillNow(r){
+  api('/api/customer/reminders/'+r._id+'/snooze',{method:'POST'}).catch(()=>{});
+  reorder({ items:r.items, pharmacy:{ _id:r.pharmacyId, name:r.pharmacyName } });
+}
+async function delReminder(id){
+  try{ await api('/api/customer/reminders/'+id,{method:'DELETE'}); toast('Reminder removed',true); loadReminders(); }
+  catch(e){ toast(e.message); }
+}
+function setReminderUI(box, o){
+  box.innerHTML=`<div class="sub" style="margin-bottom:6px">Remind me to reorder this in:</div>
+    <div class="chips">
+      <span class="chip" data-d="15">15 days</span>
+      <span class="chip" data-d="30">30 days</span>
+      <span class="chip" data-d="60">60 days</span>
+      <span class="chip" data-d="90">90 days</span>
+    </div>`;
+  box.querySelectorAll('.chip').forEach(c=>c.onclick=async()=>{
+    try{ await api('/api/customer/reminders',{method:'POST',body:JSON.stringify({ orderId:o._id, intervalDays:Number(c.dataset.d) })}); toast('Refill reminder set ⏰',true); loadOrdersList(); }
+    catch(e){ toast(e.message); }
+  });
+}
+
 async function payOnline(orderIds, amount){
   try{
     const d=await api('/api/customer/payments/create',{method:'POST',body:JSON.stringify({ amount })});
@@ -729,6 +778,11 @@ function renderAccount(){
     view.appendChild(oc);
     $('allOrdersLink').onclick=()=>go('orders');
     loadAccountOrders();
+
+    const rc=document.createElement('div'); rc.className='card panel'; rc.style.marginTop='12px';
+    rc.innerHTML='<h2 style="margin-top:0">Refill reminders</h2><div id="remList"><p class="muted">Loading…</p></div>';
+    view.appendChild(rc);
+    loadReminders();
 
     const ac=document.createElement('div'); ac.className='card panel'; ac.style.marginTop='12px';
     ac.innerHTML='<h2 style="margin-top:0">Saved addresses</h2><div id="addrList"><p class="muted">Loading…</p></div>';
@@ -961,6 +1015,7 @@ function orderCard(o){
   }
   if(o.kind!=='prescription' && o.items && o.items.length){
     const rb=document.createElement('button'); rb.className='ghost small'; rb.textContent='🔁 Order again'; rb.onclick=()=>reorder(o); mtc.appendChild(rb);
+    const rem=document.createElement('button'); rem.className='ghost small'; rem.textContent='⏰ Refill reminder'; rem.onclick=()=>setReminderUI(mtc,o); mtc.appendChild(rem);
   }
   return card;
 }
@@ -999,6 +1054,7 @@ async function renderOrders(){
   view.innerHTML='';
   view.appendChild(backLink('Back to home',()=>go('home')));
   const head=document.createElement('div'); head.className='row'; head.innerHTML='<h1>My orders</h1><span class="sp"></span><span class="live"><span class="ld"></span>Live</span>'; view.appendChild(head);
+  const rb=document.createElement('div'); rb.id='dueRefills'; view.appendChild(rb); showDueRefills();
   const list=document.createElement('div'); list.id='ordersList'; list.style.marginTop='12px'; list.innerHTML='<p class="muted">Loading…</p>'; view.appendChild(list);
   await loadOrdersList();
   if(state._pollTimer) clearInterval(state._pollTimer);
