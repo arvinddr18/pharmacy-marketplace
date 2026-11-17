@@ -46,24 +46,38 @@ export const scanMedicines = asyncHandler(async (req, res) => {
 
   const prompt = 'This is a photo of medicine strips/packets or a handwritten medicine list. Extract only the distinct medicine or tablet names you can read (brand or generic), and correct any obvious spelling mistakes to the standard medicine name (e.g. "Puracetomol" -> "Paracetamol"). Ignore dosages, company names and other text. Respond with ONLY a JSON array of strings like ["Paracetamol","Amoxicillin"]. If you cannot read any, respond with [].';
 
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=' + env.gemini.apiKey;
+  const reqBody = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
+    generationConfig: { temperature: 0 },
+  });
+
   let names = [];
-  try {
-    const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=' + env.gemini.apiKey, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
-        generationConfig: { temperature: 0 },
-      }),
-    });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data?.error?.message || 'Vision request failed');
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-    const m = text.match(/\[[\s\S]*\]/);
-    names = m ? JSON.parse(m[0]) : [];
-  } catch (e) {
-    throw ApiError.badRequest('Could not read that photo (' + (e.message || 'please try a clearer picture') + ')');
+  let lastErr = '';
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: reqBody });
+      const data = await resp.json();
+      if (!resp.ok) {
+        lastErr = data?.error?.message || ('HTTP ' + resp.status);
+        // Retry transient overload / rate-limit / server errors.
+        if ([429, 500, 503].includes(resp.status) && attempt < 2) {
+          await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+          continue;
+        }
+        throw new Error(lastErr);
+      }
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+      const m = text.match(/\[[\s\S]*\]/);
+      names = m ? JSON.parse(m[0]) : [];
+      lastErr = '';
+      break;
+    } catch (e) {
+      lastErr = e.message || 'request failed';
+      if (attempt < 2) { await new Promise((r) => setTimeout(r, 1200 * (attempt + 1))); continue; }
+    }
   }
+  if (lastErr) throw ApiError.badRequest('The photo reader is busy right now — please try again in a moment.');
   names = (Array.isArray(names) ? names : []).map((s) => String(s).trim()).filter(Boolean).slice(0, 10);
 
   // Match each detected name against the catalogue.
