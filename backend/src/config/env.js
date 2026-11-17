@@ -36,6 +36,11 @@ export const env = {
     pass: process.env.SMTP_PASS ?? '',
     from: process.env.MAIL_FROM ?? 'MedMart <no-reply@medmart.app>',
   },
+  // Razorpay payment gateway (UPI/cards/wallets). Test keys start with rzp_test_.
+  razorpay: {
+    keyId: process.env.RAZORPAY_KEY_ID ?? '',
+    keySecret: process.env.RAZORPAY_KEY_SECRET ?? '',
+  },
 };
 
 export const isProd = env.nodeEnv === 'production';

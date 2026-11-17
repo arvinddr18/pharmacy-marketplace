@@ -57,6 +57,12 @@ const orderSchema = new Schema(
     discount: { type: Number, default: 0, min: 0 },
     total: { type: Number, required: true, min: 0 },
 
+    // Payment: 'cod' (cash on delivery) or 'online' (Razorpay).
+    paymentMethod: { type: String, enum: ['cod', 'online'], default: 'cod' },
+    paymentStatus: { type: String, enum: ['pending', 'paid'], default: 'pending' },
+    razorpayOrderId: { type: String },
+    razorpayPaymentId: { type: String },
+
     deliveryAddress: {
       line1: String, city: String, pincode: String, phone: String, instructions: String,
     },

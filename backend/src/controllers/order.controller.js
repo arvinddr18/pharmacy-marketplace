@@ -120,6 +120,7 @@ export const createOrder = asyncHandler(async (req, res) => {
         couponCode: coupon ? coupon.code : undefined,
         discount,
         total: lineTotal - discount,
+        paymentMethod: req.body.paymentMethod === 'online' ? 'online' : 'cod',
         deliveryAddress: {
           line1: addr.line1, city: addr.city || '', pincode: addr.pincode,
           phone: addr.phone || req.user.phone || '', instructions: addr.instructions || '',

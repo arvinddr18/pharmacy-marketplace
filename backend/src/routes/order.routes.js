@@ -6,6 +6,7 @@ import {
   listAddresses, addAddress, deleteAddress, addReview, validateCoupon,
   createPrescriptionOrder,
 } from '../controllers/order.controller.js';
+import { createRazorpayOrder, verifyPayment } from '../controllers/payment.controller.js';
 
 const router = Router();
 
@@ -19,6 +20,8 @@ router.get('/orders/:id', getMyOrder);
 router.post('/orders/:id/cancel', cancelMyOrder);
 router.post('/orders/:id/review', addReview);
 router.post('/coupons/validate', validateCoupon);
+router.post('/payments/create', createRazorpayOrder);
+router.post('/payments/verify', verifyPayment);
 
 router.get('/addresses', listAddresses);
 router.post('/addresses', addAddress);
