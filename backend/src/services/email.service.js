@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
+import { User } from '../models/User.js';
 
 let transporter = null;
 
@@ -60,4 +61,44 @@ export async function sendPasswordResetEmail(to, name, code) {
     text: `Hi ${name || ''}, your MedMart password reset code is ${code}. It expires in 15 minutes.`,
     html: wrap('Reset your password', `<p>Hi ${name || 'there'}, use this code to set a new password:</p>${codeBlock(code)}<p style="color:#64748B;font-size:13px">This code expires in 15 minutes.</p>`),
   });
+}
+
+// Which order statuses trigger a customer email, and what it says.
+const ORDER_EMAILS = {
+  placed: { subject: 'Order {n} placed', line: 'We’ve received your order and it’s being sent to a pharmacy. We’ll email you as it progresses.' },
+  accepted: { subject: 'Order {n} accepted', line: 'A pharmacy has accepted your order and is preparing it.' },
+  out_for_delivery: { subject: 'Order {n} is on the way', line: 'Your order is out for delivery and will reach you soon.' },
+  delivered: { subject: 'Order {n} delivered', line: 'Your order has been delivered. Thank you for using MedMart!' },
+  rejected: { subject: 'Order {n} could not be fulfilled', line: 'Sorry — the pharmacy could not fulfil this order. You can try another pharmacy or reorder from the app.' },
+};
+
+/**
+ * Email the customer about an order status change. Fire-and-forget: call
+ * without awaiting so it never blocks or fails the main request.
+ */
+export async function emailOrderUpdate(order) {
+  try {
+    if (!order) return;
+    const cfg = ORDER_EMAILS[order.status];
+    if (!cfg) return;
+
+    let email = order.customer && order.customer.email;
+    let name = order.customer && order.customer.name;
+    if (!email) {
+      const u = await User.findById(order.customer).select('email name');
+      email = u && u.email; name = u && u.name;
+    }
+    if (!email) return;
+
+    const n = order.orderNumber;
+    const totalLine = order.total > 0 ? ` · Total ₹${order.total}` : '';
+    await sendMail({
+      to: email,
+      subject: cfg.subject.replace('{n}', n),
+      text: `Hi ${name || ''}, ${cfg.line} (Order ${n}${totalLine})`,
+      html: wrap(`Order ${n}`, `<p>Hi ${name || 'there'},</p><p>${cfg.line}</p><p style="color:#64748B;font-size:13px">Order number: <strong>${n}</strong>${totalLine}</p>`),
+    });
+  } catch (e) {
+    console.log('[email] order update failed:', e.message);
+  }
 }

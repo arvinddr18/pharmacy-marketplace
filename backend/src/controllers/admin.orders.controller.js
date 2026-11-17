@@ -5,6 +5,7 @@ import { Pharmacy } from '../models/Pharmacy.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { PHARMACY_STATUS } from '../config/constants.js';
+import { emailOrderUpdate } from '../services/email.service.js';
 
 export const listAllOrders = asyncHandler(async (req, res) => {
   const filter = {};
@@ -58,6 +59,7 @@ export const markDelivered = asyncHandler(async (req, res) => {
       order.timeline.push({ status: ORDER_STATUS.DELIVERED, at: new Date(), note: 'Delivered (company)' });
       await order.save({ session });
     });
+    emailOrderUpdate(order);
     res.json({ order });
   } finally {
     await session.endSession();

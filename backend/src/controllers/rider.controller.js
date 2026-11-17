@@ -4,6 +4,7 @@ import { Order, ORDER_STATUS } from '../models/Order.js';
 import { InventoryBatch } from '../models/InventoryBatch.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { emailOrderUpdate } from '../services/email.service.js';
 
 async function scopedOrder(req, session) {
   const q = Order.findOne({ _id: req.params.id, rider: req.user._id });
@@ -34,6 +35,7 @@ export const confirmPickup = asyncHandler(async (req, res) => {
   order.deliveryOtp = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
   order.timeline.push({ status: ORDER_STATUS.OUT_FOR_DELIVERY, at: new Date(), note: 'Picked up, out for delivery' });
   await order.save();
+  emailOrderUpdate(order);
   const obj = order.toObject();
   delete obj.deliveryOtp;
   res.json({ order: obj });
@@ -57,6 +59,7 @@ export const confirmDelivery = asyncHandler(async (req, res) => {
       order.timeline.push({ status: ORDER_STATUS.DELIVERED, at: new Date(), note: 'Delivered (OTP verified)' });
       await order.save({ session });
     });
+    emailOrderUpdate(order);
     const obj = order.toObject();
     delete obj.deliveryOtp;
     res.json({ order: obj });

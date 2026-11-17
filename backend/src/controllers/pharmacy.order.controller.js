@@ -3,6 +3,7 @@ import { Order, ORDER_STATUS } from '../models/Order.js';
 import { InventoryBatch } from '../models/InventoryBatch.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { emailOrderUpdate } from '../services/email.service.js';
 
 async function scopedOrder(req, session) {
   const q = Order.findOne({ _id: req.params.id, pharmacy: req.pharmacyId });
@@ -21,6 +22,7 @@ export const acceptOrder = asyncHandler(async (req, res) => {
   order.status = ORDER_STATUS.ACCEPTED;
   order.timeline.push({ status: ORDER_STATUS.ACCEPTED, at: new Date(), note: 'Accepted by pharmacy' });
   await order.save();
+  emailOrderUpdate(order);
   res.json({ order });
 });
 
@@ -66,6 +68,7 @@ export const rejectOrder = asyncHandler(async (req, res) => {
       order.timeline.push({ status: ORDER_STATUS.REJECTED, at: new Date(), note: order.rejectionReason });
       await order.save({ session });
     });
+    emailOrderUpdate(order);
     res.json({ order });
   } finally {
     await session.endSession();

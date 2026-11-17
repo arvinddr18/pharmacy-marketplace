@@ -7,6 +7,7 @@ import { Pharmacy } from '../models/Pharmacy.js';
 import { User } from '../models/User.js';
 import { Review } from '../models/Review.js';
 import { Coupon } from '../models/Coupon.js';
+import { emailOrderUpdate } from '../services/email.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { env } from '../config/env.js';
@@ -134,6 +135,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       order = created;
     });
 
+    emailOrderUpdate(order);
     res.status(201).json({ order });
   } catch (err) {
     if (err.code === 11000) throw ApiError.conflict('Could not generate order, please retry');
@@ -181,6 +183,7 @@ export const createPrescriptionOrder = asyncHandler(async (req, res) => {
       isDemo: !env.features.liveOrders,
       timeline: [{ status: ORDER_STATUS.PLACED, at: new Date(), note: 'Prescription uploaded' }],
     });
+    emailOrderUpdate(order);
     res.status(201).json({ order: { _id: order._id, orderNumber: order.orderNumber } });
   } catch (err) {
     if (err.code === 11000) throw ApiError.conflict('Could not place order, please retry');
