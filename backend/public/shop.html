@@ -139,6 +139,7 @@
     <div class="searchbox">
       <span class="ic">🔍</span>
       <input id="globalSearch" placeholder="Search medicines…" />
+      <button id="scanBtn" title="Search by photo of a tablet strip or note" style="background:transparent;color:var(--muted);padding:0 10px;font-size:20px;border:none">📷</button>
     </div>
     <div class="navbtns">
       <button class="ghost small cartbtn" id="cartBtn">🛒<span class="count hidden" id="cartCount">0</span></button>
@@ -409,6 +410,52 @@ async function renderSearch(q){
     grid.innerHTML = meds.length ? '' : `<div class="empty"><div class="big">🔍</div>No medicines found for “${esc(q)}”.</div>`;
     for(const m of meds) grid.appendChild(medCatalogueCard(m));
   }catch(e){ grid.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
+}
+
+/* ---------------- SEARCH BY PHOTO ---------------- */
+function scanPhoto(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.capture='environment';
+  inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(!f) return;
+    toast('Reading your photo…',true);
+    compressImage(f,(data)=>{ if(!data){ toast('Could not read that image — try another'); return; } doScan(data); });
+  };
+  inp.click();
+}
+async function doScan(image){
+  if(state._pollTimer){ clearInterval(state._pollTimer); state._pollTimer=null; }
+  state.view='scan'; window.scrollTo(0,0);
+  view.innerHTML='';
+  view.appendChild(backLink('Back to home',()=>go('home')));
+  const h=document.createElement('h1'); h.textContent='Search by photo'; view.appendChild(h);
+  const box=document.createElement('div'); box.style.marginTop='12px'; box.innerHTML='<p class="muted">🔎 Reading the medicine names from your photo…</p>'; view.appendChild(box);
+  try{
+    const d=await api('/api/discover/scan',{method:'POST',body:JSON.stringify({ image })});
+    renderScanResults(d, box);
+  }catch(e){ box.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
+}
+function renderScanResults(d, box){
+  const detected=d.detected||[], meds=d.items||[];
+  box.innerHTML='';
+  if(detected.length){
+    const tags=document.createElement('div'); tags.className='banner info';
+    tags.innerHTML='From your photo we read: '+detected.map(n=>`<strong>${esc(n)}</strong>`).join(', ')+'. Tap the medicine you want below.';
+    box.appendChild(tags);
+  } else {
+    box.innerHTML='<div class="empty"><div class="big">📷</div>Couldn’t read any medicine names. Try a clearer, well-lit photo of the strip or note.</div>';
+    return;
+  }
+  if(meds.length){
+    const grid=document.createElement('div'); grid.className='grid prods'; grid.style.marginTop='12px';
+    for(const m of meds) grid.appendChild(medCatalogueCard(m));
+    box.appendChild(grid);
+  } else {
+    const p=document.createElement('div'); p.className='banner info'; p.style.marginTop='12px';
+    p.innerHTML='None of these are in our shops yet. Try searching by name, or upload a prescription instead.';
+    box.appendChild(p);
+    const b=document.createElement('button'); b.className='light'; b.style.marginTop='10px'; b.textContent='Search “'+esc(detected[0])+'”';
+    b.onclick=()=>{ state._searchQ=detected[0]; go('search',detected[0]); };
+    box.appendChild(b);
+  }
 }
 
 /* ---------------- MEDICINE OFFERS ---------------- */
@@ -1057,7 +1104,7 @@ async function renderOrders(){
   const rb=document.createElement('div'); rb.id='dueRefills'; view.appendChild(rb); showDueRefills();
   const list=document.createElement('div'); list.id='ordersList'; list.style.marginTop='12px'; list.innerHTML='<p class="muted">Loading…</p>'; view.appendChild(list);
   await loadOrdersList();
-  if(state._pollTimer) clearInterval(state._pollTimer);
+  if(state._pollTimer) clearInterval(state._pollTimer);0
   state._pollTimer=setInterval(()=>{
     if(state.view!=='orders'){ clearInterval(state._pollTimer); state._pollTimer=null; return; }
     const t=document.activeElement&&document.activeElement.tagName;
@@ -1075,6 +1122,7 @@ $('brandBtn').onclick=()=>go('home');
 $('cartBtn').onclick=()=>go('cart');
 $('accountBtn').onclick=()=>go('account');
 $('globalSearch').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const q=e.target.value.trim(); state._searchQ=q; go('search',q); } });
+$('scanBtn').onclick=scanPhoto;
 
 (async function boot(){
   updateCartCount();

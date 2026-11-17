@@ -6,6 +6,7 @@ import { Review } from '../models/Review.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { PHARMACY_STATUS } from '../config/constants.js';
+import { env } from '../config/env.js';
 
 /**
  * PUBLIC customer-facing discovery. No auth required to browse — customers can
@@ -25,6 +26,62 @@ export const searchMedicines = asyncHandler(async (req, res) => {
   }
   const items = await query.limit(60);
   res.json({ items });
+});
+
+/**
+ * POST /api/discover/scan  (public)
+ * Reads a photo of tablet strips / a handwritten note with Google Gemini,
+ * extracts medicine names, and returns matching catalogue medicines.
+ * This is a search HELPER — the customer confirms by tapping a result.
+ */
+export const scanMedicines = asyncHandler(async (req, res) => {
+  if (!env.gemini.apiKey) throw ApiError.badRequest('Photo search is not set up yet');
+  const image = typeof req.body.image === 'string' ? req.body.image : '';
+  if (!image.startsWith('data:image/')) throw ApiError.badRequest('Please provide a valid image');
+  if (image.length > 5_000_000) throw ApiError.badRequest('Image is too large — please use a smaller photo');
+
+  const comma = image.indexOf(',');
+  const mimeType = (image.slice(5, comma).split(';')[0]) || 'image/jpeg';
+  const base64 = image.slice(comma + 1);
+
+  const prompt = 'This is a photo of medicine strips/packets or a handwritten medicine list. Extract only the distinct medicine or tablet names you can read (brand or generic). Ignore dosages, company names and other text. Respond with ONLY a JSON array of strings like ["Paracetamol","Amoxicillin"]. If you cannot read any, respond with [].';
+
+  let names = [];
+  try {
+    const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + env.gemini.apiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }] }],
+        generationConfig: { temperature: 0 },
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data?.error?.message || 'Vision request failed');
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+    const m = text.match(/\[[\s\S]*\]/);
+    names = m ? JSON.parse(m[0]) : [];
+  } catch (e) {
+    throw ApiError.badRequest('Could not read that photo — please try a clearer, well-lit picture');
+  }
+  names = (Array.isArray(names) ? names : []).map((s) => String(s).trim()).filter(Boolean).slice(0, 10);
+
+  // Match each detected name against the catalogue.
+  const seen = new Set();
+  const items = [];
+  for (const name of names) {
+    const safe = name.slice(0, 40).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const found = await MedicineCatalogue.find({
+      deletedAt: null, status: 'active',
+      name: { $regex: safe, $options: 'i' },
+    }).limit(5);
+    for (const med of found) {
+      if (seen.has(String(med._id))) continue;
+      seen.add(String(med._id));
+      items.push(med);
+    }
+  }
+  res.json({ detected: names, items });
 });
 
 /**

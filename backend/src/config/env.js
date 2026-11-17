@@ -41,6 +41,10 @@ export const env = {
     keyId: process.env.RAZORPAY_KEY_ID ?? '',
     keySecret: process.env.RAZORPAY_KEY_SECRET ?? '',
   },
+  // Google Gemini (vision) for "search by photo" — reads tablet strips / notes.
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY ?? '',
+  },
 };
 
 export const isProd = env.nodeEnv === 'production';
