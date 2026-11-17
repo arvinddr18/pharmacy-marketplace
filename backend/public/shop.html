@@ -149,6 +149,7 @@
 
 <div class="wrap" id="view"></div>
 
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
 /* ---------------- infra ---------------- */
 const $=(id)=>document.getElementById(id);
@@ -603,6 +604,11 @@ async function renderCheckout(){
       <div class="row"><input id="coCoupon" placeholder="Enter code e.g. SAVE10" style="text-transform:uppercase" /><button class="light" id="applyCoupon" style="width:auto">Apply</button></div>
       <div id="couponMsg" class="sub" style="margin-top:8px"></div>
     </div>
+    <div class="card" style="margin-top:12px">
+      <h2 style="margin-top:0">Payment</h2>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:6px 0"><input type="radio" name="pay" value="cod" checked style="width:auto"/> 💵 Cash on delivery</label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:6px 0"><input type="radio" name="pay" value="online" style="width:auto"/> 💳 Pay online (UPI · PhonePe · GPay · cards)</label>
+    </div>
     <div class="banner info" style="margin-top:12px" id="orderSummary"></div>
     <button id="placeBtn" style="width:100%">Place order</button>
   `;
@@ -657,27 +663,51 @@ async function placeOrders(){
   const hasRx=state.cart.some(i=>i.prescriptionRequired);
   if(hasRx && !state._prescription){ toast('Please upload your prescription for the Rx medicines'); return; }
   const wantSave = $('saveAddr') && $('saveAddr').checked;
+  const payMethod = (document.querySelector('input[name="pay"]:checked')||{}).value || 'cod';
   const sub=cartTotal();
   $('placeBtn').disabled=true; $('placeBtn').textContent='Placing order…';
-  const ok=[], fail=[];
+  const ok=[], fail=[], orderIds=[]; let payable=0;
   for(const i of state.cart){
-    const body={ listingId:i.listingId, quantity:i.qty, deliveryAddress:addr };
+    const body={ listingId:i.listingId, quantity:i.qty, deliveryAddress:addr, paymentMethod:payMethod };
     if(state._coupon){ body.couponCode=state._coupon.code; body.cartSubtotal=sub; }
     if(i.prescriptionRequired && state._prescription) body.prescriptionImage=state._prescription;
-    try{ await api('/api/customer/orders',{method:'POST',body:JSON.stringify(body)}); ok.push(i); }
+    try{ const r=await api('/api/customer/orders',{method:'POST',body:JSON.stringify(body)}); ok.push(i); if(r.order){ orderIds.push(r.order._id); payable+=r.order.total||0; } }
     catch(e){ fail.push({ i, msg:e.message }); }
   }
   // remove successful lines
   state.cart=state.cart.filter(i=>!ok.includes(i)); saveCart();
   if(fail.length===0){
     if(wantSave){ try{ await api('/api/customer/addresses',{method:'POST',body:JSON.stringify({ label:addr.city||'Home', line1:addr.line1, city:addr.city, pincode:addr.pincode, phone:addr.phone, instructions:addr.instructions })}); }catch{} }
-    state._prescription=null; state._coupon=null; toast('Order placed! 🎉',true); go('orders');
+    state._prescription=null;
+    if(payMethod==='online' && payable>0){ await payOnline(orderIds, payable); }
+    else { state._coupon=null; toast('Order placed! 🎉',true); go('orders'); }
   }
   else{
     $('placeBtn').disabled=false; $('placeBtn').textContent='Place order · '+money(cartTotal());
     toast(ok.length?`${ok.length} placed, ${fail.length} failed: ${fail[0].msg}`:fail[0].msg);
     if(ok.length) renderCheckout();
   }
+}
+
+async function payOnline(orderIds, amount){
+  try{
+    const d=await api('/api/customer/payments/create',{method:'POST',body:JSON.stringify({ amount })});
+    if(typeof Razorpay==='undefined'){ toast('Could not open payment — your order is saved, pay on delivery',true); state._coupon=null; go('orders'); return; }
+    const rzp=new Razorpay({
+      key:d.keyId, amount:d.amount, currency:d.currency, order_id:d.orderId,
+      name:'MedMart', description:'Medicine order',
+      prefill:{ name:(state.user&&state.user.name)||'', email:(state.user&&state.user.email)||'' },
+      theme:{ color:'#0D9488' },
+      handler:async(resp)=>{
+        try{ await api('/api/customer/payments/verify',{method:'POST',body:JSON.stringify({ razorpay_order_id:resp.razorpay_order_id, razorpay_payment_id:resp.razorpay_payment_id, razorpay_signature:resp.razorpay_signature, orderIds })}); toast('Payment successful! 🎉',true); }
+        catch(e){ toast('Payment received — confirming shortly'); }
+        state._coupon=null; go('orders');
+      },
+      modal:{ ondismiss:()=>{ toast('Payment cancelled — your order is saved as unpaid',true); state._coupon=null; go('orders'); } }
+    });
+    rzp.on('payment.failed',()=>toast('Payment failed — your order is saved as unpaid'));
+    rzp.open();
+  }catch(e){ toast(e.message); state._coupon=null; go('orders'); }
 }
 
 /* ---------------- ACCOUNT / AUTH ---------------- */
@@ -916,6 +946,7 @@ function orderCard(o){
       <span class="sp"></span>${priceHtml}</div>
     <div class="sub" style="margin-top:4px">${detail}</div>
     ${o.discount>0?`<div class="sub" style="color:var(--success)">Coupon ${esc(o.couponCode||'')}: − ${money(o.discount)} off</div>`:''}
+    ${o.kind!=='prescription'?`<div class="sub">${o.paymentStatus==='paid'?'💳 Paid online':'💵 Cash on delivery'}</div>`:''}
     ${trackerHtml(o)}
     ${otp}
     <div class="mtc" style="margin-top:8px"></div>`;
