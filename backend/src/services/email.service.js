@@ -63,6 +63,15 @@ export async function sendPasswordResetEmail(to, name, code) {
   });
 }
 
+export async function sendRefillReminderEmail(to, name, label) {
+  return sendMail({
+    to,
+    subject: `Time to reorder ${label} — MedMart`,
+    text: `Hi ${name || ''}, it looks like it's time to refill ${label}. Open MedMart and tap "Order again" to get it delivered.`,
+    html: wrap('Time to refill', `<p>Hi ${name || 'there'},</p><p>It looks like it's time to reorder <strong>${label}</strong>. Open MedMart and tap <strong>“Order again”</strong> to get it delivered to your door.</p>`),
+  });
+}
+
 // Which order statuses trigger a customer email, and what it says.
 const ORDER_EMAILS = {
   placed: { subject: 'Order {n} placed', line: 'We’ve received your order and it’s being sent to a pharmacy. We’ll email you as it progresses.' },

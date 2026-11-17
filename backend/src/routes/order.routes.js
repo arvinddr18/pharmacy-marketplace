@@ -7,6 +7,7 @@ import {
   createPrescriptionOrder,
 } from '../controllers/order.controller.js';
 import { createRazorpayOrder, verifyPayment } from '../controllers/payment.controller.js';
+import { createReminder, listReminders, snoozeReminder, deleteReminder } from '../controllers/reminder.controller.js';
 
 const router = Router();
 
@@ -22,6 +23,11 @@ router.post('/orders/:id/review', addReview);
 router.post('/coupons/validate', validateCoupon);
 router.post('/payments/create', createRazorpayOrder);
 router.post('/payments/verify', verifyPayment);
+
+router.get('/reminders', listReminders);
+router.post('/reminders', createReminder);
+router.post('/reminders/:id/snooze', snoozeReminder);
+router.delete('/reminders/:id', deleteReminder);
 
 router.get('/addresses', listAddresses);
 router.post('/addresses', addAddress);

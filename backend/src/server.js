@@ -1,10 +1,12 @@
 import { createApp } from './app.js';
 import { connectDB, disconnectDB } from './config/db.js';
 import { env } from './config/env.js';
+import { startReminderScheduler } from './services/reminder.scheduler.js';
 
 async function start() {
   await connectDB();
   const app = createApp();
+  startReminderScheduler();
 
   const server = app.listen(env.port, () => {
     console.log(`[server] listening on http://localhost:${env.port} (${env.nodeEnv})`);
