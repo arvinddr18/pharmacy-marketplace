@@ -44,11 +44,11 @@ export const scanMedicines = asyncHandler(async (req, res) => {
   const mimeType = (image.slice(5, comma).split(';')[0]) || 'image/jpeg';
   const base64 = image.slice(comma + 1);
 
-  const prompt = 'This is a photo of medicine strips/packets or a handwritten medicine list. Extract only the distinct medicine or tablet names you can read (brand or generic). Ignore dosages, company names and other text. Respond with ONLY a JSON array of strings like ["Paracetamol","Amoxicillin"]. If you cannot read any, respond with [].';
+  const prompt = 'This is a photo of medicine strips/packets or a handwritten medicine list. Extract only the distinct medicine or tablet names you can read (brand or generic), and correct any obvious spelling mistakes to the standard medicine name (e.g. "Puracetomol" -> "Paracetamol"). Ignore dosages, company names and other text. Respond with ONLY a JSON array of strings like ["Paracetamol","Amoxicillin"]. If you cannot read any, respond with [].';
 
   let names = [];
   try {
-    const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + env.gemini.apiKey, {
+    const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + env.gemini.apiKey, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -62,7 +62,7 @@ export const scanMedicines = asyncHandler(async (req, res) => {
     const m = text.match(/\[[\s\S]*\]/);
     names = m ? JSON.parse(m[0]) : [];
   } catch (e) {
-    throw ApiError.badRequest('Could not read that photo — please try a clearer, well-lit picture');
+    throw ApiError.badRequest('Could not read that photo (' + (e.message || 'please try a clearer picture') + ')');
   }
   names = (Array.isArray(names) ? names : []).map((s) => String(s).trim()).filter(Boolean).slice(0, 10);
 
