@@ -139,6 +139,7 @@
     <div class="searchbox">
       <span class="ic">🔍</span>
       <input id="globalSearch" placeholder="Search medicines…" />
+      <button id="micBtn" title="Search by voice — tap and say the medicine name" style="background:transparent;color:var(--muted);padding:0 6px;font-size:20px;border:none">🎤</button>
       <button id="scanBtn" title="Search by photo of a tablet strip or note" style="background:transparent;color:var(--muted);padding:0 10px;font-size:20px;border:none">📷</button>
     </div>
     <div class="navbtns">
@@ -410,6 +411,20 @@ async function renderSearch(q){
     grid.innerHTML = meds.length ? '' : `<div class="empty"><div class="big">🔍</div>No medicines found for “${esc(q)}”.</div>`;
     for(const m of meds) grid.appendChild(medCatalogueCard(m));
   }catch(e){ grid.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
+}
+
+/* ---------------- SEARCH BY VOICE ---------------- */
+function voiceSearch(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ toast('Voice search isn’t supported on this browser — try typing or the 📷'); return; }
+  const rec=new SR();
+  rec.lang='en-IN'; rec.interimResults=false; rec.maxAlternatives=1;
+  const btn=$('micBtn'); if(btn) btn.textContent='🔴';
+  toast('🎤 Listening… say the medicine name',true);
+  rec.onresult=(e)=>{ const t=((e.results[0]&&e.results[0][0]&&e.results[0][0].transcript)||'').trim(); if(t){ if($('globalSearch')) $('globalSearch').value=t; state._searchQ=t; go('search',t); } else { toast('Didn’t catch that — try again'); } };
+  rec.onerror=(e)=>{ toast(e.error==='not-allowed'?'Please allow microphone access':'Didn’t catch that — try again'); };
+  rec.onend=()=>{ if($('micBtn')) $('micBtn').textContent='🎤'; };
+  try{ rec.start(); }catch{ toast('Could not start the mic — try again'); if($('micBtn')) $('micBtn').textContent='🎤'; }
 }
 
 /* ---------------- SEARCH BY PHOTO ---------------- */
@@ -1123,6 +1138,7 @@ $('cartBtn').onclick=()=>go('cart');
 $('accountBtn').onclick=()=>go('account');
 $('globalSearch').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const q=e.target.value.trim(); state._searchQ=q; go('search',q); } });
 $('scanBtn').onclick=scanPhoto;
+$('micBtn').onclick=voiceSearch;
 
 (async function boot(){
   updateCartCount();
