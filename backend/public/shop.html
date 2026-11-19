@@ -136,7 +136,7 @@
 <div class="topbar">
   <div class="topbar-in">
     <div class="brand" id="brandBtn"><span class="logo">+</span><span class="full">MedMart</span></div>
-    <div class="searchbox">
+    <div class="searchbox" id="topSearch">
       <span class="ic">🔍</span>
       <input id="globalSearch" placeholder="Search medicines…" />
       <button id="micBtn" title="Search by voice — tap and say the medicine name" style="background:transparent;color:var(--muted);padding:0 6px;font-size:20px;border:none">🎤</button>
@@ -214,6 +214,7 @@ function reorder(o){
 
 /* ---------------- navigation ---------------- */
 function go(v,arg){ state.view=v; window.scrollTo(0,0);
+  { const ts=$('topSearch'); if(ts) ts.style.display=(v==='home')?'none':'flex'; }
   if(state._pollTimer && v!=='orders'){ clearInterval(state._pollTimer); state._pollTimer=null; }
   if(v==='home') renderHome();
   else if(v==='shop') renderShop(arg);
