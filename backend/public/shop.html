@@ -235,9 +235,11 @@ async function renderHome(){
     </div>
     <div class="hero">
       <h1>Medicines from your local shops</h1>
-      <p>Order from trusted pharmacies near you — delivered to your door.</p>
+      <p>Order from trusted pharmacies near you — delivered to your door. Type, 🎤 speak, or 📷 snap a tablet strip.</p>
       <div class="herosearch">
         <input id="heroSearch" placeholder="Search for a medicine…" />
+        <button id="heroMic" title="Speak the medicine name" style="background:transparent;color:var(--muted);padding:0 6px;font-size:19px">🎤</button>
+        <button id="heroCam" title="Photo of a tablet strip or note" style="background:transparent;color:var(--muted);padding:0 6px;font-size:19px">📷</button>
         <button id="heroBtn">Search</button>
       </div>
     </div>
@@ -258,6 +260,8 @@ async function renderHome(){
   $('seeAllMeds').onclick=()=>{ state._searchQ=''; go('search',''); };
   $('heroBtn').onclick=()=>{ const q=$('heroSearch').value.trim(); if(q){ $('globalSearch').value=q; go('search',q); } };
   $('heroSearch').addEventListener('keydown',e=>{ if(e.key==='Enter') $('heroBtn').click(); });
+  $('heroMic').onclick=voiceSearch;
+  $('heroCam').onclick=scanPhoto;
   $('rxBtn').onclick=()=>go('prescription');
   const cats=[['Pain & Fever','paracetamol','🤒'],['Allergy','cetirizine','🤧'],['Antibiotics','amoxicillin','💊'],['Vitamins','vitamin','🟠'],['Diabetes','metformin','🩸'],['Cough & Cold','cough','😷'],['Stomach care','antacid','🌿'],['Skin care','cream','🧴']];
   const catBox=$('cats');
