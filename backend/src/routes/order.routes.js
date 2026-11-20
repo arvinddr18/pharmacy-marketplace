@@ -5,6 +5,7 @@ import {
   createOrder, myOrders, getMyOrder, cancelMyOrder,
   listAddresses, addAddress, deleteAddress, addReview, validateCoupon,
   createPrescriptionOrder,
+  listSavedSearches, addSavedSearch, deleteSavedSearch,
 } from '../controllers/order.controller.js';
 import { createRazorpayOrder, verifyPayment } from '../controllers/payment.controller.js';
 import { createReminder, listReminders, snoozeReminder, deleteReminder } from '../controllers/reminder.controller.js';
@@ -23,6 +24,10 @@ router.post('/orders/:id/review', addReview);
 router.post('/coupons/validate', validateCoupon);
 router.post('/payments/create', createRazorpayOrder);
 router.post('/payments/verify', verifyPayment);
+
+router.get('/saved-searches', listSavedSearches);
+router.post('/saved-searches', addSavedSearch);
+router.delete('/saved-searches/:q', deleteSavedSearch);
 
 router.get('/reminders', listReminders);
 router.post('/reminders', createReminder);

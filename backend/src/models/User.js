@@ -51,6 +51,9 @@ const userSchema = new Schema(
       instructions: { type: String, trim: true, maxlength: 200 },
     }],
 
+    // Saved (⭐) search terms for quick re-search without typing.
+    savedSearches: [{ type: String, trim: true, maxlength: 60 }],
+
     // Soft-delete marker.
     deletedAt: { type: Date, default: null },
   },

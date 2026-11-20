@@ -229,6 +229,26 @@ function go(v,arg){ state.view=v; window.scrollTo(0,0);
 function backLink(label,onclick){ const d=document.createElement('div'); d.className='back'; d.innerHTML='← '+esc(label); d.onclick=onclick; return d; }
 
 /* ---------------- HOME ---------------- */
+/* ---------------- QUICK PICKS (recent + saved searches) ---------------- */
+function getRecent(){ try{ return JSON.parse(localStorage.getItem('medmart_recent')||'[]'); }catch{ return []; } }
+function addRecent(q){ if(!q) return; try{ let a=getRecent().filter(x=>x.toLowerCase()!==q.toLowerCase()); a.unshift(q); localStorage.setItem('medmart_recent',JSON.stringify(a.slice(0,8))); }catch{} }
+function clearRecent(){ try{ localStorage.removeItem('medmart_recent'); }catch{} }
+async function getSaved(){ if(!state.token){ state._saved=[]; return []; } try{ const d=await api('/api/customer/saved-searches'); state._saved=d.items||[]; }catch{ state._saved=state._saved||[]; } return state._saved; }
+function isSaved(q){ return (state._saved||[]).some(s=>s.toLowerCase()===String(q).toLowerCase()); }
+async function toggleSaved(q){ if(!state.token){ toast('Sign in to save your favourites'); return false; } try{ if(isSaved(q)){ await api('/api/customer/saved-searches/'+encodeURIComponent(q),{method:'DELETE'}); } else { await api('/api/customer/saved-searches',{method:'POST',body:JSON.stringify({q})}); } await getSaved(); return true; }catch(e){ toast(e.message); return false; } }
+function quickPicksEl(){
+  const recent=getRecent(), saved=state._saved||[];
+  if(!recent.length && !saved.length) return null;
+  const c=document.createElement('div'); c.className='card'; c.style.marginBottom='8px';
+  let html='';
+  if(saved.length){ html+='<div class="sub" style="margin-bottom:6px">⭐ Saved</div><div class="chips">'+saved.map(s=>`<span class="chip" data-q="${esc(s)}">${esc(s)}</span>`).join('')+'</div>'; }
+  if(recent.length){ html+='<div class="sub" style="margin:'+(saved.length?'12px':'0')+' 0 6px">🕘 Recent <span id="clrRecent" style="color:var(--muted);cursor:pointer;font-weight:600">· clear</span></div><div class="chips">'+recent.map(s=>`<span class="chip" data-q="${esc(s)}">${esc(s)}</span>`).join('')+'</div>'; }
+  c.innerHTML=html;
+  c.querySelectorAll('.chip').forEach(ch=>ch.onclick=()=>{ const qq=ch.dataset.q; if($('globalSearch'))$('globalSearch').value=qq; if($('heroSearch'))$('heroSearch').value=qq; state._searchQ=qq; go('search',qq); });
+  const clr=c.querySelector('#clrRecent'); if(clr) clr.onclick=()=>{ clearRecent(); const fresh=quickPicksEl(); if(c.parentNode){ if(fresh) c.parentNode.replaceChild(fresh,c); else c.remove(); } };
+  return c;
+}
+
 async function renderHome(){
   view.innerHTML=`
     <div class="trust">
@@ -251,6 +271,7 @@ async function renderHome(){
       </div>
       <button class="light" id="rxBtn">Upload prescription</button>
     </div>
+    <div id="quickPicks"></div>
     <h2>Shop by category</h2>
     <div class="cats" id="cats"></div>
     <h2>Medical shops</h2>
@@ -264,6 +285,7 @@ async function renderHome(){
   $('heroMic').onclick=voiceSearch;
   $('heroCam').onclick=scanPhoto;
   $('rxBtn').onclick=()=>go('prescription');
+  getSaved().then(()=>{ const qp=quickPicksEl(); if(qp && $('quickPicks')) $('quickPicks').appendChild(qp); });
   const cats=[['Pain & Fever','paracetamol','🤒'],['Allergy','cetirizine','🤧'],['Antibiotics','amoxicillin','💊'],['Vitamins','vitamin','🟠'],['Diabetes','metformin','🩸'],['Cough & Cold','cough','😷'],['Stomach care','antacid','🌿'],['Skin care','cream','🧴']];
   const catBox=$('cats');
   for(const [label,q,emoji] of cats){ const d=document.createElement('div'); d.className='cat'; d.innerHTML=`<div class="ce">${emoji}</div>${label}`; d.onclick=()=>{ $('globalSearch').value=q; state._searchQ=q; go('search',q); }; catBox.appendChild(d); }
@@ -408,12 +430,26 @@ function productCard(p){
 async function renderSearch(q){
   view.innerHTML='';
   view.appendChild(backLink('Back to home',()=>go('home')));
-  const h=document.createElement('h1'); h.textContent=q?`Results for “${q}”`:'All medicines'; view.appendChild(h);
+  if(q) addRecent(q);
+  await getSaved();
+
+  const head=document.createElement('div'); head.className='row';
+  head.innerHTML=`<h1 style="margin:0">${q?`Results for “${esc(q)}”`:'All medicines'}</h1><span class="sp"></span>`;
+  if(q){
+    const sv=document.createElement('button'); sv.className='ghost small';
+    sv.textContent=isSaved(q)?'⭐ Saved':'☆ Save';
+    sv.onclick=async()=>{ const ok=await toggleSaved(q); if(ok) sv.textContent=isSaved(q)?'⭐ Saved':'☆ Save'; };
+    head.appendChild(sv);
+  }
+  view.appendChild(head);
+
+  const qp=quickPicksEl(); if(qp){ qp.style.marginTop='12px'; view.appendChild(qp); }
+
   const grid=document.createElement('div'); grid.className='grid prods'; grid.style.marginTop='12px'; grid.innerHTML='<p class="muted">Searching…</p>'; view.appendChild(grid);
   try{
     const d=await api('/api/discover/medicines'+(q?('?q='+encodeURIComponent(q)):''));
     const meds=d.items||[];
-    grid.innerHTML = meds.length ? '' : `<div class="empty"><div class="big">🔍</div>No medicines found for “${esc(q)}”.</div>`;
+    grid.innerHTML = meds.length ? '' : (q?`<div class="empty"><div class="big">🔍</div>No medicines found for “${esc(q)}”.</div>`:'<p class="muted">No medicines yet.</p>');
     for(const m of meds) grid.appendChild(medCatalogueCard(m));
   }catch(e){ grid.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
 }

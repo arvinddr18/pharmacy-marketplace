@@ -274,6 +274,35 @@ export const deleteAddress = asyncHandler(async (req, res) => {
   res.json({ items: user.addresses });
 });
 
+/** GET /api/customer/saved-searches — this customer's saved (⭐) search terms. */
+export const listSavedSearches = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select('savedSearches');
+  res.json({ items: user?.savedSearches || [] });
+});
+
+/** POST /api/customer/saved-searches { q } — save a search term. */
+export const addSavedSearch = asyncHandler(async (req, res) => {
+  const q = String(req.body.q || '').trim().slice(0, 60);
+  if (!q) throw ApiError.badRequest('Nothing to save');
+  const user = await User.findById(req.user._id);
+  user.savedSearches = user.savedSearches || [];
+  if (!user.savedSearches.some((s) => s.toLowerCase() === q.toLowerCase())) {
+    user.savedSearches.unshift(q);
+    user.savedSearches = user.savedSearches.slice(0, 20);
+    await user.save();
+  }
+  res.status(201).json({ items: user.savedSearches });
+});
+
+/** DELETE /api/customer/saved-searches/:q — remove a saved search term. */
+export const deleteSavedSearch = asyncHandler(async (req, res) => {
+  const q = decodeURIComponent(req.params.q || '').toLowerCase();
+  const user = await User.findById(req.user._id);
+  user.savedSearches = (user.savedSearches || []).filter((s) => s.toLowerCase() !== q);
+  await user.save();
+  res.json({ items: user.savedSearches });
+});
+
 /** POST /api/customer/coupons/validate — preview a coupon against a cart subtotal. */
 export const validateCoupon = asyncHandler(async (req, res) => {
   const code = String(req.body.code || '').toUpperCase().trim();
