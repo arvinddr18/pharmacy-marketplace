@@ -954,8 +954,12 @@ function renderAccount(){
     ac.innerHTML='<h2 style="margin-top:0">Saved addresses</h2><div id="addrList"><p class="muted">Loading…</p></div>';
     view.appendChild(ac);
     loadAddrList();
+
+    const sc=document.createElement('div'); sc.className='card panel'; sc.style.marginTop='12px';
+    sc.innerHTML='<h2 style="margin-top:0">Account centre</h2><div id="acctCentre"></div>';
+    view.appendChild(sc);
+    renderAccountCentre();
     return;
-  }
 
   // Logged out: sign in / create account.
   const c=document.createElement('div'); c.className='card panel';
@@ -1016,6 +1020,69 @@ async function loadAccountOrders(){
       </div>`;
     $('ordersSummaryRow').onclick=()=>go('orders');
   }catch(e){ box.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
+}
+
+/* ---------------- ACCOUNT CENTRE (edit / deactivate / delete) ---------------- */
+function doLogoutLocal(){ state.token=''; state.user=null; try{localStorage.removeItem('cust_token');}catch{} go('home'); }
+function acctRow(icon,label,sub,onclick,danger){
+  const r=document.createElement('div');
+  r.className='row';
+  r.style.cssText='cursor:pointer;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--border)';
+  r.innerHTML=`<div style="font-size:20px">${icon}</div><div class="sp"><strong style="${danger?'color:#dc2626':''}">${esc(label)}</strong>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div><div style="color:var(--muted);font-size:20px">›</div>`;
+  r.onclick=onclick;
+  return r;
+}
+function renderAccountCentre(){
+  const box=$('acctCentre'); if(!box) return;
+  box.innerHTML='';
+  box.appendChild(acctRow('✏️','Edit profile','Name and mobile number',openEditProfile));
+  box.appendChild(acctRow('⏸️','Deactivate account','Temporarily turn off — sign in again to reactivate',confirmDeactivate));
+  box.appendChild(acctRow('🗑️','Permanently delete account','Delete your account and personal data for good',confirmDeleteAccount,true));
+}
+function openEditProfile(){
+  const box=$('acctCentre'); if(!box) return;
+  const u=state.user||{};
+  box.innerHTML=`
+    <div style="padding-top:10px">
+      <label>Full name</label><input id="epName" value="${esc(u.name||'')}" />
+      <label>Mobile</label><input id="epPhone" maxlength="10" value="${esc(u.phone||'')}" placeholder="10-digit mobile" />
+      <label>Email</label><input value="${esc(u.email||'')}" disabled style="opacity:.6" />
+      <div class="sub" style="margin-top:4px">Email can't be changed.</div>
+      <div class="row" style="margin-top:12px"><button class="small" id="epSave">Save changes</button><button class="ghost small" id="epCancel">Cancel</button></div>
+    </div>`;
+  $('epPhone').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  $('epCancel').onclick=renderAccountCentre;
+  $('epSave').onclick=async()=>{
+    const name=$('epName').value.trim(), phone=$('epPhone').value.trim();
+    if(name.length<2){ toast('Please enter your name'); return; }
+    if(phone && phone.length!==10){ toast('Enter a valid 10-digit mobile'); return; }
+    const btn=$('epSave'); btn.disabled=true; btn.textContent='Saving…';
+    try{ const d=await api('/api/customer/profile',{method:'PATCH',body:JSON.stringify({name,phone})}); state.user=d.user; toast('Profile updated',true); renderAccount(); }
+    catch(e){ toast(e.message); btn.disabled=false; btn.textContent='Save changes'; }
+  };
+}
+async function confirmDeactivate(){
+  if(!confirm('Deactivate your account?\n\nYou can reactivate it anytime just by signing in again. Your orders and data are kept.')) return;
+  try{ await api('/api/customer/account/deactivate',{method:'POST'}); toast('Account deactivated. Sign in anytime to reactivate.',true); doLogoutLocal(); }
+  catch(e){ toast(e.message); }
+}
+function confirmDeleteAccount(){
+  const box=$('acctCentre'); if(!box) return;
+  box.innerHTML=`
+    <div class="banner" style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;margin-top:10px;padding:12px;border-radius:10px">
+      <strong>Permanently delete account</strong>
+      <div class="sub" style="color:#b91c1c;margin-top:4px">This can't be undone. Your profile, saved addresses and reminders are removed. Enter your password to confirm.</div>
+    </div>
+    <label style="margin-top:10px">Your password</label><input id="delPass" type="password" placeholder="Enter your password" />
+    <div class="row" style="margin-top:12px"><button class="small" id="delGo" style="background:#dc2626">Delete my account</button><button class="ghost small" id="delCancel">Cancel</button></div>`;
+  $('delCancel').onclick=renderAccountCentre;
+  $('delGo').onclick=async()=>{
+    const password=$('delPass').value;
+    if(!password){ toast('Enter your password to confirm'); return; }
+    const btn=$('delGo'); btn.disabled=true; btn.textContent='Deleting…';
+    try{ await api('/api/customer/account',{method:'DELETE',body:JSON.stringify({password})}); toast('Your account has been permanently deleted.',true); doLogoutLocal(); }
+    catch(e){ toast(e.message); btn.disabled=false; btn.textContent='Delete my account'; }
+  };
 }
 
 async function doSignup(){

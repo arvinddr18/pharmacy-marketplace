@@ -173,10 +173,18 @@ export const dashboardLoginHandler = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ email }).select('+passwordHash');
   if (!user || user.deletedAt) throw ApiError.unauthorized('Invalid email or password');
-  if (user.status === ACCOUNT_STATUS.DISABLED) throw ApiError.forbidden('Account disabled');
+  // Staff accounts stay locked when disabled; a customer who deactivated their
+  // own account is allowed through and reactivated once the password checks out.
+  if (user.status === ACCOUNT_STATUS.DISABLED && user.role !== ROLES.CUSTOMER) {
+    throw ApiError.forbidden('Account disabled');
+  }
 
   const ok = await user.verifyPassword(password);
   if (!ok) throw ApiError.unauthorized('Invalid email or password');
+
+  if (user.status === ACCOUNT_STATUS.DISABLED && user.role === ROLES.CUSTOMER) {
+    user.status = ACCOUNT_STATUS.ACTIVE;
+  }
 
   // Customers must have a verified email. Staff accounts are exempt.
   if (user.role === ROLES.CUSTOMER && !user.emailVerified) {

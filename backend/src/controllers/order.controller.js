@@ -11,7 +11,59 @@ import { emailOrderUpdate } from '../services/email.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { env } from '../config/env.js';
-import { PHARMACY_STATUS } from '../config/constants.js';
+import { PHARMACY_STATUS, ACCOUNT_STATUS } from '../config/constants.js';
+
+/* ---------------- Account self-service (profile / deactivate / delete) ---------------- */
+
+/** PATCH /api/customer/profile { name, phone } — update own name / mobile. */
+export const updateProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (!user || user.deletedAt) throw ApiError.notFound('Account not found');
+  if (typeof req.body.name === 'string') {
+    const n = req.body.name.trim();
+    if (n.length < 2) throw ApiError.badRequest('Please enter your name');
+    user.name = n;
+  }
+  if (typeof req.body.phone === 'string') {
+    const p = req.body.phone.trim();
+    if (p && !/^\d{10}$/.test(p)) throw ApiError.badRequest('Enter a valid 10-digit mobile');
+    user.phone = p || undefined;
+  }
+  await user.save();
+  res.json({ user: user.toSafeJSON() });
+});
+
+/** POST /api/customer/account/deactivate — temporary; signing in again reactivates. */
+export const deactivateAccount = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (!user || user.deletedAt) throw ApiError.notFound('Account not found');
+  user.status = ACCOUNT_STATUS.DISABLED;
+  await user.save();
+  res.json({ ok: true, message: 'Your account is deactivated. Sign in anytime to reactivate it.' });
+});
+
+/** DELETE /api/customer/account { password } — permanent; scrubs personal data. */
+export const deleteAccount = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select('+passwordHash');
+  if (!user || user.deletedAt) throw ApiError.notFound('Account not found');
+  if (user.passwordHash) {
+    const ok = await user.verifyPassword(req.body.password || '');
+    if (!ok) throw ApiError.unauthorized('Password is incorrect');
+  }
+  // Soft-delete + anonymise: orders stay for the pharmacy's records, but personal
+  // data is removed and the email/phone are freed so they can register again later.
+  user.deletedAt = new Date();
+  user.status = ACCOUNT_STATUS.DISABLED;
+  user.name = 'Deleted user';
+  user.email = undefined;
+  user.phone = undefined;
+  user.passwordHash = undefined;
+  user.addresses = [];
+  user.savedSearches = [];
+  user.emailVerified = false;
+  await user.save();
+  res.json({ ok: true, message: 'Your account has been permanently deleted.' });
+});
 
 function newOrderNumber() {
   return 'ORD-' + crypto.randomBytes(3).toString('hex').toUpperCase();
