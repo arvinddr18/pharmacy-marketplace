@@ -315,11 +315,22 @@ function renderLocBar(){
     <input id="locText" placeholder="Area or PIN" style="width:130px;padding:8px" />
     <button class="secondary small" id="locApply">Go</button>
     ${l?'<button class="ghost small" id="locClear">Show all</button>':''}
+  </div>
+  <div class="row" style="gap:8px;margin-top:10px;align-items:center">
+    <span style="font-size:17px">🔍</span>
+    <input id="shopNameSearch" placeholder="Search a shop by name, e.g. Shanti Medical" style="flex:1;min-width:140px;padding:8px" />
+    <button class="secondary small" id="shopNameBtn">Find</button>
+    ${(window._shopQ||'')?'<button class="ghost small" id="shopNameClear">Clear</button>':''}
   </div></div>`;
   $('locNear').onclick=useMyLocation;
   $('locApply').onclick=()=>{ const t=$('locText').value.trim(); if(!t){ toast('Type an area or PIN'); return; } setLoc({mode:'text',text:t}); renderLocBar(); loadShops(); };
   $('locText').addEventListener('keydown',e=>{ if(e.key==='Enter') $('locApply').click(); });
   const clr=$('locClear'); if(clr) clr.onclick=()=>{ setLoc(null); renderLocBar(); loadShops(); };
+  const sns=$('shopNameSearch'); if(sns){ sns.value=window._shopQ||''; }
+  $('shopNameBtn').onclick=()=>{ window._shopQ=$('shopNameSearch').value.trim(); loadShops(); };
+  $('shopNameSearch').addEventListener('input',e=>{ window._shopQ=e.target.value.trim(); clearTimeout(window._shopQT); window._shopQT=setTimeout(loadShops,300); });
+  $('shopNameSearch').addEventListener('keydown',e=>{ if(e.key==='Enter'){ window._shopQ=e.target.value.trim(); loadShops(); } });
+  const snc=$('shopNameClear'); if(snc) snc.onclick=()=>{ window._shopQ=''; renderLocBar(); loadShops(); };
 }
 function useMyLocation(){
   if(!navigator.geolocation){ toast('Location is not available on this device'); return; }
@@ -333,9 +344,12 @@ async function loadShops(){
   const box=$('shopList'); if(!box) return;
   box.innerHTML='<p class="muted">Loading shops…</p>';
   try{
-    const d=await api('/api/discover/pharmacies'+locQuery());
+    const params=[]; const l=getLoc();
+    if(l){ if(l.mode==='gps'){ params.push('lat='+l.lat,'lng='+l.lng); } else if(l.mode==='text'){ params.push('location='+encodeURIComponent(l.text)); } }
+    const sq=(window._shopQ||'').trim(); if(sq) params.push('q='+encodeURIComponent(sq));
+    const d=await api('/api/discover/pharmacies'+(params.length?('?'+params.join('&')):''));
     const shops=d.items||[];
-    box.innerHTML = shops.length ? '' : '<p class="muted">No shops found for this location. Tap “Show all”.</p>';
+    box.innerHTML = shops.length ? '' : ('<p class="muted">'+(sq?('No shop matches “'+esc(sq)+'” here. Try a different name or tap “Show all”.'):'No shops found for this location. Tap “Show all”.')+'</p>');
     for(const s of shops) box.appendChild(shopCard(s));
   }catch(e){ box.innerHTML='<p class="muted">Could not load shops.</p>'; }
 }
