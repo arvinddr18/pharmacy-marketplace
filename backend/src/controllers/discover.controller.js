@@ -8,6 +8,14 @@ import { ApiError } from '../utils/ApiError.js';
 import { PHARMACY_STATUS } from '../config/constants.js';
 import { env } from '../config/env.js';
 
+/** Great-circle distance in km between two lat/lng points. */
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371, toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
 /**
  * PUBLIC customer-facing discovery. No auth required to browse — customers can
  * search and see offers/shops without logging in (login is only needed to order).
@@ -112,7 +120,7 @@ export const medicineOffers = asyncHandler(async (req, res) => {
     medicine: medicine._id,
     active: true,
     deletedAt: null,
-  }).populate('pharmacy', 'name address status deletedAt');
+  }).populate('pharmacy', 'name address location status deletedAt');
 
   const now = new Date();
   const offers = [];
@@ -146,7 +154,41 @@ export const medicineOffers = asyncHandler(async (req, res) => {
     o.ratingCount = r?.count || 0;
   }
 
-  offers.sort((a, b) => a.sellingPrice - b.sellingPrice);
+  // Optional location: attach distance / in-area flag and sort nearby first.
+  const lat = parseFloat(req.query.lat), lng = parseFloat(req.query.lng);
+  const location = (req.query.location || '').trim().toLowerCase();
+  const hasGeo = Number.isFinite(lat) && Number.isFinite(lng);
+
+  const listingsById = {};
+  for (const l of listings) listingsById[String(l._id)] = l;
+
+  for (const o of offers) {
+    o.distanceKm = null; o.inArea = null;
+    const ph = listingsById[String(o.listingId)]?.pharmacy;
+    if (hasGeo && ph) {
+      const co = ph.location && ph.location.coordinates;
+      if (co && (co[0] !== 0 || co[1] !== 0)) {
+        o.distanceKm = Math.round(haversineKm(lat, lng, co[1], co[0]) * 10) / 10;
+        o.inArea = o.distanceKm <= 5;
+      } else { o.inArea = false; }
+    } else if (location && ph) {
+      const a = ph.address || {};
+      const hay = [a.line1, a.city, a.district, a.pincode].filter(Boolean).join(' ').toLowerCase();
+      o.inArea = hay.includes(location);
+    }
+  }
+
+  offers.sort((a, b) => {
+    if (hasGeo) {
+      const da = a.distanceKm == null ? Infinity : a.distanceKm;
+      const db = b.distanceKm == null ? Infinity : b.distanceKm;
+      if (da !== db) return da - db;
+    } else if (location) {
+      if (!!b.inArea !== !!a.inArea) return (b.inArea ? 1 : 0) - (a.inArea ? 1 : 0);
+    }
+    return a.sellingPrice - b.sellingPrice;
+  });
+
   res.json({ medicine, offers });
 });
 

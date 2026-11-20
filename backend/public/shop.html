@@ -554,7 +554,7 @@ function renderScanResults(d, box){
 async function renderMedicine(id){
   view.innerHTML='<p class="muted">Loading…</p>';
   try{
-    const d=await api('/api/discover/medicines/'+id+'/offers');
+    const d=await api('/api/discover/medicines/'+id+'/offers'+locQuery());
     const m=d.medicine, offers=d.offers||[];
     view.innerHTML='';
     view.appendChild(backLink('Back',()=>go(state._searchQ?'search':'home',state._searchQ)));
@@ -566,22 +566,35 @@ async function renderMedicine(id){
         ${m.prescriptionRequired?'<span class="pill rx" style="margin-top:6px">Prescription required</span>':''}</div>
       </div>`;
     view.appendChild(head);
-    const h2=document.createElement('h2'); h2.textContent='Available at '+offers.length+' shop'+(offers.length===1?'':'s'); view.appendChild(h2);
     if(!offers.length){ const e=document.createElement('p'); e.className='muted'; e.textContent='No pharmacy currently stocks this medicine.'; view.appendChild(e); return; }
-    for(const o of offers){
+
+    const offerCard=(o)=>{
       const card=document.createElement('div'); card.className='card'; card.style.marginBottom='10px';
       const off=(o.mrp>o.sellingPrice)?Math.round((1-o.sellingPrice/o.mrp)*100):0;
+      const dist=(o.distanceKm!=null)?` · ${o.distanceKm} km`:'';
       card.innerHTML=`
         <div class="row">
           <div class="avatar" style="background:${colorFor(o.pharmacyName)}">${esc(initials(o.pharmacyName))}</div>
-          <div class="sp"><strong>${esc(o.pharmacyName)}</strong><div class="sub">${esc(o.city||'')} ${o.inStock?'· In stock':'· Out of stock'}</div><div style="margin-top:2px">${starsHtml(o.rating,o.ratingCount)}</div></div>
+          <div class="sp"><strong>${esc(o.pharmacyName)}</strong><div class="sub">${esc(o.city||'')}${dist} ${o.inStock?'· In stock':'· Out of stock'}</div><div style="margin-top:2px">${starsHtml(o.rating,o.ratingCount)}</div></div>
           <div style="text-align:right"><span class="price">${money(o.sellingPrice)}</span>${o.mrp>o.sellingPrice?`<div><span class="mrp">${money(o.mrp)}</span><span class="off">${off}%</span></div>`:''}</div>
         </div>
         <div class="addwrap" style="margin-top:10px"></div>`;
       const b=document.createElement('button'); b.className='small ok'; b.textContent=o.inStock?'Add to cart':'Out of stock'; b.disabled=!o.inStock;
       b.onclick=()=>addToCart({ listingId:o.listingId, pharmacyId:o.pharmacyId, pharmacyName:o.pharmacyName, name:m.name, sellingPrice:o.sellingPrice, mrp:o.mrp, prescriptionRequired:o.prescriptionRequired, available:o.available, inStock:o.inStock });
       card.querySelector('.addwrap').appendChild(b);
-      view.appendChild(card);
+      return card;
+    };
+
+    const loc=getLoc();
+    if(loc){
+      const near=offers.filter(o=>o.inArea), other=offers.filter(o=>!o.inArea);
+      const h2=document.createElement('h2'); h2.textContent = near.length ? 'In your area' : 'Nearest shops'; view.appendChild(h2);
+      if(near.length){ for(const o of near) view.appendChild(offerCard(o)); }
+      else { const e=document.createElement('p'); e.className='muted'; e.textContent='No shop in your area has this yet — see other areas below.'; view.appendChild(e); }
+      if(other.length){ const h3=document.createElement('h2'); h3.style.marginTop='18px'; h3.textContent='Also available in other areas'; view.appendChild(h3); for(const o of other) view.appendChild(offerCard(o)); }
+    } else {
+      const h2=document.createElement('h2'); h2.textContent='Available at '+offers.length+' shop'+(offers.length===1?'':'s'); view.appendChild(h2);
+      for(const o of offers) view.appendChild(offerCard(o));
     }
   }catch(e){ view.innerHTML=''; view.appendChild(backLink('Back to home',()=>go('home'))); const p=document.createElement('p'); p.className='muted'; p.textContent=e.message; view.appendChild(p); }
 }
