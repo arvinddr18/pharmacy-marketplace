@@ -157,20 +157,42 @@ export const medicineOffers = asyncHandler(async (req, res) => {
  */
 export const listPharmacies = asyncHandler(async (req, res) => {
   const { q } = req.query;
-  const filter = { status: PHARMACY_STATUS.APPROVED, deletedAt: null };
-  if (q && q.trim()) filter.name = { $regex: q.trim(), $options: 'i' };
+  const lat = parseFloat(req.query.lat);
+  const lng = parseFloat(req.query.lng);
+  const location = (req.query.location || '').trim();
 
-  const found = await Pharmacy.find(filter)
-    .sort({ name: 1 })
-    .limit(60)
-    .select('name address operatingHours logoUrl')
-    .lean();
+  const base = { status: PHARMACY_STATUS.APPROVED, deletedAt: null };
+  if (q && q.trim()) base.name = { $regex: q.trim(), $options: 'i' };
 
-  const ratings = await Review.ratingsFor(found.map((p) => p._id));
-  const items = found.map((p) => {
-    const r = ratings[String(p._id)];
-    return { ...p, rating: r?.avg || 0, ratingCount: r?.count || 0 };
-  });
+  let items;
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    // Nearest-first using the 2dsphere index, with distance attached.
+    const found = await Pharmacy.aggregate([
+      { $geoNear: { near: { type: 'Point', coordinates: [lng, lat] }, distanceField: 'distanceMeters', spherical: true, query: base } },
+      { $limit: 60 },
+      { $project: { name: 1, address: 1, operatingHours: 1, logoUrl: 1, location: 1, distanceMeters: 1 } },
+    ]);
+    const ratings = await Review.ratingsFor(found.map((p) => p._id));
+    items = found.map((p) => {
+      const co = (p.location && p.location.coordinates) || [0, 0];
+      const set = co[0] !== 0 || co[1] !== 0;
+      const r = ratings[String(p._id)];
+      return { ...p, rating: r?.avg || 0, ratingCount: r?.count || 0, distanceKm: set ? Math.round(p.distanceMeters / 100) / 10 : null };
+    });
+  } else {
+    const filter = { ...base };
+    if (location) {
+      const safe = location.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rx = { $regex: safe, $options: 'i' };
+      filter.$or = [{ 'address.city': rx }, { 'address.pincode': rx }, { 'address.line1': rx }, { 'address.district': rx }];
+    }
+    const found = await Pharmacy.find(filter).sort({ name: 1 }).limit(60).select('name address operatingHours logoUrl').lean();
+    const ratings = await Review.ratingsFor(found.map((p) => p._id));
+    items = found.map((p) => {
+      const r = ratings[String(p._id)];
+      return { ...p, rating: r?.avg || 0, ratingCount: r?.count || 0 };
+    });
+  }
 
   res.json({ items });
 });

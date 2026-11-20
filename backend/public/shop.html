@@ -275,6 +275,7 @@ async function renderHome(){
     <h2>Shop by category</h2>
     <div class="cats" id="cats"></div>
     <h2>Medical shops</h2>
+    <div id="locBar"></div>
     <div id="shopList" class="grid shops"><p class="muted">Loading shops…</p></div>
     <div class="row" style="justify-content:space-between;align-items:center;margin:22px 0 10px"><h2 style="margin:0">All medicines</h2><span id="seeAllMeds" class="ghost small" style="color:var(--blue);cursor:pointer;font-weight:700">See all →</span></div>
     <div id="popList" class="grid prods"><p class="muted">Loading…</p></div>
@@ -290,12 +291,8 @@ async function renderHome(){
   const catBox=$('cats');
   for(const [label,q,emoji] of cats){ const d=document.createElement('div'); d.className='cat'; d.innerHTML=`<div class="ce">${emoji}</div>${label}`; d.onclick=()=>{ $('globalSearch').value=q; state._searchQ=q; go('search',q); }; catBox.appendChild(d); }
 
-  try{
-    const d=await api('/api/discover/pharmacies');
-    const shops=d.items||[];
-    $('shopList').innerHTML = shops.length ? '' : '<p class="muted">No shops available yet.</p>';
-    for(const s of shops) $('shopList').appendChild(shopCard(s));
-  }catch(e){ $('shopList').innerHTML='<p class="muted">Could not load shops.</p>'; }
+  renderLocBar();
+  loadShops();
 
   try{
     const d=await api('/api/discover/medicines');
@@ -305,14 +302,53 @@ async function renderHome(){
   }catch(e){ $('popList').innerHTML='<p class="muted">Could not load medicines.</p>'; }
 }
 
+/* ---------------- CUSTOMER LOCATION ---------------- */
+function getLoc(){ try{ return JSON.parse(localStorage.getItem('medmart_loc')||'null'); }catch{ return null; } }
+function setLoc(v){ try{ v?localStorage.setItem('medmart_loc',JSON.stringify(v)):localStorage.removeItem('medmart_loc'); }catch{} }
+function locQuery(){ const l=getLoc(); if(!l) return ''; if(l.mode==='gps') return '?lat='+l.lat+'&lng='+l.lng; if(l.mode==='text') return '?location='+encodeURIComponent(l.text); return ''; }
+function renderLocBar(){
+  const box=$('locBar'); if(!box) return;
+  const l=getLoc();
+  const label = !l ? 'Showing all shops' : (l.mode==='gps' ? '📍 Nearest to you' : '📍 Area: '+esc(l.text));
+  box.innerHTML=`<div class="card" style="margin-bottom:12px"><div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><strong>${label}</strong><span class="sp"></span>
+    <button class="light small" id="locNear">📍 Near me</button>
+    <input id="locText" placeholder="Area or PIN" style="width:130px;padding:8px" />
+    <button class="secondary small" id="locApply">Go</button>
+    ${l?'<button class="ghost small" id="locClear">Show all</button>':''}
+  </div></div>`;
+  $('locNear').onclick=useMyLocation;
+  $('locApply').onclick=()=>{ const t=$('locText').value.trim(); if(!t){ toast('Type an area or PIN'); return; } setLoc({mode:'text',text:t}); renderLocBar(); loadShops(); };
+  $('locText').addEventListener('keydown',e=>{ if(e.key==='Enter') $('locApply').click(); });
+  const clr=$('locClear'); if(clr) clr.onclick=()=>{ setLoc(null); renderLocBar(); loadShops(); };
+}
+function useMyLocation(){
+  if(!navigator.geolocation){ toast('Location is not available on this device'); return; }
+  toast('Getting your location…',true);
+  navigator.geolocation.getCurrentPosition(
+    pos=>{ setLoc({mode:'gps',lat:pos.coords.latitude,lng:pos.coords.longitude}); renderLocBar(); loadShops(); toast('Showing shops nearest to you',true); },
+    err=>toast(err.code===1?'Please allow location access':'Could not get your location — try again'),
+    {enableHighAccuracy:true,timeout:12000});
+}
+async function loadShops(){
+  const box=$('shopList'); if(!box) return;
+  box.innerHTML='<p class="muted">Loading shops…</p>';
+  try{
+    const d=await api('/api/discover/pharmacies'+locQuery());
+    const shops=d.items||[];
+    box.innerHTML = shops.length ? '' : '<p class="muted">No shops found for this location. Tap “Show all”.</p>';
+    for(const s of shops) box.appendChild(shopCard(s));
+  }catch(e){ box.innerHTML='<p class="muted">Could not load shops.</p>'; }
+}
+
 function shopCard(s){
   const c=document.createElement('div'); c.className='card clickable';
   const city=[s.address?.line1,s.address?.city].filter(Boolean).join(', ');
+  const dist=(s.distanceKm!=null)?` · ${s.distanceKm} km`:'';
   const hrs=s.operatingHours?`${s.operatingHours.open||''}–${s.operatingHours.close||''}`:'';
   c.innerHTML=`
     <div class="row">
       <div class="avatar" style="background:${colorFor(s.name)}">${esc(initials(s.name))}</div>
-      <div><strong>${esc(s.name)}</strong><div class="sub">${esc(city||'Pharmacy')}</div><div style="margin-top:3px">${starsHtml(s.rating,s.ratingCount)}</div></div>
+      <div><strong>${esc(s.name)}</strong><div class="sub">${esc(city||'Pharmacy')}${dist}</div><div style="margin-top:3px">${starsHtml(s.rating,s.ratingCount)}</div></div>
     </div>
     <div class="row" style="margin-top:12px">
       ${hrs?`<span class="pill open">🕐 ${esc(hrs)}</span>`:''}
