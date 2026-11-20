@@ -1001,16 +1001,20 @@ async function loadAccountOrders(){
     const d=await api('/api/customer/orders'); const orders=d.items||[];
     if(!box) return;
     if(!orders.length){ box.innerHTML='<p class="muted">No orders yet. Start shopping to see them here.</p>'; return; }
-    box.innerHTML=orders.slice(0,5).map(o=>{
-      const it=o.items&&o.items[0]||{};
-      const isRx=o.kind==='prescription';
-      const detail=isRx?`📄 Prescription order${o.pharmacy?.name?' · '+esc(o.pharmacy.name):''}`:`${esc(it.name||'')} × ${it.quantity||1} · ${esc(o.pharmacy?.name||'')}`;
-      const priceHtml=(isRx && !(o.total>0))?'<span class="sub">Pending</span>':`<span class="price">${money(o.total)}</span>`;
-      return `<div class="row" style="border-top:1px solid var(--border);padding:10px 0;align-items:flex-start;cursor:pointer" data-oview="1">
-        <div class="sp"><strong>${esc(o.orderNumber)}</strong> <span class="pill ${o.status}">${esc(String(o.status).replace(/_/g,' '))}</span><div class="sub">${detail}</div></div>
-        ${priceHtml}</div>`;
-    }).join('');
-    box.querySelectorAll('[data-oview]').forEach(r=>r.onclick=()=>go('orders'));
+    const active=orders.filter(o=>!['delivered','cancelled','rejected'].includes(o.status)).length;
+    const delivered=orders.filter(o=>o.status==='delivered').length;
+    const latest=orders[0];
+    box.innerHTML=`
+      <div class="row" id="ordersSummaryRow" style="cursor:pointer;align-items:center;gap:12px;padding:4px 0">
+        <div style="font-size:30px">📦</div>
+        <div class="sp">
+          <strong style="font-size:16px">${orders.length} order${orders.length===1?'':'s'}</strong>
+          <div class="sub">${active} active · ${delivered} delivered</div>
+          <div class="sub">Latest: ${esc(latest.orderNumber)} <span class="pill ${latest.status}">${esc(String(latest.status).replace(/_/g,' '))}</span></div>
+        </div>
+        <button class="light small">See all →</button>
+      </div>`;
+    $('ordersSummaryRow').onclick=()=>go('orders');
   }catch(e){ box.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
 }
 
