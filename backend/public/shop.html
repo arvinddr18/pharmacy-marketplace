@@ -1206,12 +1206,41 @@ function openRateUI(box,orderId){
   };
 }
 
+function orderTabKey(o){
+  const s=o.status;
+  if(s==='delivered') return 'delivered';
+  if(s==='cancelled'||s==='rejected') return 'cancelled';
+  return 'active';
+}
+function drawOrderTabs(){
+  const box=$('orderTabs'); if(!box) return;
+  const orders=state._allOrders||[];
+  const counts={all:orders.length,active:0,delivered:0,cancelled:0};
+  for(const o of orders) counts[orderTabKey(o)]++;
+  const defs=[['all','All'],['active','Active'],['delivered','Delivered'],['cancelled','Cancelled']];
+  box.innerHTML='';
+  for(const [key,label] of defs){
+    const b=document.createElement('button');
+    b.className=(state._orderTab===key)?'small':'ghost small';
+    b.textContent=label+' ('+counts[key]+')';
+    b.onclick=()=>{ state._orderTab=key; drawOrderTabs(); drawOrders(); };
+    box.appendChild(b);
+  }
+}
+function drawOrders(){
+  const list=$('ordersList'); if(!list) return;
+  const tab=state._orderTab||'all';
+  const orders=(state._allOrders||[]).filter(o=>tab==='all'||orderTabKey(o)===tab);
+  const names={active:'active',delivered:'delivered',cancelled:'cancelled'};
+  list.innerHTML = orders.length ? '' : ('<div class="empty"><div class="big">📦</div>No '+(tab==='all'?'':names[tab]+' ')+'orders'+(tab==='all'?' yet':'')+'.</div>');
+  for(const o of orders) list.appendChild(orderCard(o));
+}
 async function loadOrdersList(){
   const list=$('ordersList'); if(!list) return;
   try{
     const d=await api('/api/customer/orders'); const orders=d.items||[];
-    list.innerHTML = orders.length ? '' : '<div class="empty"><div class="big">📦</div>No orders yet.</div>';
-    for(const o of orders) list.appendChild(orderCard(o));
+    state._allOrders=orders;
+    drawOrderTabs(); drawOrders();
   }catch(e){ if(!list.children.length) list.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
 }
 
@@ -1221,6 +1250,8 @@ async function renderOrders(){
   view.appendChild(backLink('Back to home',()=>go('home')));
   const head=document.createElement('div'); head.className='row'; head.innerHTML='<h1>My orders</h1><span class="sp"></span><span class="live"><span class="ld"></span>Live</span>'; view.appendChild(head);
   const rb=document.createElement('div'); rb.id='dueRefills'; view.appendChild(rb); showDueRefills();
+  if(!state._orderTab) state._orderTab='all';
+  const tabs=document.createElement('div'); tabs.id='orderTabs'; tabs.className='row'; tabs.style.cssText='gap:8px;flex-wrap:wrap;margin-top:12px'; view.appendChild(tabs);
   const list=document.createElement('div'); list.id='ordersList'; list.style.marginTop='12px'; list.innerHTML='<p class="muted">Loading…</p>'; view.appendChild(list);
   await loadOrdersList();
   if(state._pollTimer) clearInterval(state._pollTimer);0
