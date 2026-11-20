@@ -105,6 +105,15 @@
       <div class="stat"><div class="muted">Low / out of stock</div><div class="n" id="statLow">0</div></div>
     </div>
 
+    <div class="card" style="margin-bottom:16px;padding:14px 16px">
+      <div class="row" style="justify-content:space-between">
+        <div><strong>📍 Shop location</strong><div class="muted" id="locStatus" style="font-size:13px">—</div><div class="muted" style="font-size:12px">Used to show your shop to nearby customers ("near me").</div></div>
+        <button class="secondary" id="setLocBtn">Use my current location</button>
+      </div>
+    </div>
+
+    <!-- orders -->
+
     <div class="sectionhead">
       <h2>Orders</h2>
       <button class="secondary" id="refreshOrdersBtn">Refresh</button>
@@ -280,7 +289,24 @@ async function loadProfile(){
     const a = ph.address||{};
     $('phAddr').textContent = [a.line1, a.city, a.pincode].filter(Boolean).join(', ');
     $('phStatus').textContent = ph.status;
+    const co = (ph.location && ph.location.coordinates) || [0,0];
+    const hasLoc = co[0] !== 0 || co[1] !== 0;
+    $('locStatus').textContent = hasLoc ? ('✓ Set ('+co[1].toFixed(5)+', '+co[0].toFixed(5)+')') : 'Not set yet — tap the button at your shop';
   }catch(e){ toast(e.message); if(/token|Unauthorized/i.test(e.message)) logout(); }
+}
+function setShopLocation(){
+  if(!navigator.geolocation){ toast('Location is not available on this device'); return; }
+  const btn=$('setLocBtn'); btn.disabled=true; btn.textContent='Getting location…';
+  navigator.geolocation.getCurrentPosition(async(pos)=>{
+    try{
+      await api('/api/pharmacy/me/location',{method:'PATCH',body:JSON.stringify({ lat:pos.coords.latitude, lng:pos.coords.longitude })});
+      toast('Shop location saved ✓',true); await loadProfile();
+    }catch(e){ toast(e.message); }
+    btn.disabled=false; btn.textContent='Use my current location';
+  },(err)=>{
+    toast(err.code===1?'Please allow location access':'Could not get your location — try again');
+    btn.disabled=false; btn.textContent='Use my current location';
+  },{ enableHighAccuracy:true, timeout:12000 });
 }
 
 async function loadListings(){
@@ -384,6 +410,7 @@ $('password').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
 $('logoutBtn').addEventListener('click',logout);
 $('refreshBtn').addEventListener('click',loadListings);
 $('refreshOrdersBtn').addEventListener('click',loadOrders);
+$('setLocBtn').addEventListener('click',setShopLocation);
 $('catSearch').addEventListener('input',onSearch);
 $('addBatchBtn').addEventListener('click',addBatch);
 $('closeBatch').addEventListener('click',()=>$('batchPanel').classList.add('hidden'));

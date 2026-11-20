@@ -1,9 +1,27 @@
 import { Pharmacy } from '../models/Pharmacy.js';
 import { Order } from '../models/Order.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { ApiError } from '../utils/ApiError.js';
 
 export const getMyPharmacy = asyncHandler(async (req, res) => {
   res.json({ pharmacy: req.pharmacy });
+});
+
+/**
+ * PATCH /api/pharmacy/me/location { lat, lng } — the pharmacy sets its exact
+ * GPS location (tapped from their device at the shop) for "near me" search.
+ */
+export const updateMyLocation = asyncHandler(async (req, res) => {
+  const lat = Number(req.body.lat);
+  const lng = Number(req.body.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    throw ApiError.badRequest('Invalid location coordinates');
+  }
+  const pharmacy = await Pharmacy.findById(req.pharmacyId);
+  if (!pharmacy) throw ApiError.notFound('Pharmacy not found');
+  pharmacy.location = { type: 'Point', coordinates: [lng, lat] };
+  await pharmacy.save();
+  res.json({ pharmacy });
 });
 
 export const listMyPharmacyOrders = asyncHandler(async (req, res) => {

@@ -11,6 +11,7 @@ import {
 import { ROLES } from '../config/constants.js';
 import {
   getMyPharmacy,
+  updateMyLocation,
   listMyPharmacyOrders,
   getOrderPrescription,
   getPharmacyByIdScoped,
@@ -31,6 +32,7 @@ const router = Router();
 router.use(authenticate, requireRole(ROLES.PHARMACY_OWNER, ROLES.PHARMACY_STAFF), resolvePharmacy);
 
 router.get('/me', getMyPharmacy);
+router.patch('/me/location', updateMyLocation);
 router.get('/orders', listMyPharmacyOrders);
 router.get('/orders/:id/prescription', getOrderPrescription);
 router.post('/orders/:id/accept', acceptOrder);
