@@ -35,9 +35,14 @@
   .searchbox{flex:1;display:flex;max-width:620px;position:relative}
   .searchbox input{border-radius:10px;padding-left:40px}
   .searchbox .ic{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
-  .navbtns{display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .navbtns{display:flex;align-items:center;gap:6px;white-space:nowrap;margin-left:auto}
   .cartbtn{position:relative}
-  .cartbtn .count{position:absolute;top:-6px;right:-6px;background:var(--error);color:#fff;font-size:11px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+  .cartbtn .count,.notifbtn .count{position:absolute;top:-6px;right:-6px;background:var(--error);color:#fff;font-size:11px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+  .notif-wrap{position:relative}
+  .notifbtn{position:relative;font-size:17px}
+  .notif-panel{position:absolute;top:44px;right:0;width:330px;max-width:86vw;max-height:66vh;overflow:auto;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);z-index:40;padding:6px}
+  .notif-item{padding:10px;border-radius:8px;border-bottom:1px solid var(--border)}
+  .notif-item:last-child{border-bottom:none}
 
   .wrap{max-width:1100px;margin:0 auto;padding:18px 16px 60px}
   h1{font-size:22px;margin:0 0 2px} h2{font-size:17px;margin:22px 0 10px}
@@ -143,6 +148,10 @@
       <button id="scanBtn" title="Search by photo of a tablet strip or note" style="background:transparent;color:var(--muted);padding:0 10px;font-size:20px;border:none">📷</button>
     </div>
     <div class="navbtns">
+      <div class="notif-wrap">
+        <button class="ghost small notifbtn" id="notifBtn" title="Notifications">🔔<span class="count hidden" id="notifCount">0</span></button>
+        <div id="notifPanel" class="notif-panel hidden"></div>
+      </div>
       <button class="ghost small cartbtn" id="cartBtn">🛒<span class="count hidden" id="cartCount">0</span></button>
       <button class="light small" id="accountBtn">Account</button>
     </div>
@@ -1024,7 +1033,7 @@ async function loadAccountOrders(){
 }
 
 /* ---------------- ACCOUNT CENTRE (edit / deactivate / delete) ---------------- */
-function doLogoutLocal(){ state.token=''; state.user=null; try{localStorage.removeItem('cust_token');}catch{} go('home'); }
+function doLogoutLocal(){ state.token=''; state.user=null; state._notifs=[]; updateNotifBadge(); try{localStorage.removeItem('cust_token');}catch{} go('home'); }
 function acctRow(icon,label,sub,onclick,danger){
   const r=document.createElement('div');
   r.className='row';
@@ -1188,6 +1197,7 @@ async function afterAuth(d){
   try{ const me=await api('/api/auth/me'); state.user=me.user; }catch{ state.user=d.user||null; }
   toast('Welcome'+(state.user?.name?(', '+state.user.name.split(' ')[0]):'')+'!',true);
   const next=state._afterLogin; state._afterLogin=null;
+  loadNotifs();
   go(next||'home');
   return true;
 }
@@ -1339,8 +1349,74 @@ async function cancelOrder(id){
   catch(e){ toast(e.message); }
 }
 
+/* ---------------- NOTIFICATIONS ---------------- */
+function notifSeenAt(){ try{ return Number(localStorage.getItem('medmart_notif_seen')||0); }catch{ return 0; } }
+function setNotifSeen(t){ try{ localStorage.setItem('medmart_notif_seen', String(t)); }catch{} }
+function timeAgo(t){
+  if(!t) return '';
+  const s=Math.floor((Date.now()-new Date(t).getTime())/1000);
+  if(s<60) return 'just now';
+  const m=Math.floor(s/60); if(m<60) return m+' min ago';
+  const h=Math.floor(m/60); if(h<24) return h+(h===1?' hr ago':' hrs ago');
+  const d=Math.floor(h/24); return d+(d===1?' day ago':' days ago');
+}
+function orderNotif(o){
+  const num=o.orderNumber, ph=(o.pharmacy&&o.pharmacy.name)?o.pharmacy.name:'';
+  const map={
+    placed:['🕒','Order '+num+' placed — waiting for the pharmacy to accept.'],
+    accepted:['✅','Order '+num+' accepted'+(ph?' by '+ph:'')+'.'],
+    ready:['📦','Order '+num+' is packed and ready.'],
+    assigned:['🚚','Order '+num+' is out for delivery.'],
+    out_for_delivery:['🚚','Order '+num+' is out for delivery — keep your OTP ready.'],
+    delivered:['🎉','Order '+num+' delivered. Hope you feel better soon!'],
+    rejected:['❌','Order '+num+' was rejected by the pharmacy.'],
+    cancelled:['🚫','Order '+num+' was cancelled.'],
+  };
+  const m=map[o.status]||['🔔','Order '+num+' updated.'];
+  if(o.kind==='prescription' && !(o.total>0) && o.status==='placed'){ m[0]='📄'; m[1]='Prescription order '+num+' received — the pharmacy will set the amount soon.'; }
+  return { icon:m[0], text:m[1], time:o.updatedAt||o.createdAt };
+}
+async function loadNotifs(){
+  if(!state.token){ state._notifs=[]; updateNotifBadge(); return; }
+  try{
+    const d=await api('/api/customer/orders'); const orders=d.items||[];
+    state._notifs=orders.map(orderNotif).sort((a,b)=>new Date(b.time)-new Date(a.time));
+  }catch{ }
+  updateNotifBadge();
+}
+function updateNotifBadge(){
+  const b=$('notifCount'); if(!b) return;
+  const seen=notifSeenAt();
+  const unread=(state._notifs||[]).filter(n=>new Date(n.time).getTime()>seen).length;
+  if(unread>0){ b.textContent=unread>9?'9+':String(unread); b.classList.remove('hidden'); }
+  else b.classList.add('hidden');
+}
+function renderNotifPanel(){
+  const p=$('notifPanel'); if(!p) return;
+  if(!state.token){
+    p.innerHTML='<div class="notif-item"><div class="sub">Sign in to see your order updates here.</div></div>';
+    const r=document.createElement('div'); r.style.padding='8px';
+    const b=document.createElement('button'); b.className='light small'; b.textContent='Sign in'; b.onclick=()=>{ $('notifPanel').classList.add('hidden'); go('account'); };
+    r.appendChild(b); p.appendChild(r); return;
+  }
+  const ns=state._notifs||[];
+  if(!ns.length){ p.innerHTML='<div class="notif-item"><div class="sub">No notifications yet. Your order updates will appear here.</div></div>'; return; }
+  p.innerHTML='<div class="row" style="padding:6px 8px"><strong>Notifications</strong></div>'+ns.slice(0,15).map(n=>`
+    <div class="notif-item"><div class="row" style="align-items:flex-start;gap:8px"><div style="font-size:18px">${n.icon}</div>
+      <div class="sp"><div>${esc(n.text)}</div><div class="sub" style="margin-top:2px">${esc(timeAgo(n.time))}</div></div></div></div>`).join('');
+}
+async function toggleNotifPanel(){
+  const p=$('notifPanel'); if(!p) return;
+  if(!p.classList.contains('hidden')){ p.classList.add('hidden'); return; }
+  renderNotifPanel(); p.classList.remove('hidden');
+  await loadNotifs(); renderNotifPanel();
+  setNotifSeen(Date.now()); updateNotifBadge();
+}
+
 /* ---------------- wire up ---------------- */
 $('brandBtn').onclick=()=>go('home');
+$('notifBtn').onclick=(e)=>{ e.stopPropagation(); toggleNotifPanel(); };
+document.addEventListener('click',(e)=>{ const w=document.querySelector('.notif-wrap'); const p=$('notifPanel'); if(p && !p.classList.contains('hidden') && w && !w.contains(e.target)) p.classList.add('hidden'); });
 $('cartBtn').onclick=()=>go('cart');
 $('accountBtn').onclick=()=>go('account');
 $('globalSearch').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const q=e.target.value.trim(); state._searchQ=q; go('search',q); } });
@@ -1350,6 +1426,8 @@ $('micBtn').onclick=voiceSearch;
 (async function boot(){
   updateCartCount();
   if(state.token){ try{ const me=await api('/api/auth/me'); if(me.user.role==='customer') state.user=me.user; else { state.token=''; localStorage.removeItem('cust_token'); } }catch{ state.token=''; localStorage.removeItem('cust_token'); } }
+  loadNotifs();
+  setInterval(loadNotifs, 60000);
   go('home');
 })();
 </script>
