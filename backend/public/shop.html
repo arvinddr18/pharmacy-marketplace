@@ -133,6 +133,26 @@
     .brand span.full{display:none}
     .navbtns button.small{padding:8px 10px}
     .topbar-in{gap:8px;padding:10px 12px}
+
+    /* Categories: swipe sideways instead of a tall grid */
+    .cats{display:flex;overflow-x:auto;gap:10px;padding-bottom:6px;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+    .cats::-webkit-scrollbar{display:none}
+    .cat{flex:0 0 92px;scroll-snap-align:start;padding:12px 6px}
+    .cat .ce{font-size:24px;margin-bottom:4px}
+
+    /* Medical shops: swipe sideways, smaller compact cards */
+    .shops{display:flex;overflow-x:auto;gap:12px;padding-bottom:6px;grid-template-columns:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+    .shops::-webkit-scrollbar{display:none}
+    .shops>.card{flex:0 0 235px;scroll-snap-align:start;padding:12px}
+    .shops>.card .avatar{width:40px;height:40px;font-size:16px;border-radius:10px}
+    .shops>.card .row[style*="margin-top:12px"]{margin-top:8px!important}
+
+    /* Medicines: two columns, shorter image so cards aren't so long */
+    .prods{grid-template-columns:1fr 1fr;gap:10px}
+    .prods>.card{padding:10px}
+    .prods .thumb{height:66px;font-size:24px;margin-bottom:8px}
+    .prods>.card strong{font-size:14px}
+    .prods>.card .sub{font-size:12px}
   }
 </style>
 </head>
