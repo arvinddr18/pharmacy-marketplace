@@ -15,6 +15,9 @@ const DOSAGE_FORMS = [
   'cream', 'ointment', 'gel', 'inhaler', 'powder', 'sachet', 'other',
 ];
 
+// Product categories the shop sells (medicines + the wider pharmacy range).
+const CATEGORIES = ['medicine', 'personal_care', 'baby', 'nutrition', 'devices', 'pet'];
+
 const catalogueSchema = new Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 200 },
@@ -23,7 +26,10 @@ const catalogueSchema = new Schema(
     manufacturer: { type: String, trim: true, maxlength: 200 },
     strength: { type: String, trim: true, maxlength: 60 },
     dosageForm: { type: String, enum: DOSAGE_FORMS, default: 'other' },
-    packSize: { type: String, trim: true, maxlength: 60 },
+    packSize: { type: String, trim: true, maxlength: 60 }, // e.g. "10 tablets"
+
+    // What kind of product this is (medicine, personal care, baby, pet, …).
+    category: { type: String, enum: CATEGORIES, default: 'medicine', index: true },
 
     prescriptionRequired: { type: Boolean, default: false },
     scheduleCategory: { type: String, trim: true },
@@ -43,3 +49,4 @@ catalogueSchema.index({ name: 'text', brand: 'text', genericName: 'text', manufa
 
 export const MedicineCatalogue = model('MedicineCatalogue', catalogueSchema);
 export const CATALOGUE_DOSAGE_FORMS = DOSAGE_FORMS;
+export const CATALOGUE_CATEGORIES = CATEGORIES;

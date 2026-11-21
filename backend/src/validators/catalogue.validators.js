@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CATALOGUE_DOSAGE_FORMS } from '../models/MedicineCatalogue.js';
+import { CATALOGUE_DOSAGE_FORMS, CATALOGUE_CATEGORIES } from '../models/MedicineCatalogue.js';
 
 export const createCatalogueSchema = z.object({
   name: z.string().trim().min(1).max(200),
@@ -8,6 +8,7 @@ export const createCatalogueSchema = z.object({
   manufacturer: z.string().trim().max(200).optional(),
   strength: z.string().trim().max(60).optional(),
   dosageForm: z.enum(CATALOGUE_DOSAGE_FORMS).optional(),
+  category: z.enum(CATALOGUE_CATEGORIES).optional(),
   packSize: z.string().trim().max(60).optional(),
   prescriptionRequired: z.boolean().optional(),
   scheduleCategory: z.string().trim().max(10).optional(),

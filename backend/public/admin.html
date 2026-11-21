@@ -178,8 +178,9 @@
       </div>
       <div class="row" style="align-items:flex-end;margin-top:8px">
         <div class="grow"><label>Image URL (photo of the medicine)</label><input id="cImage" placeholder="https://…/medicine.jpg" /></div>
+        <div style="width:180px"><label>Category</label><select id="cCategory"><option value="medicine">💊 Medicines</option><option value="personal_care">🧴 Personal care</option><option value="baby">👶 Baby care</option><option value="nutrition">💪 Health &amp; nutrition</option><option value="devices">🩹 Devices &amp; first aid</option><option value="pet">🐾 Pet / veterinary</option></select></div>
         <label style="display:flex;align-items:center;gap:6px;width:auto;margin:0 0 10px"><input type="checkbox" id="cRx" style="width:auto" /> Prescription (Rx)</label>
-        <div><button id="addCatBtn">Add medicine</button></div>
+        <div><button id="addCatBtn">Add item</button></div>
       </div>
       <p class="muted" style="font-size:12px;margin:8px 0 0">Paste a public image link (ending in .jpg or .png). It shows as the medicine's photo in the customer shop.</p>
     </div>
@@ -188,6 +189,11 @@
       <button class="secondary small" id="allOtcBtn">Make all OTC</button>
       <button class="secondary small" id="allRxBtn">Make all Rx</button>
       <span class="muted" id="catCount" style="font-size:13px;white-space:nowrap"></span>
+    </div>
+    <div class="row" style="margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="muted" style="font-size:13px">Set category of search results →</span>
+      <select id="bulkCatSelect"><option value="medicine">💊 Medicines</option><option value="personal_care">🧴 Personal care</option><option value="baby">👶 Baby care</option><option value="nutrition">💪 Health &amp; nutrition</option><option value="devices">🩹 Devices &amp; first aid</option><option value="pet">🐾 Pet / veterinary</option></select>
+      <button class="secondary small" id="bulkCatBtn">Apply</button>
     </div>
     <div class="card" style="padding:8px 12px;margin-top:10px">
       <table>
@@ -390,6 +396,15 @@ async function assign(orderId, riderId){
   catch(e){ toast(e.message); }
 }
 
+function catLabel(c){ return ({medicine:'💊 Medicine',personal_care:'🧴 Personal care',baby:'👶 Baby',nutrition:'💪 Nutrition',devices:'🩹 Devices',pet:'🐾 Pet'})[c]||''; }
+async function bulkCategory(){
+  const q=($('catSearch')&&$('catSearch').value.trim())||'';
+  const category=$('bulkCatSelect').value;
+  const scope = q ? ('all items matching “'+q+'”') : 'EVERY item in the whole catalogue';
+  if(!confirm('Set the category of '+scope+' to “'+$('bulkCatSelect').selectedOptions[0].text.trim()+'”?\n\n'+(q?'':'Tip: search first (e.g. "shampoo") to limit it.'))) return;
+  try{ const d=await api('/api/catalogue/bulk-category',{method:'POST',body:JSON.stringify({q,category})}); toast('Updated '+(d.updated||0)+' items',true); loadCatalogue(); }
+  catch(e){ toast(e.message); }
+}
 async function bulkRx(value){
   const q=($('catSearch')&&$('catSearch').value.trim())||'';
   const scope = q ? ('all medicines matching “'+q+'”') : 'EVERY medicine in the whole catalogue';
@@ -411,7 +426,7 @@ async function loadCatalogue(){
       const thumb = m.imageUrl ? `<img src="${m.imageUrl}" style="width:40px;height:40px;object-fit:contain;border:1px solid var(--border);border-radius:8px;background:#fff" onerror="this.replaceWith(document.createTextNode('—'))"/>` : '<span class="muted">—</span>';
       tr.innerHTML=`
         <td>${thumb}</td>
-        <td><strong>${m.name||''}</strong><div class="muted" style="font-size:12px">${[m.strength,m.packSize].filter(Boolean).join(' · ')}</div></td>
+        <td><strong>${m.name||''}</strong><div class="muted" style="font-size:12px">${[((m.category&&m.category!=='medicine')?catLabel(m.category):''),m.strength,m.packSize].filter(Boolean).join(' · ')}</div></td>
         <td>${m.prescriptionRequired?'<span class="pill rx">Rx</span>':'<span class="muted">OTC</span>'} <button class="small secondary" data-rxid="${m._id}" data-val="${m.prescriptionRequired?'0':'1'}">${m.prescriptionRequired?'Make OTC':'Make Rx'}</button></td>
         <td style="text-align:right"><button class="small secondary" data-id="${m._id}">Set image</button></td>`;
       body.appendChild(tr);
@@ -428,6 +443,7 @@ async function addCatalogueMed(){
   const name=$('cName').value.trim();
   if(!name) return toast('Enter a medicine name');
   const body={ name, prescriptionRequired:$('cRx').checked };
+  const category=$('cCategory')?$('cCategory').value:''; if(category) body.category=category;
   const strength=$('cStrength').value.trim(); if(strength) body.strength=strength;
   const packSize=$('cPack').value.trim(); if(packSize) body.packSize=packSize;
   const imageUrl=$('cImage').value.trim(); if(imageUrl) body.imageUrl=imageUrl;
@@ -695,6 +711,7 @@ $('libraryBtn').addEventListener('click',importLibrary);
 $('catSearch').addEventListener('input',()=>{ clearTimeout(window._catT); window._catT=setTimeout(loadCatalogue,300); });
 $('allOtcBtn').addEventListener('click',()=>bulkRx(false));
 $('allRxBtn').addEventListener('click',()=>bulkRx(true));
+$('bulkCatBtn').addEventListener('click',bulkCategory);
 $('addCouponBtn').addEventListener('click',addCoupon);
 $('refreshCouponBtn').addEventListener('click',loadCoupons);
 $('refreshRxBtn').addEventListener('click',loadPrescriptions);

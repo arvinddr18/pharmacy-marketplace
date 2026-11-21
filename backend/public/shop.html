@@ -604,6 +604,12 @@ async function renderSearch(q){
   }
   view.appendChild(head);
 
+  if(state._cat===undefined) state._cat='';
+  const catRow=document.createElement('div'); catRow.style.cssText='display:flex;gap:8px;overflow-x:auto;margin-top:12px;padding-bottom:4px';
+  const CATS=[['','All'],['medicine','💊 Medicines'],['personal_care','🧴 Personal care'],['baby','👶 Baby'],['nutrition','💪 Nutrition'],['devices','🩹 Devices'],['pet','🐾 Pet']];
+  for(const [val,label] of CATS){ const b=document.createElement('button'); b.className=(state._cat===val)?'small':'ghost small'; b.style.whiteSpace='nowrap'; b.textContent=label; b.onclick=()=>{ state._cat=val; renderSearch(q); }; catRow.appendChild(b); }
+  view.appendChild(catRow);
+
   const qp=quickPicksEl(); if(qp){ qp.style.marginTop='12px'; view.appendChild(qp); }
 
   const grid=document.createElement('div'); grid.className='grid prods'; grid.style.marginTop='12px'; grid.innerHTML='<p class="muted">Searching…</p>'; view.appendChild(grid);
@@ -613,9 +619,9 @@ async function renderSearch(q){
     if(loading||done) return; loading=true;
     moreWrap.innerHTML='<p class="muted">Loading…</p>';
     try{
-      const d=await api('/api/discover/medicines?page='+page+(q?('&q='+encodeURIComponent(q)):''));
+      const d=await api('/api/discover/medicines?page='+page+(q?('&q='+encodeURIComponent(q)):'')+(state._cat?('&category='+state._cat):''));
       const meds=d.items||[];
-      if(page===1) grid.innerHTML = meds.length ? '' : (q?`<div class="empty"><div class="big">🔍</div>No medicines found for “${esc(q)}”.</div>`:'<p class="muted">No medicines yet.</p>');
+      if(page===1) grid.innerHTML = meds.length ? '' : (q?`<div class="empty"><div class="big">🔍</div>No medicines found for “${esc(q)}”.</div>`:'<p class="muted">Nothing here yet in this category.</p>');
       for(const m of meds) grid.appendChild(medCatalogueCard(m));
       const total=(d.total!=null)?d.total:grid.children.length;
       done = (d.pages!=null) ? (page>=d.pages || !meds.length) : (meds.length<(d.limit||60));

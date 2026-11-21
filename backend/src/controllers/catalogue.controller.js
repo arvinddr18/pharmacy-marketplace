@@ -1,4 +1,4 @@
-import { MedicineCatalogue } from '../models/MedicineCatalogue.js';
+import { MedicineCatalogue, CATALOGUE_CATEGORIES } from '../models/MedicineCatalogue.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -46,6 +46,17 @@ export const bulkSetRx = asyncHandler(async (req, res) => {
   const filter = { deletedAt: null, status: { $ne: 'inactive' } };
   if (q) filter.$text = { $search: q };
   const r = await MedicineCatalogue.updateMany(filter, { $set: { prescriptionRequired: value } });
+  res.json({ updated: r.modifiedCount ?? r.nModified ?? 0 });
+});
+
+/** Admin: set category on all catalogue entries matching a search (or all if no query). */
+export const bulkSetCategory = asyncHandler(async (req, res) => {
+  const category = (req.body.category || '').trim();
+  if (!CATALOGUE_CATEGORIES.includes(category)) throw ApiError.badRequest('Invalid category');
+  const q = (req.body.q || '').trim();
+  const filter = { deletedAt: null, status: { $ne: 'inactive' } };
+  if (q) filter.$text = { $search: q };
+  const r = await MedicineCatalogue.updateMany(filter, { $set: { category } });
   res.json({ updated: r.modifiedCount ?? r.nModified ?? 0 });
 });
 

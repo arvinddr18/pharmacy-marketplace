@@ -25,6 +25,13 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 export const searchMedicines = asyncHandler(async (req, res) => {
   const { q } = req.query;
   const filter = { deletedAt: null, status: 'active' };
+  const cat = (req.query.category || '').trim();
+  if (cat === 'medicine') {
+    // Older items imported before categories existed have no field — treat as medicine.
+    filter.$or = [{ category: 'medicine' }, { category: { $exists: false } }, { category: null }];
+  } else if (cat) {
+    filter.category = cat;
+  }
   let query;
   if (q && q.trim()) {
     filter.$text = { $search: q.trim() };
