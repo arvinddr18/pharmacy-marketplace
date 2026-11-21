@@ -287,6 +287,28 @@ function quickPicksEl(){
   return c;
 }
 
+/* Typewriter placeholder: cycles example phrases inside a search box. */
+const _phTimers={};
+function typePlaceholder(key, el, phrases){
+  if(!el) return;
+  if(_phTimers[key]) clearTimeout(_phTimers[key]);
+  let p=0, c=0, deleting=false;
+  const tick=()=>{
+    if(!document.body.contains(el)) return;                 // input was replaced — stop
+    if(document.activeElement===el || el.value){ _phTimers[key]=setTimeout(tick,600); return; } // don't disturb typing
+    const full=phrases[p];
+    if(!deleting){
+      c++; el.placeholder=full.slice(0,c);
+      if(c>=full.length){ deleting=true; _phTimers[key]=setTimeout(tick,1500); return; }
+    } else {
+      c--; el.placeholder=full.slice(0,c);
+      if(c<=0){ deleting=false; p=(p+1)%phrases.length; _phTimers[key]=setTimeout(tick,300); return; }
+    }
+    _phTimers[key]=setTimeout(tick, deleting?45:70);
+  };
+  tick();
+}
+
 async function renderHome(){
   view.innerHTML=`
     <div class="trust">
@@ -325,6 +347,7 @@ async function renderHome(){
   $('heroSearch').addEventListener('keydown',e=>{ if(e.key==='Enter') $('heroBtn').click(); });
   $('heroMic').onclick=voiceSearch;
   $('heroCam').onclick=scanPhoto;
+  typePlaceholder('hero',$('heroSearch'),["Search for a medicine…","Try 'Paracetamol 500 mg'…","Search 'Cetirizine' for allergy…","🎤 Tap the mic and just say it…","📷 Snap a tablet strip to search…","Find 'Amoxicillin 500 mg'…"]);
   $('rxBtn').onclick=()=>go('prescription');
   getSaved().then(()=>{ const qp=quickPicksEl(); if(qp && $('quickPicks')) $('quickPicks').appendChild(qp); });
   const cats=[['Pain & Fever','paracetamol','🤒'],['Allergy','cetirizine','🤧'],['Antibiotics','amoxicillin','💊'],['Vitamins','vitamin','🟠'],['Diabetes','metformin','🩸'],['Cough & Cold','cough','😷'],['Stomach care','antacid','🌿'],['Skin care','cream','🧴']];
@@ -371,6 +394,7 @@ function renderLocBar(){
   $('shopNameSearch').addEventListener('input',e=>{ window._shopQ=e.target.value.trim(); clearTimeout(window._shopQT); window._shopQT=setTimeout(loadShops,300); });
   $('shopNameSearch').addEventListener('keydown',e=>{ if(e.key==='Enter'){ window._shopQ=e.target.value.trim(); loadShops(); } });
   const snc=$('shopNameClear'); if(snc) snc.onclick=()=>{ window._shopQ=''; renderLocBar(); loadShops(); };
+  typePlaceholder('shopName',$('shopNameSearch'),["Search a shop by name, e.g. Shanti Medical","Find 'ABC Medicals'…","Search a pharmacy near you…","Try your regular medical store…"]);
 }
 function useMyLocation(){
   if(!navigator.geolocation){ toast('Location is not available on this device'); return; }
