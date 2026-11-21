@@ -220,6 +220,22 @@ async function showApp(){
   startAutoRefresh();
 }
 
+/* Collapse a table body to `limit` rows with a Show all / Show less toggle. */
+const _expand={};
+function collapseTable(body, key, colspan, limit){
+  limit=limit||3;
+  const rows=Array.from(body.children).filter(el=>el.tagName==='TR');
+  if(rows.length<=limit) return;
+  const hidden=rows.length-limit;
+  const apply=()=>{ const e=!!_expand[key]; rows.forEach((r,i)=>{ r.style.display=(e||i<limit)?'':'none'; }); btn.textContent=e?'▲ Show less':('▼ Show all '+rows.length+' ('+hidden+' more)'); };
+  const tr=document.createElement('tr');
+  const td=document.createElement('td'); td.colSpan=colspan; td.style.cssText='padding:10px 16px;text-align:center;background:#fff';
+  const btn=document.createElement('button'); btn.style.cssText='color:var(--blue);font-weight:700;background:none;border:none;cursor:pointer;font-size:13px';
+  btn.onclick=()=>{ _expand[key]=!_expand[key]; apply(); };
+  td.appendChild(btn); tr.appendChild(td); body.appendChild(tr);
+  apply();
+}
+
 async function loadOrders(){
   try{
     const data = await api('/api/pharmacy/orders');
@@ -247,6 +263,7 @@ async function loadOrders(){
       else if(o.status==='accepted'){ mk('Mark ready','ok',()=>orderAction(o._id,'ready')); mk('Reject','danger',()=>rejectOrderPrompt(o._id)); }
       else if(o.status==='ready'){ const s=document.createElement('span'); s.className='muted'; s.style.fontSize='12px'; s.textContent='Waiting for delivery pickup'; el.appendChild(s); }
     }
+    collapseTable(body,'phOrders',6,3);
   }catch(e){ toast(e.message); }
 }
 async function orderAction(id, action){
@@ -334,6 +351,7 @@ async function loadListings(){
     }
     $('statStock').textContent=totalStock; $('statLow').textContent=low;
     body.querySelectorAll('button[data-id]').forEach(btn=>btn.addEventListener('click',()=>openBatches(btn.dataset.id, btn.dataset.name)));
+    collapseTable(body,'phMeds',6,3);
   }catch(e){ toast(e.message); }
 }
 
