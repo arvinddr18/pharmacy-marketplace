@@ -38,6 +38,41 @@ export const createCatalogueItem = asyncHandler(async (req, res) => {
   res.status(201).json({ medicine: item });
 });
 
+/** Admin: bulk-insert catalogue entries (medicine-library import). Skips existing names. */
+export const bulkCreateCatalogue = asyncHandler(async (req, res) => {
+  const items = Array.isArray(req.body.items) ? req.body.items : [];
+  if (!items.length) throw ApiError.badRequest('No items provided');
+  if (items.length > 1000) throw ApiError.badRequest('Max 1000 items per request');
+
+  const existing = await MedicineCatalogue.find({ deletedAt: null }).select('name').lean();
+  const have = new Set(existing.map((e) => (e.name || '').toLowerCase()));
+
+  const ALLOWED = ['name', 'brand', 'genericName', 'manufacturer', 'strength', 'dosageForm', 'packSize', 'prescriptionRequired', 'scheduleCategory', 'description'];
+  const toInsert = [];
+  const seen = new Set();
+  for (const raw of items) {
+    const name = (raw && raw.name ? String(raw.name) : '').trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (have.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    const doc = { name, status: 'active' };
+    for (const k of ALLOWED) if (k !== 'name' && raw[k] !== undefined) doc[k] = raw[k];
+    toInsert.push(doc);
+  }
+
+  let added = 0;
+  if (toInsert.length) {
+    try {
+      const inserted = await MedicineCatalogue.insertMany(toInsert, { ordered: false });
+      added = inserted.length;
+    } catch (e) {
+      added = (e && e.insertedDocs && e.insertedDocs.length) || 0; // count partial successes
+    }
+  }
+  res.json({ added, skipped: items.length - added });
+});
+
 export const updateCatalogueItem = asyncHandler(async (req, res) => {
   const item = await MedicineCatalogue.findOneAndUpdate(
     { _id: req.params.id, deletedAt: null },

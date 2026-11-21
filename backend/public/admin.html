@@ -168,7 +168,7 @@
 
     <div class="row" style="justify-content:space-between;align-items:flex-end;margin-top:28px">
       <h2 style="margin:0">Medicine catalogue</h2>
-      <div class="row" style="gap:8px"><button class="small" id="starterBtn">+ Load starter medicines</button><button class="secondary small" id="refreshCatBtn">Refresh</button></div>
+      <div class="row" style="gap:8px"><button class="small" id="libraryBtn">📥 Import medicine library</button><button class="secondary small" id="starterBtn">+ Load starter medicines</button><button class="secondary small" id="refreshCatBtn">Refresh</button></div>
     </div>
     <div class="card">
       <div class="row" style="align-items:flex-end">
@@ -551,6 +551,25 @@ const STARTER_MEDS=[
   {name:'Diclofenac Gel 30 g', packSize:'30 g', dosageForm:'gel', prescriptionRequired:false},
   {name:'Antifungal Cream 15 g', packSize:'15 g', dosageForm:'cream', prescriptionRequired:false}
 ];
+async function importLibrary(){
+  if(!confirm('Import ~2000 common Indian medicines into the catalogue?\n\nPrices stay blank — each pharmacy sets their own. Duplicates are skipped. Most are marked prescription (Rx); you can switch any to OTC. This takes about a minute.')) return;
+  const btn=$('libraryBtn'); btn.disabled=true; const orig=btn.textContent;
+  try{
+    btn.textContent='Loading list…';
+    const res=await fetch('/medicines-library.json'); if(!res.ok) throw new Error('Could not load the medicine library file');
+    const all=await res.json();
+    let added=0; const CHUNK=500;
+    for(let i=0;i<all.length;i+=CHUNK){
+      const slice=all.slice(i,i+CHUNK);
+      btn.textContent='Importing '+Math.min(i+CHUNK,all.length)+'/'+all.length+'…';
+      const d=await api('/api/catalogue/bulk',{method:'POST',body:JSON.stringify({items:slice})});
+      added+=d.added||0;
+    }
+    toast('Imported '+added+' medicines'+((all.length-added)>0?(' · '+(all.length-added)+' already existed'):''),true);
+    loadCatalogue();
+  }catch(e){ toast(e.message); }
+  finally{ btn.disabled=false; btn.textContent=orig; }
+}
 async function loadStarter(){
   if(!confirm('Add '+STARTER_MEDS.length+' common medicines to the catalogue? Duplicates are skipped.')) return;
   $('starterBtn').disabled=true; const orig=$('starterBtn').textContent; $('starterBtn').textContent='Adding…';
@@ -657,6 +676,7 @@ $('addRiderBtn').addEventListener('click',addRider);
 $('addCatBtn').addEventListener('click',addCatalogueMed);
 $('refreshCatBtn').addEventListener('click',loadCatalogue);
 $('starterBtn').addEventListener('click',loadStarter);
+$('libraryBtn').addEventListener('click',importLibrary);
 $('addCouponBtn').addEventListener('click',addCoupon);
 $('refreshCouponBtn').addEventListener('click',loadCoupons);
 $('refreshRxBtn').addEventListener('click',loadPrescriptions);

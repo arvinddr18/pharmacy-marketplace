@@ -7,6 +7,7 @@ import {
   searchCatalogue,
   getCatalogueItem,
   createCatalogueItem,
+  bulkCreateCatalogue,
   updateCatalogueItem,
   approveCatalogueItem,
   deleteCatalogueItem,
@@ -20,6 +21,7 @@ router.get('/', authenticate, searchCatalogue);
 router.get('/:id', authenticate, getCatalogueItem);
 
 router.post('/', authenticate, adminOnly, validateBody(createCatalogueSchema), createCatalogueItem);
+router.post('/bulk', authenticate, adminOnly, bulkCreateCatalogue);
 router.patch('/:id', authenticate, adminOnly, validateBody(updateCatalogueSchema), updateCatalogueItem);
 router.post('/:id/approve', authenticate, adminOnly, approveCatalogueItem);
 router.delete('/:id', authenticate, adminOnly, deleteCatalogueItem);
