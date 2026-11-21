@@ -280,6 +280,22 @@ async function showApp(){
 }
 
 let orderStatus='';
+/* Collapse a table body to `limit` rows with a Show all / Show less toggle. */
+const _expand={};
+function collapseTable(body, key, colspan, limit){
+  limit=limit||3;
+  const rows=Array.from(body.children).filter(el=>el.tagName==='TR');
+  if(rows.length<=limit) return;
+  const hidden=rows.length-limit;
+  const apply=()=>{ const e=!!_expand[key]; rows.forEach((r,i)=>{ r.style.display=(e||i<limit)?'':'none'; }); btn.textContent=e?'▲ Show less':('▼ Show all '+rows.length+' ('+hidden+' more)'); };
+  const tr=document.createElement('tr');
+  const td=document.createElement('td'); td.colSpan=colspan; td.style.cssText='padding:10px 16px;text-align:center;background:#fff';
+  const btn=document.createElement('button'); btn.style.cssText='color:var(--blue);font-weight:700;background:none;border:none;cursor:pointer;font-size:13px';
+  btn.onclick=()=>{ _expand[key]=!_expand[key]; apply(); };
+  td.appendChild(btn); tr.appendChild(td); body.appendChild(tr);
+  apply();
+}
+
 async function loadOrders(){
   try{
     const data=await api('/api/admin/orders'+(orderStatus?('?status='+orderStatus):''));
@@ -302,6 +318,7 @@ async function loadOrders(){
       body.appendChild(tr);
       renderDelivery(tr.querySelector('.dact'), o);
     }
+    collapseTable(body,'orders',7,3);
   }catch(e){ toast(e.message); }
 }
 async function deliverOrder(id){
@@ -368,6 +385,7 @@ async function loadCatalogue(){
     }
     body.querySelectorAll('button[data-id]').forEach(b=>b.addEventListener('click',()=>setCatImage(b.dataset.id)));
     body.querySelectorAll('button[data-rxid]').forEach(b=>b.addEventListener('click',()=>toggleRx(b.dataset.rxid, b.dataset.val==='1')));
+    collapseTable(body,'cat',4,3);
   }catch(e){ toast(e.message); }
 }
 async function toggleRx(id, value){
@@ -562,6 +580,7 @@ function renderRows(){
     body.appendChild(tr);
     renderActions(tr.querySelector('.actions'), p);
   }
+  collapseTable(body,'pharm',5,3);
 }
 function renderActions(el, p){
   const id=p._id, name=p.name;
