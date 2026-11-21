@@ -129,6 +129,9 @@ async function submit(){
   if(body.drugLicenceNumber.length<5) return toast('Enter your drug licence number');
   if(body.pharmacistName.length<2) return toast('Enter the pharmacist name');
   if(body.pharmacistRegNumber.length<3) return toast('Enter the pharmacist registration number');
+  if(body.drugLicenceNumber.length<5) return toast('Enter your drug licence number');
+  if(body.pharmacistName.length<2) return toast('Enter the pharmacist name');
+  if(body.pharmacistRegNumber.length<3) return toast('Enter the pharmacist registration number');
 
   try{
     $('submitBtn').disabled=true; $('submitBtn').textContent='Submitting…';
