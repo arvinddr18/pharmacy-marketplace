@@ -347,7 +347,7 @@ async function renderHome(){
   $('heroSearch').addEventListener('keydown',e=>{ if(e.key==='Enter') $('heroBtn').click(); });
   $('heroMic').onclick=voiceSearch;
   $('heroCam').onclick=scanPhoto;
-  typePlaceholder('hero',$('heroSearch'),["Search for a medicine…","Try 'Paracetamol 500 mg'…","Search 'Cetirizine' for allergy…","🎤 Tap the mic and just say it…","📷 Snap a tablet strip to search…","Find 'Amoxicillin 500 mg'…"]);
+  typePlaceholder('hero',$('heroSearch'),["Search a medicine…","Try 'Paracetamol'…","Find 'Cetirizine'…","🎤 Tap and speak it…","📷 Scan a strip…","Find 'Amoxicillin'…"]);
   $('rxBtn').onclick=()=>go('prescription');
   getSaved().then(()=>{ const qp=quickPicksEl(); if(qp && $('quickPicks')) $('quickPicks').appendChild(qp); });
   const cats=[['Pain & Fever','paracetamol','🤒'],['Allergy','cetirizine','🤧'],['Antibiotics','amoxicillin','💊'],['Vitamins','vitamin','🟠'],['Diabetes','metformin','🩸'],['Cough & Cold','cough','😷'],['Stomach care','antacid','🌿'],['Skin care','cream','🧴']];
@@ -394,7 +394,7 @@ function renderLocBar(){
   $('shopNameSearch').addEventListener('input',e=>{ window._shopQ=e.target.value.trim(); clearTimeout(window._shopQT); window._shopQT=setTimeout(loadShops,300); });
   $('shopNameSearch').addEventListener('keydown',e=>{ if(e.key==='Enter'){ window._shopQ=e.target.value.trim(); loadShops(); } });
   const snc=$('shopNameClear'); if(snc) snc.onclick=()=>{ window._shopQ=''; renderLocBar(); loadShops(); };
-  typePlaceholder('shopName',$('shopNameSearch'),["Search a shop by name, e.g. Shanti Medical","Find 'ABC Medicals'…","Search a pharmacy near you…","Try your regular medical store…"]);
+  typePlaceholder('shopName',$('shopNameSearch'),["Search a shop…","Find 'ABC Medicals'…","A pharmacy near you…","Your usual store…"]);
 }
 function useMyLocation(){
   if(!navigator.geolocation){ toast('Location is not available on this device'); return; }
