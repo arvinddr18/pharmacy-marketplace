@@ -369,6 +369,7 @@ async function renderHome(){
     <div id="shopList" class="grid shops"><p class="muted">Loading shops…</p></div>
     <div class="row" style="justify-content:space-between;align-items:center;margin:22px 0 10px"><h2 style="margin:0">All medicines</h2><span id="seeAllMeds" class="ghost small" style="color:var(--blue);cursor:pointer;font-weight:700">See all →</span></div>
     <div id="popList" class="grid prods"><p class="muted">Loading…</p></div>
+    <div id="popMore" style="text-align:center;margin-top:14px"></div>
   `;
   $('seeAllMeds').onclick=()=>{ state._searchQ=''; go('search',''); };
   $('heroBtn').onclick=()=>{ const q=$('heroSearch').value.trim(); if(q){ $('globalSearch').value=q; go('search',q); } };
@@ -385,12 +386,26 @@ async function renderHome(){
   renderLocBar();
   loadShops();
 
-  try{
-    const d=await api('/api/discover/medicines');
-    const meds=(d.items||[]);
-    $('popList').innerHTML = meds.length ? '' : '<p class="muted">No medicines listed yet.</p>';
-    for(const m of meds) $('popList').appendChild(medCatalogueCard(m));
-  }catch(e){ $('popList').innerHTML='<p class="muted">Could not load medicines.</p>'; }
+  (function(){
+    const grid=$('popList'), moreWrap=$('popMore');
+    let page=1, loading=false, done=false;
+    async function loadPage(){
+      if(loading||done) return; loading=true; moreWrap.innerHTML='<p class="muted">Loading…</p>';
+      try{
+        const d=await api('/api/discover/medicines?page='+page);
+        const meds=d.items||[];
+        if(page===1) grid.innerHTML = meds.length ? '' : '<p class="muted">No medicines listed yet.</p>';
+        for(const m of meds) grid.appendChild(medCatalogueCard(m));
+        const total=(d.total!=null)?d.total:grid.children.length;
+        done=(d.pages!=null)?(page>=d.pages||!meds.length):(meds.length<(d.limit||60));
+        page++; moreWrap.innerHTML='';
+        if(!done){ const b=document.createElement('button'); b.className='secondary'; b.textContent='Load more'; b.onclick=loadPage; moreWrap.appendChild(b); }
+        if(grid.children.length && total){ const c=document.createElement('div'); c.className='sub'; c.style.marginTop='8px'; c.textContent='Showing '+grid.children.length+' of '+total+' medicines'; moreWrap.appendChild(c); }
+      }catch(e){ moreWrap.innerHTML=''; if(page===1) grid.innerHTML='<p class="muted">Could not load medicines.</p>'; }
+      loading=false;
+    }
+    loadPage();
+  })();
 }
 
 /* ---------------- CUSTOMER LOCATION ---------------- */
