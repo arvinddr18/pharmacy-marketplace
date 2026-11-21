@@ -352,7 +352,7 @@ async function renderHome(){
   $('heroSearch').addEventListener('keydown',e=>{ if(e.key==='Enter') $('heroBtn').click(); });
   $('heroMic').onclick=voiceSearch;
   $('heroCam').onclick=scanPhoto;
-  typePlaceholder('hero',$('heroSearch'),["A medicine…","Paracetamol","Cetirizine","Amoxicillin","Tap & speak","Scan a strip"]);
+  typePlaceholder('hero',$('heroSearch'),["Search…","Paracetamol","Cetirizine","Amoxicillin","Tap & speak","Scan a strip"]);
   $('rxBtn').onclick=()=>go('prescription');
   getSaved().then(()=>{ const qp=quickPicksEl(); if(qp && $('quickPicks')) $('quickPicks').appendChild(qp); });
   const cats=[['Pain & Fever','paracetamol','🤒'],['Allergy','cetirizine','🤧'],['Antibiotics','amoxicillin','💊'],['Vitamins','vitamin','🟠'],['Diabetes','metformin','🩸'],['Cough & Cold','cough','😷'],['Stomach care','antacid','🌿'],['Skin care','cream','🧴']];
