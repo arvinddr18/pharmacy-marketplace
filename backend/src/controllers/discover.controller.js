@@ -32,8 +32,13 @@ export const searchMedicines = asyncHandler(async (req, res) => {
   } else {
     query = MedicineCatalogue.find(filter).sort({ name: 1 });
   }
-  const items = await query.limit(60);
-  res.json({ items });
+  const page = Math.max(1, parseInt(req.query.page ?? '1', 10));
+  const limit = Math.min(60, Math.max(1, parseInt(req.query.limit ?? '60', 10)));
+  const [items, total] = await Promise.all([
+    query.skip((page - 1) * limit).limit(limit),
+    MedicineCatalogue.countDocuments(filter),
+  ]);
+  res.json({ items, page, limit, total, pages: Math.ceil(total / limit) });
 });
 
 /**

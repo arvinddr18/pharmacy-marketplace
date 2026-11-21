@@ -588,12 +588,28 @@ async function renderSearch(q){
   const qp=quickPicksEl(); if(qp){ qp.style.marginTop='12px'; view.appendChild(qp); }
 
   const grid=document.createElement('div'); grid.className='grid prods'; grid.style.marginTop='12px'; grid.innerHTML='<p class="muted">Searching…</p>'; view.appendChild(grid);
-  try{
-    const d=await api('/api/discover/medicines'+(q?('?q='+encodeURIComponent(q)):''));
-    const meds=d.items||[];
-    grid.innerHTML = meds.length ? '' : (q?`<div class="empty"><div class="big">🔍</div>No medicines found for “${esc(q)}”.</div>`:'<p class="muted">No medicines yet.</p>');
-    for(const m of meds) grid.appendChild(medCatalogueCard(m));
-  }catch(e){ grid.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
+  const moreWrap=document.createElement('div'); moreWrap.style.cssText='text-align:center;margin-top:14px'; view.appendChild(moreWrap);
+  let page=1, loading=false, done=false;
+  async function loadPage(){
+    if(loading||done) return; loading=true;
+    moreWrap.innerHTML='<p class="muted">Loading…</p>';
+    try{
+      const d=await api('/api/discover/medicines?page='+page+(q?('&q='+encodeURIComponent(q)):''));
+      const meds=d.items||[];
+      if(page===1) grid.innerHTML = meds.length ? '' : (q?`<div class="empty"><div class="big">🔍</div>No medicines found for “${esc(q)}”.</div>`:'<p class="muted">No medicines yet.</p>');
+      for(const m of meds) grid.appendChild(medCatalogueCard(m));
+      const total=(d.total!=null)?d.total:grid.children.length;
+      done = (d.pages!=null) ? (page>=d.pages || !meds.length) : (meds.length<(d.limit||60));
+      page++;
+      moreWrap.innerHTML='';
+      if(!done){
+        const b=document.createElement('button'); b.className='secondary'; b.textContent='Load more'; b.onclick=loadPage; moreWrap.appendChild(b);
+      }
+      if(grid.children.length && total){ const c=document.createElement('div'); c.className='sub'; c.style.marginTop='8px'; c.textContent='Showing '+grid.children.length+' of '+total+' medicines'; moreWrap.appendChild(c); }
+    }catch(e){ moreWrap.innerHTML=''; if(page===1) grid.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
+    loading=false;
+  }
+  await loadPage();
 }
 
 /* ---------------- SEARCH BY VOICE ---------------- */
