@@ -183,8 +183,10 @@
       </div>
       <p class="muted" style="font-size:12px;margin:8px 0 0">Paste a public image link (ending in .jpg or .png). It shows as the medicine's photo in the customer shop.</p>
     </div>
-    <div class="row" style="margin-top:12px;gap:8px;align-items:center">
-      <input id="catSearch" placeholder="🔍 Search the catalogue (name, salt or brand)…" style="flex:1" />
+    <div class="row" style="margin-top:12px;gap:8px;align-items:center;flex-wrap:wrap">
+      <input id="catSearch" placeholder="🔍 Search the catalogue (name, salt or brand)…" style="flex:1;min-width:180px" />
+      <button class="secondary small" id="allOtcBtn">Make all OTC</button>
+      <button class="secondary small" id="allRxBtn">Make all Rx</button>
       <span class="muted" id="catCount" style="font-size:13px;white-space:nowrap"></span>
     </div>
     <div class="card" style="padding:8px 12px;margin-top:10px">
@@ -388,6 +390,13 @@ async function assign(orderId, riderId){
   catch(e){ toast(e.message); }
 }
 
+async function bulkRx(value){
+  const q=($('catSearch')&&$('catSearch').value.trim())||'';
+  const scope = q ? ('all medicines matching “'+q+'”') : 'EVERY medicine in the whole catalogue';
+  if(!confirm('Mark '+scope+' as '+(value?'prescription (Rx)':'OTC')+'?\n\n'+(q?'':'Tip: type a search first (e.g. "paracetamol") to change only those.'))) return;
+  try{ const d=await api('/api/catalogue/bulk-rx',{method:'POST',body:JSON.stringify({q,prescriptionRequired:value})}); toast('Updated '+(d.updated||0)+' medicines → '+(value?'Rx':'OTC'),true); loadCatalogue(); }
+  catch(e){ toast(e.message); }
+}
 async function loadCatalogue(){
   try{
     const q=($('catSearch')&&$('catSearch').value.trim())||'';
@@ -684,6 +693,8 @@ $('refreshCatBtn').addEventListener('click',loadCatalogue);
 $('starterBtn').addEventListener('click',loadStarter);
 $('libraryBtn').addEventListener('click',importLibrary);
 $('catSearch').addEventListener('input',()=>{ clearTimeout(window._catT); window._catT=setTimeout(loadCatalogue,300); });
+$('allOtcBtn').addEventListener('click',()=>bulkRx(false));
+$('allRxBtn').addEventListener('click',()=>bulkRx(true));
 $('addCouponBtn').addEventListener('click',addCoupon);
 $('refreshCouponBtn').addEventListener('click',loadCoupons);
 $('refreshRxBtn').addEventListener('click',loadPrescriptions);

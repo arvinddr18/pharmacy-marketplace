@@ -38,6 +38,17 @@ export const createCatalogueItem = asyncHandler(async (req, res) => {
   res.status(201).json({ medicine: item });
 });
 
+/** Admin: set Rx/OTC on all catalogue entries matching a search (or all if no query). */
+export const bulkSetRx = asyncHandler(async (req, res) => {
+  const value = req.body.prescriptionRequired;
+  if (typeof value !== 'boolean') throw ApiError.badRequest('prescriptionRequired must be true or false');
+  const q = (req.body.q || '').trim();
+  const filter = { deletedAt: null, status: { $ne: 'inactive' } };
+  if (q) filter.$text = { $search: q };
+  const r = await MedicineCatalogue.updateMany(filter, { $set: { prescriptionRequired: value } });
+  res.json({ updated: r.modifiedCount ?? r.nModified ?? 0 });
+});
+
 /** Admin: bulk-insert catalogue entries (medicine-library import). Skips existing names. */
 export const bulkCreateCatalogue = asyncHandler(async (req, res) => {
   const items = Array.isArray(req.body.items) ? req.body.items : [];
