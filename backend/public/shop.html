@@ -243,7 +243,7 @@ function reorder(o){
 
 /* ---------------- navigation ---------------- */
 function go(v,arg){ state.view=v; window.scrollTo(0,0);
-  { const ts=$('topSearch'); if(ts) ts.style.display=(v==='home')?'none':'flex'; }
+  { const ts=$('topSearch'); if(ts) ts.style.display=(['search','medicine','shop'].includes(v))?'flex':'none'; }
   if(state._pollTimer && v!=='orders'){ clearInterval(state._pollTimer); state._pollTimer=null; }
   if(v==='home') renderHome();
   else if(v==='shop') renderShop(arg);
