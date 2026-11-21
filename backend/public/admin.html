@@ -168,7 +168,7 @@
 
     <div class="row" style="justify-content:space-between;align-items:flex-end;margin-top:28px">
       <h2 style="margin:0">Medicine catalogue</h2>
-      <div class="row" style="gap:8px"><button class="small" id="libraryBtn">📥 Import medicine library</button><button class="secondary small" id="starterBtn">+ Load starter medicines</button><button class="secondary small" id="refreshCatBtn">Refresh</button></div>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="small" id="libraryBtn">📥 Import medicine library</button><button class="small" id="productLibBtn">🧴 Import products (care/baby/pet…)</button><button class="secondary small" id="starterBtn">+ Load starter medicines</button><button class="secondary small" id="refreshCatBtn">Refresh</button></div>
     </div>
     <div class="card">
       <div class="row" style="align-items:flex-end">
@@ -582,6 +582,25 @@ const STARTER_MEDS=[
   {name:'Diclofenac Gel 30 g', packSize:'30 g', dosageForm:'gel', prescriptionRequired:false},
   {name:'Antifungal Cream 15 g', packSize:'15 g', dosageForm:'cream', prescriptionRequired:false}
 ];
+async function importProducts(){
+  if(!confirm('Import ~200 common non-medicine products (personal care, baby, nutrition, devices, pet)?\n\nPrices stay blank — each pharmacy sets their own. Duplicates are skipped.')) return;
+  const btn=$('productLibBtn'); btn.disabled=true; const orig=btn.textContent;
+  try{
+    btn.textContent='Loading list…';
+    const res=await fetch('/products-library.json'); if(!res.ok) throw new Error('Could not load the products file');
+    const all=await res.json();
+    let added=0; const CHUNK=500;
+    for(let i=0;i<all.length;i+=CHUNK){
+      const slice=all.slice(i,i+CHUNK);
+      btn.textContent='Importing '+Math.min(i+CHUNK,all.length)+'/'+all.length+'…';
+      const d=await api('/api/catalogue/bulk',{method:'POST',body:JSON.stringify({items:slice})});
+      added+=d.added||0;
+    }
+    toast('Imported '+added+' products'+((all.length-added)>0?(' · '+(all.length-added)+' already existed'):''),true);
+    loadCatalogue();
+  }catch(e){ toast(e.message); }
+  finally{ btn.disabled=false; btn.textContent=orig; }
+}
 async function importLibrary(){
   if(!confirm('Import ~2000 common Indian medicines into the catalogue?\n\nPrices stay blank — each pharmacy sets their own. Duplicates are skipped. Most are marked prescription (Rx); you can switch any to OTC. This takes about a minute.')) return;
   const btn=$('libraryBtn'); btn.disabled=true; const orig=btn.textContent;
@@ -708,6 +727,7 @@ $('addCatBtn').addEventListener('click',addCatalogueMed);
 $('refreshCatBtn').addEventListener('click',loadCatalogue);
 $('starterBtn').addEventListener('click',loadStarter);
 $('libraryBtn').addEventListener('click',importLibrary);
+$('productLibBtn').addEventListener('click',importProducts);
 $('catSearch').addEventListener('input',()=>{ clearTimeout(window._catT); window._catT=setTimeout(loadCatalogue,300); });
 $('allOtcBtn').addEventListener('click',()=>bulkRx(false));
 $('allRxBtn').addEventListener('click',()=>bulkRx(true));

@@ -69,7 +69,7 @@ export const bulkCreateCatalogue = asyncHandler(async (req, res) => {
   const existing = await MedicineCatalogue.find({ deletedAt: null }).select('name').lean();
   const have = new Set(existing.map((e) => (e.name || '').toLowerCase()));
 
-  const ALLOWED = ['name', 'brand', 'genericName', 'manufacturer', 'strength', 'dosageForm', 'packSize', 'prescriptionRequired', 'scheduleCategory', 'description'];
+  const ALLOWED = ['name', 'brand', 'genericName', 'manufacturer', 'strength', 'dosageForm', 'category', 'packSize', 'prescriptionRequired', 'scheduleCategory', 'description'];
   const toInsert = [];
   const seen = new Set();
   for (const raw of items) {
