@@ -194,13 +194,26 @@ function toast(msg, ok=false){
   document.body.appendChild(t); setTimeout(()=>t.remove(), 3000);
 }
 
+async function refreshAccess(){
+  const rt=localStorage.getItem('ph_refresh'); if(!rt) return false;
+  try{
+    const r=await fetch(API+'/api/auth/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refreshToken:rt})});
+    if(!r.ok) return false;
+    const d=await r.json();
+    token=d.accessToken; localStorage.setItem('token',token);
+    if(d.refreshToken) localStorage.setItem('ph_refresh',d.refreshToken);
+    return true;
+  }catch{ return false; }
+}
 async function api(path, opts={}){
-  const res = await fetch(API+path, {
-    ...opts,
-    headers:{'Content-Type':'application/json', ...(token?{'Authorization':'Bearer '+token}:{}), ...(opts.headers||{})},
-  });
+  const send=()=>fetch(API+path,{...opts,headers:{'Content-Type':'application/json', ...(token?{'Authorization':'Bearer '+token}:{}), ...(opts.headers||{})}});
+  let res=await send();
+  if(res.status===401 && token && await refreshAccess()) res=await send();
   const data = await res.json().catch(()=>({}));
-  if(!res.ok) throw new Error(data?.error?.message || ('Request failed ('+res.status+')'));
+  if(!res.ok){
+    if(res.status===401 && token){ token=''; try{localStorage.removeItem('token');localStorage.removeItem('ph_refresh');}catch{} if(typeof stopAutoRefresh==='function')stopAutoRefresh(); const av=document.getElementById('appView'),lv=document.getElementById('loginView'); if(av)av.classList.add('hidden'); if(lv)lv.classList.remove('hidden'); }
+    throw new Error(data?.error?.message || ('Request failed ('+res.status+')'));
+  }
   return data;
 }
 
@@ -209,10 +222,11 @@ async function login(){
     $('loginBtn').disabled=true;
     const data = await api('/api/auth/login',{method:'POST',body:JSON.stringify({email:$('email').value.trim(),password:$('password').value})});
     token = data.accessToken; localStorage.setItem('token', token);
+    if(data.refreshToken) localStorage.setItem('ph_refresh',data.refreshToken);
     await showApp();
   }catch(e){ toast(e.message); } finally{ $('loginBtn').disabled=false; }
 }
-function logout(){ stopAutoRefresh(); token=''; localStorage.removeItem('token'); $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); }
+function logout(){ stopAutoRefresh(); token=''; try{localStorage.removeItem('token');localStorage.removeItem('ph_refresh');}catch{} $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); }
 
 async function showApp(){
   $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');

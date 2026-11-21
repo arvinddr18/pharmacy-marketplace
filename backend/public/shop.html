@@ -229,10 +229,26 @@ function compressImage(file, cb, max=1200, quality=0.6){
   reader.onerror=()=>cb(null); reader.readAsDataURL(file);
 }
 
+async function refreshAccess(){
+  const rt=localStorage.getItem('cust_refresh'); if(!rt) return false;
+  try{
+    const r=await fetch('/api/auth/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refreshToken:rt})});
+    if(!r.ok) return false;
+    const d=await r.json();
+    state.token=d.accessToken; localStorage.setItem('cust_token',d.accessToken);
+    if(d.refreshToken) localStorage.setItem('cust_refresh',d.refreshToken);
+    return true;
+  }catch{ return false; }
+}
 async function api(path,opts={}){
-  const r=await fetch(path,{...opts,headers:{'Content-Type':'application/json',...(state.token?{'Authorization':'Bearer '+state.token}:{}),...(opts.headers||{})}});
+  const send=()=>fetch(path,{...opts,headers:{'Content-Type':'application/json',...(state.token?{'Authorization':'Bearer '+state.token}:{}),...(opts.headers||{})}});
+  let r=await send();
+  if(r.status===401 && state.token && await refreshAccess()) r=await send();
   const d=await r.json().catch(()=>({}));
-  if(!r.ok) throw new Error(d?.error?.message||('Request failed ('+r.status+')'));
+  if(!r.ok){
+    if(r.status===401 && state.token){ state.token=''; state.user=null; try{localStorage.removeItem('cust_token');localStorage.removeItem('cust_refresh');}catch{} }
+    throw new Error(d?.error?.message||('Request failed ('+r.status+')'));
+  }
   return d;
 }
 
@@ -1013,7 +1029,7 @@ function renderAccount(){
       <div class="sp"><strong style="font-size:18px">${esc(u.name)}</strong><div class="sub">${esc(u.email||'')}</div>${u.phone?`<div class="sub">📱 ${esc(u.phone)}</div>`:''}</div></div>
       <div style="margin-top:14px" class="row"><button class="ghost" id="logoutBtn">Log out</button></div>`;
     view.appendChild(c);
-    $('logoutBtn').onclick=()=>{ state.token=''; state.user=null; localStorage.removeItem('cust_token'); toast('Logged out',true); go('home'); };
+    $('logoutBtn').onclick=()=>{ state.token=''; state.user=null; try{localStorage.removeItem('cust_token');localStorage.removeItem('cust_refresh');}catch{} toast('Logged out',true); go('home'); };
 
     const oc=document.createElement('div'); oc.className='card panel'; oc.style.marginTop='12px';
     oc.innerHTML=`<div class="row"><h2 style="margin:0">Your orders</h2><span class="sp"></span><span class="ghost small" id="allOrdersLink" style="color:var(--blue);cursor:pointer;font-weight:700">View all →</span></div><div id="acctOrders" style="margin-top:8px"><p class="muted">Loading…</p></div>`;
@@ -1100,7 +1116,7 @@ async function loadAccountOrders(){
 }
 
 /* ---------------- ACCOUNT CENTRE (edit / deactivate / delete) ---------------- */
-function doLogoutLocal(){ state.token=''; state.user=null; state._notifs=[]; updateNotifBadge(); try{localStorage.removeItem('cust_token');}catch{} go('home'); }
+function doLogoutLocal(){ state.token=''; state.user=null; state._notifs=[]; updateNotifBadge(); try{localStorage.removeItem('cust_token');localStorage.removeItem('cust_refresh');}catch{} go('home'); }
 function acctRow(icon,label,sub,onclick,danger){
   const r=document.createElement('div');
   r.className='row';
@@ -1257,10 +1273,11 @@ async function delAddr(id){
 
 async function afterAuth(d){
   const role=d.user?.role;
-  if(role==='admin'||role==='super_admin'){ localStorage.setItem('admin_token',d.accessToken); toast('Signed in — opening admin…',true); setTimeout(()=>location.href='/admin',500); return true; }
-  if(role==='pharmacy_owner'||role==='pharmacy_staff'){ localStorage.setItem('token',d.accessToken); toast('Signed in — opening your shop dashboard…',true); setTimeout(()=>location.href='/pharmacy',500); return true; }
-  if(role==='rider'){ localStorage.setItem('rider_token',d.accessToken); toast('Signed in — opening deliveries…',true); setTimeout(()=>location.href='/rider',500); return true; }
+  if(role==='admin'||role==='super_admin'){ localStorage.setItem('admin_token',d.accessToken); if(d.refreshToken) localStorage.setItem('admin_refresh',d.refreshToken); toast('Signed in — opening admin…',true); setTimeout(()=>location.href='/admin',500); return true; }
+  if(role==='pharmacy_owner'||role==='pharmacy_staff'){ localStorage.setItem('token',d.accessToken); if(d.refreshToken) localStorage.setItem('ph_refresh',d.refreshToken); toast('Signed in — opening your shop dashboard…',true); setTimeout(()=>location.href='/pharmacy',500); return true; }
+  if(role==='rider'){ localStorage.setItem('rider_token',d.accessToken); if(d.refreshToken) localStorage.setItem('rider_refresh',d.refreshToken); toast('Signed in — opening deliveries…',true); setTimeout(()=>location.href='/rider',500); return true; }
   state.token=d.accessToken; localStorage.setItem('cust_token',state.token);
+  if(d.refreshToken) localStorage.setItem('cust_refresh',d.refreshToken);
   try{ const me=await api('/api/auth/me'); state.user=me.user; }catch{ state.user=d.user||null; }
   toast('Welcome'+(state.user?.name?(', '+state.user.name.split(' ')[0]):'')+'!',true);
   const next=state._afterLogin; state._afterLogin=null;
