@@ -183,7 +183,11 @@
       </div>
       <p class="muted" style="font-size:12px;margin:8px 0 0">Paste a public image link (ending in .jpg or .png). It shows as the medicine's photo in the customer shop.</p>
     </div>
-    <div class="card" style="padding:8px 12px;margin-top:12px">
+    <div class="row" style="margin-top:12px;gap:8px;align-items:center">
+      <input id="catSearch" placeholder="🔍 Search the catalogue (name, salt or brand)…" style="flex:1" />
+      <span class="muted" id="catCount" style="font-size:13px;white-space:nowrap"></span>
+    </div>
+    <div class="card" style="padding:8px 12px;margin-top:10px">
       <table>
         <thead><tr><th>Photo</th><th>Medicine</th><th>Rx</th><th style="text-align:right">Image</th></tr></thead>
         <tbody id="catRows"><tr><td colspan="4" class="muted" style="padding:16px">Loading…</td></tr></tbody>
@@ -386,9 +390,12 @@ async function assign(orderId, riderId){
 
 async function loadCatalogue(){
   try{
-    const d=await api('/api/catalogue?limit=100'); const items=d.items||[];
+    const q=($('catSearch')&&$('catSearch').value.trim())||'';
+    const d=await api('/api/catalogue?limit=100'+(q?('&q='+encodeURIComponent(q)):'')); const items=d.items||[];
+    const total=(d.total!=null)?d.total:items.length;
+    const cc=$('catCount'); if(cc) cc.textContent = q ? (items.length+' match'+(items.length===1?'':'es')) : (total+' medicines'+(total>items.length?(' · showing first '+items.length):''));
     const body=$('catRows');
-    if(!items.length){ body.innerHTML='<tr><td colspan="4" class="muted" style="padding:16px">No medicines yet. Add one above.</td></tr>'; return; }
+    if(!items.length){ body.innerHTML='<tr><td colspan="4" class="muted" style="padding:16px">'+(q?'No medicines match your search.':'No medicines yet. Add one above.')+'</td></tr>'; return; }
     body.innerHTML='';
     for(const m of items){
       const tr=document.createElement('tr');
@@ -402,7 +409,6 @@ async function loadCatalogue(){
     }
     body.querySelectorAll('button[data-id]').forEach(b=>b.addEventListener('click',()=>setCatImage(b.dataset.id)));
     body.querySelectorAll('button[data-rxid]').forEach(b=>b.addEventListener('click',()=>toggleRx(b.dataset.rxid, b.dataset.val==='1')));
-    collapseTable(body,'cat',4,3);
   }catch(e){ toast(e.message); }
 }
 async function toggleRx(id, value){
@@ -677,6 +683,7 @@ $('addCatBtn').addEventListener('click',addCatalogueMed);
 $('refreshCatBtn').addEventListener('click',loadCatalogue);
 $('starterBtn').addEventListener('click',loadStarter);
 $('libraryBtn').addEventListener('click',importLibrary);
+$('catSearch').addEventListener('input',()=>{ clearTimeout(window._catT); window._catT=setTimeout(loadCatalogue,300); });
 $('addCouponBtn').addEventListener('click',addCoupon);
 $('refreshCouponBtn').addEventListener('click',loadCoupons);
 $('refreshRxBtn').addEventListener('click',loadPrescriptions);
