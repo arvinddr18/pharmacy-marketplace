@@ -215,7 +215,11 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;',
 function money(n){ return '₹'+Number(n||0).toFixed(0); }
 function colorFor(s){ const c=['#0D9488','#0891B2','#059669','#7C3AED','#D97706','#DB2777','#2563EB','#4F46E5']; let h=0; for(const ch of String(s||'')) h=(h*31+ch.charCodeAt(0))>>>0; return c[h%c.length]; }
 function initials(s){ return String(s||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase()||'?'; }
-function thumbHtml(o){ return o && o.imageUrl ? `<div class="thumb" style="background:#fff;border:1px solid var(--border);padding:8px"><img src="${esc(o.imageUrl)}" alt="" style="max-height:100%;max-width:100%;object-fit:contain" onerror="this.parentNode.innerHTML='💊';this.parentNode.style.background='${colorFor(o.name)}';this.parentNode.style.color='#fff'"/></div>` : `<div class="thumb" style="background:${colorFor(o.name)}">💊</div>`; }
+function medIcon(form){ switch(form){ case 'injection':return '💉'; case 'drops':return '💧'; case 'syrup': case 'suspension':return '🍶'; case 'cream': case 'ointment': case 'gel':return '🧴'; case 'inhaler':return '🌬️'; case 'powder': case 'sachet':return '🧂'; default:return '💊'; } }
+function thumbHtml(o){
+  if(o && o.imageUrl) return `<div class="thumb" style="background:#fff;border:1px solid var(--border);padding:8px"><img src="${esc(o.imageUrl)}" alt="" style="max-height:100%;max-width:100%;object-fit:contain" onerror="this.parentNode.innerHTML='💊';this.parentNode.style.background='${colorFor(o.name)}';this.parentNode.style.color='#fff'"/></div>`;
+  return `<div class="thumb" style="background:linear-gradient(135deg,${colorFor(o&&o.name)},${colorFor(((o&&o.name)||'')+'•')})"><div style="text-align:center;line-height:1.1"><div style="font-size:30px">${medIcon(o&&o.dosageForm)}</div><div style="font-size:12px;font-weight:700;margin-top:3px;letter-spacing:.5px">${esc(initials(o&&o.name))}</div></div></div>`;
+}
 function starsHtml(rating,count){
   const r=Number(rating)||0;
   if(!r) return '<span class="sub" style="font-size:12px">No ratings yet</span>';
