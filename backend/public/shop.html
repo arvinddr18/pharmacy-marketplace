@@ -100,14 +100,20 @@
 
   .sticky-sum{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--border);padding:12px 0;margin-top:14px}
   .trust{overflow:hidden;padding:8px 0;margin-bottom:12px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
-  .trust-track{display:flex;gap:14px;width:max-content;animation:trustScroll 24s linear infinite}
+  .trust-track{display:flex;gap:16px;width:max-content;animation:trustScroll 24s linear infinite}
   .trust:hover .trust-track{animation-play-state:paused}
-  .trust span{flex:none;display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:999px;font-size:13.5px;font-weight:700;color:#fff;white-space:nowrap;text-shadow:0 1px 1px rgba(0,0,0,.18);box-shadow:0 7px 16px rgba(16,24,40,.20), inset 0 1px 0 rgba(255,255,255,.5), inset 0 -3px 7px rgba(0,0,0,.14)}
-  .trust span:nth-child(4n+1){background:linear-gradient(145deg,#2dd4bf,#0d9488)}
-  .trust span:nth-child(4n+2){background:linear-gradient(145deg,#60a5fa,#2563eb)}
-  .trust span:nth-child(4n+3){background:linear-gradient(145deg,#c084fc,#7c3aed)}
-  .trust span:nth-child(4n+4){background:linear-gradient(145deg,#fbbf24,#d97706)}
+  .trust span{position:relative;overflow:hidden;flex:none;display:inline-flex;align-items:center;gap:7px;padding:13px 26px;border-radius:999px;font-size:13.5px;font-weight:800;color:#fff;white-space:nowrap;letter-spacing:.2px;text-shadow:0 1px 2px rgba(0,0,0,.28);box-shadow:0 12px 22px -6px rgba(16,24,40,.40),0 3px 6px rgba(16,24,40,.22),inset 0 2px 1px rgba(255,255,255,.6),inset 0 -5px 10px rgba(0,0,0,.24);animation:trustBob 3s ease-in-out infinite}
+  .trust span::before{content:"";position:absolute;left:7%;right:7%;top:3px;height:44%;border-radius:999px;background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,0));pointer-events:none}
+  .trust span::after{content:"";position:absolute;top:0;left:-60%;width:38%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);transform:skewX(-18deg);animation:trustShine 3.6s ease-in-out infinite;pointer-events:none}
+  .trust span:nth-child(4n+1){background:linear-gradient(160deg,#5eead4,#0d9488 70%)}
+  .trust span:nth-child(4n+2){background:linear-gradient(160deg,#93c5fd,#2563eb 70%)}
+  .trust span:nth-child(4n+3){background:linear-gradient(160deg,#d8b4fe,#7c3aed 70%)}
+  .trust span:nth-child(4n+4){background:linear-gradient(160deg,#fcd34d,#d97706 70%)}
+  .trust span:nth-child(2n){animation-delay:.6s}
+  .trust span:nth-child(3n){animation-delay:1.1s}
   @keyframes trustScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  @keyframes trustBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+  @keyframes trustShine{0%{left:-60%}55%,100%{left:125%}}
   @media(prefers-reduced-motion:reduce){.trust-track{animation:none;flex-wrap:wrap;justify-content:center}}
   .promo{display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:14px;padding:14px 16px;margin:16px 0}
   .promo-ic{width:42px;height:42px;border-radius:10px;background:#10B981;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
