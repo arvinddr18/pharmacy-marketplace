@@ -69,10 +69,15 @@
       <div><label>PIN code <span class="req">*</span></label><input id="pincode" placeholder="6-digit PIN" maxlength="6" /></div>
     </div>
 
-    <h2>Licence (optional)</h2>
+    <h2>Licence &amp; pharmacist <span class="req">*</span></h2>
+    <p class="muted" style="font-size:13px;margin:-4px 0 10px">Required — this is how we verify you're a real licensed pharmacy.</p>
     <div class="grid">
-      <div><label>Drug licence no.</label><input id="drugLicenceNumber" placeholder="optional" /></div>
-      <div><label>Pharmacist name</label><input id="pharmacistName" placeholder="optional" /></div>
+      <div><label>Drug licence no. <span class="req">*</span></label><input id="drugLicenceNumber" placeholder="e.g. KA/20B/..." /></div>
+      <div><label>Pharmacist name <span class="req">*</span></label><input id="pharmacistName" placeholder="Registered pharmacist" /></div>
+    </div>
+    <div class="grid">
+      <div><label>Pharmacist reg. no. <span class="req">*</span></label><input id="pharmacistRegNumber" placeholder="Pharmacy Council reg. no." /></div>
+      <div><label>GST no. <span class="muted" style="font-weight:400">(optional)</span></label><input id="gstNumber" placeholder="optional" /></div>
     </div>
 
     <button id="submitBtn">Submit registration</button>
@@ -108,8 +113,10 @@ async function submit(){
       state:'Karnataka',
       pincode:$('pincode').value.trim(),
     },
-    drugLicenceNumber:$('drugLicenceNumber').value.trim()||undefined,
-    pharmacistName:$('pharmacistName').value.trim()||undefined,
+    drugLicenceNumber:$('drugLicenceNumber').value.trim(),
+    pharmacistName:$('pharmacistName').value.trim(),
+    pharmacistRegNumber:$('pharmacistRegNumber').value.trim(),
+    gstNumber:$('gstNumber').value.trim()||undefined,
   };
 
   if(body.pharmacyName.length<2) return toast('Enter the pharmacy name');
@@ -119,6 +126,9 @@ async function submit(){
   if(body.password.length<8) return toast('Password must be at least 8 characters');
   if(!body.address.line1) return toast('Enter the address');
   if(!/^\d{6}$/.test(body.address.pincode)) return toast('Enter a valid 6-digit PIN code');
+  if(body.drugLicenceNumber.length<5) return toast('Enter your drug licence number');
+  if(body.pharmacistName.length<2) return toast('Enter the pharmacist name');
+  if(body.pharmacistRegNumber.length<3) return toast('Enter the pharmacist registration number');
 
   try{
     $('submitBtn').disabled=true; $('submitBtn').textContent='Submitting…';

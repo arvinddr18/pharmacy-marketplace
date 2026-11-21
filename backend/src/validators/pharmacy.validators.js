@@ -22,10 +22,10 @@ export const registerPharmacySchema = z.object({
       lat: z.number().min(-90).max(90),
     })
     .optional(),
-  drugLicenceNumber: z.string().trim().optional(),
+  drugLicenceNumber: z.string().trim().min(5, 'Drug licence number is required'),
   gstNumber: z.string().trim().optional(),
-  pharmacistName: z.string().trim().optional(),
-  pharmacistRegNumber: z.string().trim().optional(),
+  pharmacistName: z.string().trim().min(2, 'Pharmacist name is required'),
+  pharmacistRegNumber: z.string().trim().min(3, 'Pharmacist registration number is required'),
 });
 
 export const rejectPharmacySchema = z.object({

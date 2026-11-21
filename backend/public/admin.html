@@ -589,7 +589,10 @@ function renderRows(){
     const a=p.address||{};
     const tr=document.createElement('tr');
     tr.innerHTML=`
-      <td><strong>${p.name||'—'}</strong>${p.rejectionReason?`<div class="muted" style="font-size:12px">${p.rejectionReason}</div>`:''}</td>
+      <td><strong>${p.name||'—'}</strong>
+        <div class="muted" style="font-size:12px">Lic: ${p.drugLicenceNumber||'—'}${p.gstNumber?(' · GST: '+p.gstNumber):''}</div>
+        <div class="muted" style="font-size:12px">Pharmacist: ${p.pharmacistName||'—'}${p.pharmacistRegNumber?(' ('+p.pharmacistRegNumber+')'):''}</div>
+        ${p.rejectionReason?`<div class="muted" style="font-size:12px;color:var(--error)">${p.rejectionReason}</div>`:''}</td>
       <td>${p.ownerName||'—'}<div class="muted" style="font-size:12px">${p.phone||''}</div></td>
       <td>${a.city||'—'}</td>
       <td><span class="pill ${p.status}">${p.status}</span></td>
