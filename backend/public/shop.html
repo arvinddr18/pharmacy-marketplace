@@ -53,7 +53,7 @@
   .hero{background:linear-gradient(120deg,var(--blue),#2DD4BF);color:#fff;border-radius:18px;padding:26px 22px;margin-bottom:8px}
   .hero h1{color:#fff;font-size:24px} .hero p{margin:6px 0 16px;opacity:.95}
   .hero .herosearch{display:flex;max-width:560px;background:#fff;border-radius:12px;padding:5px;gap:6px}
-  .hero .herosearch input{border:none;padding:11px 14px}
+  .hero .herosearch input{border:none;padding:11px 14px;flex:1;min-width:0}
   .hero .herosearch button{border-radius:9px}
 
   .grid{display:grid;gap:14px}
@@ -162,6 +162,11 @@
     .prods .thumb{height:66px;font-size:24px;margin-bottom:8px}
     .prods>.card strong{font-size:14px}
     .prods>.card .sub{font-size:12px}
+
+    /* Hero search: smaller font + tighter buttons so the placeholder isn't clipped */
+    .hero .herosearch input{font-size:14px;padding:11px 8px}
+    .hero .herosearch #heroBtn{padding:10px 12px;font-size:14px}
+    .hero .herosearch #heroMic,.hero .herosearch #heroCam{padding:0 3px!important;font-size:17px!important}
   }
 </style>
 </head>
@@ -347,7 +352,7 @@ async function renderHome(){
   $('heroSearch').addEventListener('keydown',e=>{ if(e.key==='Enter') $('heroBtn').click(); });
   $('heroMic').onclick=voiceSearch;
   $('heroCam').onclick=scanPhoto;
-  typePlaceholder('hero',$('heroSearch'),["Search a medicine…","Try 'Paracetamol'…","Find 'Cetirizine'…","🎤 Tap and speak it…","📷 Scan a strip…","Find 'Amoxicillin'…"]);
+  typePlaceholder('hero',$('heroSearch'),["A medicine…","Paracetamol","Cetirizine","Amoxicillin","Tap & speak","Scan a strip"]);
   $('rxBtn').onclick=()=>go('prescription');
   getSaved().then(()=>{ const qp=quickPicksEl(); if(qp && $('quickPicks')) $('quickPicks').appendChild(qp); });
   const cats=[['Pain & Fever','paracetamol','🤒'],['Allergy','cetirizine','🤧'],['Antibiotics','amoxicillin','💊'],['Vitamins','vitamin','🟠'],['Diabetes','metformin','🩸'],['Cough & Cold','cough','😷'],['Stomach care','antacid','🌿'],['Skin care','cream','🧴']];
