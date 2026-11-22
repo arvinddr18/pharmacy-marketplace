@@ -1190,7 +1190,8 @@ function renderAccountSwitcher(){
 
 function renderAccount(){
   view.innerHTML='';
-  view.appendChild(backLink('Back to home',()=>go('home')));
+  const _addingAcct = !(state.token && state.user) && getAccounts().length>0;
+  if(!_addingAcct) view.appendChild(backLink('Back to home',()=>go('home')));
   const h=document.createElement('h1'); h.textContent=(state.token&&state.user)?'My account':'Account'; view.appendChild(h);
 
   if(state.token && state.user){
