@@ -434,7 +434,6 @@ async function renderHome(){
       <button class="light" id="rxBtn">Upload prescription</button>
     </div>
     <div class="banners" id="banners"></div>
-    <div id="quickPicks"></div>
     <h2>Shop by department</h2>
     <div class="cats" id="depts"></div>
     <h2>Shop by category</h2>
@@ -456,7 +455,7 @@ async function renderHome(){
   $('heroCam').onclick=scanPhoto;
   typePlaceholder('hero',$('heroSearch'),["Paracetamol","Cetirizine","Amoxicillin","vitamins","a syrup"],"Search ");
   $('rxBtn').onclick=()=>go('prescription');
-  getSaved().then(()=>{ const qp=quickPicksEl(); if(qp && $('quickPicks')) $('quickPicks').appendChild(qp); });
+  getSaved();
   const cats=[['Pain & Fever','paracetamol','pain'],['Allergy','cetirizine','allergy'],['Antibiotics','amoxicillin','antibiotics'],['Vitamins','vitamin','vitamins'],['Diabetes','metformin','diabetes'],['Cough & Cold','cough','cough'],['Stomach care','antacid','stomach'],['Skin care','cream','skin']];
   const catBox=$('cats');
   for(const [label,q,icon] of cats){ const d=document.createElement('div'); d.className='cat'; d.innerHTML=tileIcon(icon)+label; d.onclick=()=>{ $('globalSearch').value=q; state._searchQ=q; go('search',q); }; catBox.appendChild(d); }
@@ -1157,6 +1156,11 @@ function renderAccount(){
     rc.innerHTML='<h2 style="margin-top:0">Refill reminders</h2><div id="remList"><p class="muted">Loading…</p></div>';
     view.appendChild(rc);
     loadReminders();
+
+    const qc=document.createElement('div'); qc.className='card panel'; qc.style.marginTop='12px';
+    qc.innerHTML='<h2 style="margin-top:0">Saved &amp; recent searches</h2><div id="acctQuick"></div>';
+    view.appendChild(qc);
+    getSaved().then(()=>{ const box=$('acctQuick'); if(!box) return; const qp=quickPicksEl(); if(qp){ qp.classList.remove('card'); qp.style.margin='0'; box.appendChild(qp); } else box.innerHTML='<p class="muted">No saved or recent searches yet.</p>'; });
 
     const ac=document.createElement('div'); ac.className='card panel'; ac.style.marginTop='12px';
     ac.innerHTML='<h2 style="margin-top:0">Saved addresses</h2><div id="addrList"><p class="muted">Loading…</p></div>';
