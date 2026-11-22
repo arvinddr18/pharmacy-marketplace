@@ -1236,6 +1236,7 @@ function renderAccount(){
   }
 
   // Logged out: sign in / create account.
+  if(getAccounts().length){ const back=document.createElement('div'); back.textContent='← Back to my account'; back.style.cssText='display:inline-block;color:var(--blue);cursor:pointer;font-weight:700;margin-bottom:12px'; back.onclick=()=>switchAccount(getAccounts()[0].email); view.appendChild(back); }
   const c=document.createElement('div'); c.className='card panel';
   c.innerHTML=`
     <div class="chips" style="margin-bottom:14px">
