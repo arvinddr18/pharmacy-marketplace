@@ -123,6 +123,18 @@
   .cat .ce{font-size:26px;margin-bottom:6px}
   .catbadge{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;box-shadow:0 4px 10px rgba(16,24,40,.14)}
   .catbadge svg{width:26px;height:26px}
+  .banners{position:relative;margin:4px 0 16px;border-radius:16px;overflow:hidden;box-shadow:var(--shadow-lg)}
+  .banner-track{display:flex;transition:transform .5s ease}
+  .banner{min-width:100%;box-sizing:border-box;padding:22px 24px;color:#fff;display:flex;align-items:center;gap:16px;min-height:128px;cursor:pointer}
+  .banner .btxt{flex:1}
+  .banner h3{margin:0 0 4px;font-size:21px;color:#fff}
+  .banner p{margin:0 0 12px;opacity:.95;font-size:13.5px}
+  .banner .bbtn{background:#fff;color:#0f172a;border:none;border-radius:999px;padding:8px 18px;font-weight:700;cursor:pointer;font-size:13px}
+  .banner .bicon svg{width:76px;height:76px;opacity:.95}
+  .bdots{position:absolute;bottom:9px;left:0;right:0;display:flex;justify-content:center;gap:6px}
+  .bdot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.55);cursor:pointer;transition:width .2s}
+  .bdot.on{background:#fff;width:18px;border-radius:4px}
+  @media(max-width:640px){ .banner{padding:18px;min-height:112px;gap:10px} .banner h3{font-size:17px} .banner p{font-size:12.5px} .banner .bicon svg{width:54px;height:54px} }
   .track{display:flex;align-items:flex-start;margin-top:12px;overflow-x:auto;padding-bottom:4px}
   .tstep{display:flex;flex-direction:column;align-items:center;min-width:62px;flex:none}
   .tdot{width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid var(--border)}
@@ -345,6 +357,37 @@ function typePlaceholder(key, el, phrases, prefix=''){
   tick();
 }
 
+function bannerIcon(k){
+  const P={
+    delivery:'<rect x="2" y="7" width="12" height="9" rx="1"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="18.5" r="1.7"/><circle cx="17" cy="18.5" r="1.7"/>',
+    shop:'<path d="M4 8h16l-1.2 4.5a3 3 0 0 1-2.9 2.2H8.1a3 3 0 0 1-2.9-2.2L4 8z"/><path d="M4 8l1-4h14l1 4"/><path d="M8.5 14.7V20h7v-5.3"/>',
+    rx:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/><path d="M15.5 15l3 3M18.5 15l-3 3"/>',
+    pet:'<circle cx="7" cy="10" r="1.8"/><circle cx="12" cy="7.5" r="1.8"/><circle cx="17" cy="10" r="1.8"/><path d="M12 12c-3 0-5.2 2.3-5.2 4.3A2.6 2.6 0 0 0 9.4 19c.9 0 1.6-.5 2.6-.5s1.7.5 2.6.5a2.6 2.6 0 0 0 2.6-2.7C17.2 14.3 15 12 12 12Z"/>'
+  };
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${P[k]||P.delivery}</svg>`;
+}
+function renderBanners(){
+  const box=$('banners'); if(!box) return;
+  const slides=[
+    {g:'linear-gradient(120deg,#0D9488,#10B981)', h:'Medicines to your door', p:'Order from trusted local pharmacies near you', b:'Order now', ic:'delivery', act:()=>{ state._cat=''; state._searchQ=''; go('search',''); }},
+    {g:'linear-gradient(120deg,#7C3AED,#EC4899)', h:'More than medicines', p:'Baby care, personal care, devices & pet care', b:'Explore', ic:'shop', act:()=>{ state._cat='personal_care'; state._searchQ=''; go('search',''); }},
+    {g:'linear-gradient(120deg,#2563EB,#06B6D4)', h:'Have a prescription?', p:'Upload it and we’ll get your medicines', b:'Upload', ic:'rx', act:()=>go('prescription')},
+    {g:'linear-gradient(120deg,#059669,#84CC16)', h:'Pet care has arrived', p:'Food, shampoos & medicines for your pets', b:'Shop pet', ic:'pet', act:()=>{ state._cat='pet'; state._searchQ=''; go('search',''); }},
+  ];
+  box.innerHTML='<div class="banner-track" id="bTrack"></div><div class="bdots" id="bDots"></div>';
+  const track=$('bTrack'), dots=$('bDots');
+  function show(i){ idx=(i+slides.length)%slides.length; track.style.transform='translateX(-'+(idx*100)+'%)'; [...dots.children].forEach((d,j)=>d.classList.toggle('on',j===idx)); }
+  let idx=0;
+  slides.forEach((s,i)=>{
+    const el=document.createElement('div'); el.className='banner'; el.style.background=s.g;
+    el.innerHTML=`<div class="btxt"><h3>${esc(s.h)}</h3><p>${esc(s.p)}</p><button class="bbtn">${esc(s.b)}</button></div><div class="bicon">${bannerIcon(s.ic)}</div>`;
+    el.onclick=s.act;
+    track.appendChild(el);
+    const dt=document.createElement('div'); dt.className='bdot'+(i===0?' on':''); dt.onclick=(e)=>{ e.stopPropagation(); show(i); }; dots.appendChild(dt);
+  });
+  clearInterval(window._bInt);
+  window._bInt=setInterval(()=>{ if(!document.body.contains(track)){ clearInterval(window._bInt); return; } show(idx+1); }, 4500);
+}
 function tileIcon(key){
   const C={medicine:'#0D9488',personal_care:'#7C3AED',baby:'#EC4899',nutrition:'#F59E0B',devices:'#2563EB',pet:'#059669',pain:'#EF4444',allergy:'#F59E0B',antibiotics:'#0D9488',vitamins:'#F97316',diabetes:'#DC2626',cough:'#0891B2',stomach:'#16A34A',skin:'#DB2777'};
   const P={
@@ -390,6 +433,7 @@ async function renderHome(){
       </div>
       <button class="light" id="rxBtn">Upload prescription</button>
     </div>
+    <div class="banners" id="banners"></div>
     <div id="quickPicks"></div>
     <h2>Shop by department</h2>
     <div class="cats" id="depts"></div>
@@ -416,6 +460,7 @@ async function renderHome(){
   const cats=[['Pain & Fever','paracetamol','pain'],['Allergy','cetirizine','allergy'],['Antibiotics','amoxicillin','antibiotics'],['Vitamins','vitamin','vitamins'],['Diabetes','metformin','diabetes'],['Cough & Cold','cough','cough'],['Stomach care','antacid','stomach'],['Skin care','cream','skin']];
   const catBox=$('cats');
   for(const [label,q,icon] of cats){ const d=document.createElement('div'); d.className='cat'; d.innerHTML=tileIcon(icon)+label; d.onclick=()=>{ $('globalSearch').value=q; state._searchQ=q; go('search',q); }; catBox.appendChild(d); }
+  renderBanners();
 
   renderLocBar();
   loadShops();
