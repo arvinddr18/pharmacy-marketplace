@@ -368,6 +368,8 @@ async function renderHome(){
       <button class="light" id="rxBtn">Upload prescription</button>
     </div>
     <div id="quickPicks"></div>
+    <h2>Shop by department</h2>
+    <div class="cats" id="depts"></div>
     <h2>Shop by category</h2>
     <div class="cats" id="cats"></div>
     <h2>Medical shops</h2>
@@ -377,7 +379,10 @@ async function renderHome(){
     <div id="popList" class="grid prods"><p class="muted">Loading…</p></div>
     <div id="popMore" style="text-align:center;margin-top:14px"></div>
   `;
-  $('seeAllMeds').onclick=()=>{ state._searchQ=''; go('search',''); };
+  $('seeAllMeds').onclick=()=>{ state._cat=''; state._searchQ=''; go('search',''); };
+  const depts=[['Medicines','medicine','💊'],['Personal care','personal_care','🧴'],['Baby care','baby','👶'],['Nutrition','nutrition','💪'],['Devices','devices','🩹'],['Pet care','pet','🐾']];
+  const deptBox=$('depts');
+  for(const [label,cat,emoji] of depts){ const d=document.createElement('div'); d.className='cat'; d.innerHTML=`<div class="ce">${emoji}</div>${label}`; d.onclick=()=>{ state._cat=cat; state._searchQ=''; if($('globalSearch'))$('globalSearch').value=''; go('search',''); }; deptBox.appendChild(d); }
   $('heroBtn').onclick=()=>{ const q=$('heroSearch').value.trim(); if(q){ $('globalSearch').value=q; go('search',q); } };
   $('heroSearch').addEventListener('keydown',e=>{ if(e.key==='Enter') $('heroBtn').click(); });
   $('heroMic').onclick=voiceSearch;
