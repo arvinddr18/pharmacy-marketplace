@@ -3,6 +3,8 @@ import { EmailCode } from '../models/EmailCode.js';
 import { requestOtp, verifyOtp } from '../services/otp.service.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.service.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../services/token.service.js';
+import { issueAuthTokens } from '../services/session.service.js';
+import { Session } from '../models/Session.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ACCOUNT_STATUS, ROLES } from '../config/constants.js';
@@ -18,7 +20,8 @@ export const demoLoginHandler = asyncHandler(async (req, res) => {
   }
   user.lastLoginAt = new Date();
   await user.save();
-  res.json({ user: user.toSafeJSON(), accessToken: signAccessToken(user), refreshToken: signRefreshToken(user) });
+  const _t = await issueAuthTokens(user, req);
+  res.json({ user: user.toSafeJSON(), accessToken: _t.accessToken, refreshToken: _t.refreshToken });
 });
 
 /**
@@ -160,10 +163,11 @@ export const verifyOtpHandler = asyncHandler(async (req, res) => {
     await user.save();
   }
 
+  const _t = await issueAuthTokens(user, req);
   res.json({
     user: user.toSafeJSON(),
-    accessToken: signAccessToken(user),
-    refreshToken: signRefreshToken(user),
+    accessToken: _t.accessToken,
+    refreshToken: _t.refreshToken,
   });
 });
 
@@ -216,7 +220,14 @@ export const refreshHandler = asyncHandler(async (req, res) => {
   const user = await User.findById(payload.sub);
   if (!user || user.deletedAt) throw ApiError.unauthorized('Account not found');
 
-  res.json({ accessToken: signAccessToken(user), refreshToken: signRefreshToken(user) });
+  const sid = payload.sid;
+  if (sid) {
+    const session = await Session.findById(sid);
+    if (!session || session.revokedAt) throw ApiError.unauthorized('This device was logged out');
+    session.lastSeenAt = new Date();
+    await session.save();
+  }
+  res.json({ accessToken: signAccessToken(user, sid), refreshToken: signRefreshToken(user, sid) });
 });
 
 /** GET /api/auth/me — current authenticated user. */

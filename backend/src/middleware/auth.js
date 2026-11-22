@@ -25,6 +25,7 @@ export const authenticate = asyncHandler(async (req, _res, next) => {
   if (user.status === ACCOUNT_STATUS.DISABLED) throw ApiError.forbidden('Account disabled');
 
   req.user = user;
+  req.sid = payload.sid || null;
   next();
 });
 

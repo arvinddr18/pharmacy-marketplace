@@ -1314,6 +1314,7 @@ function renderAccountCentre(){
   box.innerHTML='';
   box.appendChild(acctRow('✏️','Edit profile','Name and mobile number',openEditProfile));
   box.appendChild(acctRow('🔒','Change password','Set a new password for your account',openChangePassword));
+  box.appendChild(acctRow('📱','Manage devices','See where you\'re logged in and log out other devices',openDevices));
   box.appendChild(acctRow('⏸️','Deactivate account','Temporarily turn off — sign in again to reactivate',confirmDeactivate));
   box.appendChild(acctRow('🗑️','Permanently delete account','Delete your account and personal data for good',confirmDeleteAccount,true));
 }
@@ -1338,6 +1339,34 @@ function openEditProfile(){
     try{ const d=await api('/api/customer/profile',{method:'PATCH',body:JSON.stringify({name,phone})}); state.user=d.user; toast('Profile updated',true); renderAccount(); }
     catch(e){ toast(e.message); btn.disabled=false; btn.textContent='Save changes'; }
   };
+}
+function devAgo(t){ if(!t) return ''; const s=Math.floor((Date.now()-new Date(t).getTime())/1000); if(s<60)return 'just now'; const m=Math.floor(s/60); if(m<60)return m+' min ago'; const h=Math.floor(m/60); if(h<24)return h+(h===1?' hr ago':' hrs ago'); const d=Math.floor(h/24); return d+(d===1?' day ago':' days ago'); }
+function openDevices(){
+  const box=$('acctCentre'); if(!box) return;
+  box.innerHTML='<div style="padding-top:10px"><p class="sub">These are the devices and browsers signed in to your account. Log out any you don\'t recognise.</p><div id="devList" style="margin-top:8px"><p class="muted">Loading…</p></div><div class="row" style="margin-top:12px"><button class="ghost small" id="devBack">← Back</button></div></div>';
+  $('devBack').onclick=renderAccountCentre;
+  loadDevices();
+}
+async function loadDevices(){
+  const box=$('devList'); if(!box) return;
+  try{
+    const d=await api('/api/customer/sessions'); const items=d.items||[];
+    if(!items.length){ box.innerHTML='<p class="muted">No other active devices. (Only sessions from new logins appear here.)</p>'; return; }
+    box.innerHTML='';
+    items.forEach(s=>{
+      const r=document.createElement('div'); r.className='row'; r.style.cssText='align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border)';
+      const icon=(s.device&&s.device.indexOf('mobile')>=0)?'📱':'💻';
+      r.innerHTML=`<div style="font-size:22px">${icon}</div><div class="sp"><strong>${esc(s.device||'Device')}</strong><div class="sub">${s.current?'This device · ':''}Active ${esc(devAgo(s.lastSeenAt))}</div></div>`;
+      if(s.current){ const sp=document.createElement('span'); sp.className='sub'; sp.style.cssText='color:var(--success);font-weight:700'; sp.textContent='● This device'; r.appendChild(sp); }
+      else { const b=document.createElement('button'); b.className='light small'; b.textContent='Log out'; b.onclick=async()=>{ if(!confirm('Log out this device?')) return; try{ await api('/api/customer/sessions/'+s.id,{method:'DELETE'}); toast('Device logged out',true); loadDevices(); }catch(e){ toast(e.message); } }; r.appendChild(b); }
+      box.appendChild(r);
+    });
+    if(items.filter(x=>!x.current).length){
+      const all=document.createElement('button'); all.className='secondary small'; all.style.marginTop='14px'; all.textContent='Log out all other devices';
+      all.onclick=async()=>{ if(!confirm('Log out all other devices?')) return; try{ await api('/api/customer/sessions/others',{method:'DELETE'}); toast('All other devices logged out',true); loadDevices(); }catch(e){ toast(e.message); } };
+      box.appendChild(all);
+    }
+  }catch(e){ box.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
 }
 function openChangePassword(){
   const box=$('acctCentre'); if(!box) return;

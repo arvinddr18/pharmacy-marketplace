@@ -7,6 +7,7 @@ import { Pharmacy } from '../models/Pharmacy.js';
 import { User } from '../models/User.js';
 import { Review } from '../models/Review.js';
 import { Coupon } from '../models/Coupon.js';
+import { Session } from '../models/Session.js';
 import { emailOrderUpdate } from '../services/email.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -31,6 +32,33 @@ export const updateProfile = asyncHandler(async (req, res) => {
   }
   await user.save();
   res.json({ user: user.toSafeJSON() });
+});
+
+/** GET /api/customer/sessions — the devices/browsers this account is logged in on. */
+export const listSessions = asyncHandler(async (req, res) => {
+  const sessions = await Session.find({ user: req.user._id, revokedAt: null }).sort({ lastSeenAt: -1 }).lean();
+  const items = sessions.map((s) => ({
+    id: String(s._id),
+    device: s.device,
+    lastSeenAt: s.lastSeenAt,
+    createdAt: s.createdAt,
+    current: req.sid ? String(s._id) === String(req.sid) : false,
+  }));
+  res.json({ items });
+});
+
+/** DELETE /api/customer/sessions/others — log out every device except this one. */
+export const revokeOtherSessions = asyncHandler(async (req, res) => {
+  const filter = { user: req.user._id, revokedAt: null };
+  if (req.sid) filter._id = { $ne: req.sid };
+  await Session.updateMany(filter, { $set: { revokedAt: new Date() } });
+  res.json({ ok: true });
+});
+
+/** DELETE /api/customer/sessions/:id — log out one device. */
+export const revokeSession = asyncHandler(async (req, res) => {
+  await Session.updateOne({ _id: req.params.id, user: req.user._id }, { $set: { revokedAt: new Date() } });
+  res.json({ ok: true });
 });
 
 /** PATCH /api/customer/password { currentPassword, newPassword } — change own password. */

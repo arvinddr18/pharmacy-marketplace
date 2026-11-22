@@ -7,6 +7,7 @@ import {
   createPrescriptionOrder,
   listSavedSearches, addSavedSearch, deleteSavedSearch,
   updateProfile, changePassword, deactivateAccount, deleteAccount,
+  listSessions, revokeOtherSessions, revokeSession,
 } from '../controllers/order.controller.js';
 import { createRazorpayOrder, verifyPayment } from '../controllers/payment.controller.js';
 import { createReminder, listReminders, snoozeReminder, deleteReminder } from '../controllers/reminder.controller.js';
@@ -41,6 +42,9 @@ router.delete('/addresses/:id', deleteAddress);
 
 router.patch('/profile', updateProfile);
 router.patch('/password', changePassword);
+router.get('/sessions', listSessions);
+router.delete('/sessions/others', revokeOtherSessions);
+router.delete('/sessions/:id', revokeSession);
 router.post('/account/deactivate', deactivateAccount);
 router.delete('/account', deleteAccount);
 
