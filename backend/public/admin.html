@@ -202,6 +202,7 @@
         <tbody id="catRows"><tr><td colspan="4" class="muted" style="padding:16px">Loading…</td></tr></tbody>
       </table>
     </div>
+    <div id="catMoreWrap" style="text-align:center;margin-top:10px"></div>
 
     <div class="row" style="justify-content:space-between;align-items:flex-end;margin-top:28px">
       <h2 style="margin:0">Discount coupons</h2>
@@ -417,32 +418,40 @@ async function bulkRx(value){
   try{ const d=await api('/api/catalogue/bulk-rx',{method:'POST',body:JSON.stringify({q,prescriptionRequired:value})}); toast('Updated '+(d.updated||0)+' medicines → '+(value?'Rx':'OTC'),true); loadCatalogue(); }
   catch(e){ toast(e.message); }
 }
-async function loadCatalogue(){
+let catPage=1, catQ='', catPages=1;
+function catRow(m){
+  const tr=document.createElement('tr'); tr.dataset.mid=m._id;
+  const thumb = m.imageUrl ? `<img src="${m.imageUrl}" style="width:40px;height:40px;object-fit:contain;border:1px solid var(--border);border-radius:8px;background:#fff" onerror="this.replaceWith(document.createTextNode('—'))"/>` : '<span class="muted">—</span>';
+  tr.innerHTML=`
+    <td>${thumb}</td>
+    <td><strong>${m.name||''}</strong><div class="muted" style="font-size:12px">${[((m.category&&m.category!=='medicine')?catLabel(m.category):''),m.strength,m.packSize].filter(Boolean).join(' · ')}</div></td>
+    <td class="rxcell">${m.prescriptionRequired?'<span class="pill rx">Rx</span>':'<span class="muted">OTC</span>'} <button class="small secondary rxbtn">${m.prescriptionRequired?'Make OTC':'Make Rx'}</button></td>
+    <td style="text-align:right"><button class="small secondary imgbtn">Set image</button></td>`;
+  tr.querySelector('.rxbtn').addEventListener('click',()=>toggleRx(m._id, !m.prescriptionRequired, tr));
+  tr.querySelector('.imgbtn').addEventListener('click',()=>setCatImage(m._id, tr));
+  return tr;
+}
+async function loadCatalogue(append){
   try{
     const q=($('catSearch')&&$('catSearch').value.trim())||'';
-    const d=await api('/api/catalogue?limit=100'+(q?('&q='+encodeURIComponent(q)):'')); const items=d.items||[];
-    const total=(d.total!=null)?d.total:items.length;
-    const cc=$('catCount'); if(cc) cc.textContent = q ? (items.length+' match'+(items.length===1?'':'es')) : (total+' medicines'+(total>items.length?(' · showing first '+items.length):''));
-    const body=$('catRows');
-    if(!items.length){ body.innerHTML='<tr><td colspan="4" class="muted" style="padding:16px">'+(q?'No medicines match your search.':'No medicines yet. Add one above.')+'</td></tr>'; return; }
-    body.innerHTML='';
-    for(const m of items){
-      const tr=document.createElement('tr');
-      const thumb = m.imageUrl ? `<img src="${m.imageUrl}" style="width:40px;height:40px;object-fit:contain;border:1px solid var(--border);border-radius:8px;background:#fff" onerror="this.replaceWith(document.createTextNode('—'))"/>` : '<span class="muted">—</span>';
-      tr.innerHTML=`
-        <td>${thumb}</td>
-        <td><strong>${m.name||''}</strong><div class="muted" style="font-size:12px">${[((m.category&&m.category!=='medicine')?catLabel(m.category):''),m.strength,m.packSize].filter(Boolean).join(' · ')}</div></td>
-        <td>${m.prescriptionRequired?'<span class="pill rx">Rx</span>':'<span class="muted">OTC</span>'} <button class="small secondary" data-rxid="${m._id}" data-val="${m.prescriptionRequired?'0':'1'}">${m.prescriptionRequired?'Make OTC':'Make Rx'}</button></td>
-        <td style="text-align:right"><button class="small secondary" data-id="${m._id}">Set image</button></td>`;
-      body.appendChild(tr);
-    }
-    body.querySelectorAll('button[data-id]').forEach(b=>b.addEventListener('click',()=>setCatImage(b.dataset.id)));
-    body.querySelectorAll('button[data-rxid]').forEach(b=>b.addEventListener('click',()=>toggleRx(b.dataset.rxid, b.dataset.val==='1')));
+    if(!append){ catPage=1; catQ=q; }
+    const d=await api('/api/catalogue?limit=100&page='+catPage+(catQ?('&q='+encodeURIComponent(catQ)):''));
+    const items=d.items||[]; const total=(d.total!=null)?d.total:items.length; catPages=d.pages||1;
+    const body=$('catRows'); const mw=$('catMoreWrap'); const cc=$('catCount');
+    if(!append) body.innerHTML='';
+    if(!append && !items.length){ body.innerHTML='<tr><td colspan="4" class="muted" style="padding:16px">'+(catQ?'No medicines match your search.':'No medicines yet. Add one above.')+'</td></tr>'; if(mw) mw.innerHTML=''; if(cc) cc.textContent=''; return; }
+    for(const m of items) body.appendChild(catRow(m));
+    const shown=body.querySelectorAll('tr[data-mid]').length;
+    if(cc) cc.textContent = catQ ? (total+' match'+(total===1?'':'es')+(total>shown?(' · showing '+shown):'')) : (total+' medicines · showing '+shown);
+    if(mw){ if(catPage<catPages){ mw.innerHTML='<button class="secondary small" id="catMoreBtn">⬇ Load more ('+(total-shown)+' more)</button>'; $('catMoreBtn').onclick=()=>{ catPage++; loadCatalogue(true); }; } else { mw.innerHTML = shown>100 ? '<span class="muted" style="font-size:12px">— end of list —</span>' : ''; } }
   }catch(e){ toast(e.message); }
 }
-async function toggleRx(id, value){
-  try{ await api('/api/catalogue/'+id,{method:'PATCH',body:JSON.stringify({prescriptionRequired:value})}); toast(value?'Marked as Rx':'Marked as OTC',true); loadCatalogue(); }
-  catch(e){ toast(e.message); }
+async function toggleRx(id, value, tr){
+  try{
+    await api('/api/catalogue/'+id,{method:'PATCH',body:JSON.stringify({prescriptionRequired:value})}); toast(value?'Marked as Rx':'Marked as OTC',true);
+    if(tr){ const cell=tr.querySelector('.rxcell'); cell.innerHTML=(value?'<span class="pill rx">Rx</span>':'<span class="muted">OTC</span>')+' <button class="small secondary rxbtn">'+(value?'Make OTC':'Make Rx')+'</button>'; cell.querySelector('.rxbtn').addEventListener('click',()=>toggleRx(id, !value, tr)); }
+    else loadCatalogue();
+  }catch(e){ toast(e.message); }
 }
 async function addCatalogueMed(){
   const name=$('cName').value.trim();
@@ -459,12 +468,15 @@ async function addCatalogueMed(){
     loadCatalogue();
   }catch(e){ toast(e.message); }
 }
-async function setCatImage(id){
+async function setCatImage(id, tr){
   const url=prompt('Paste the image URL for this medicine (public link ending in .jpg or .png):');
   if(url===null) return;
   if(!url.trim()) return toast('Enter an image URL');
-  try{ await api('/api/catalogue/'+id,{method:'PATCH',body:JSON.stringify({imageUrl:url.trim()})}); toast('Image updated',true); loadCatalogue(); }
-  catch(e){ toast(e.message); }
+  try{
+    await api('/api/catalogue/'+id,{method:'PATCH',body:JSON.stringify({imageUrl:url.trim()})}); toast('Image updated',true);
+    if(tr){ tr.children[0].innerHTML='<img src="'+url.trim()+'" style="width:40px;height:40px;object-fit:contain;border:1px solid var(--border);border-radius:8px;background:#fff" onerror="this.replaceWith(document.createTextNode(\'—\'))"/>'; }
+    else loadCatalogue();
+  }catch(e){ toast(e.message); }
 }
 
 // ---------- prescription orders ----------
@@ -844,7 +856,7 @@ $('tabs').addEventListener('click',(e)=>{
 $('refreshOrdersBtn').addEventListener('click',loadOrders);
 $('addRiderBtn').addEventListener('click',addRider);
 $('addCatBtn').addEventListener('click',addCatalogueMed);
-$('refreshCatBtn').addEventListener('click',loadCatalogue);
+$('refreshCatBtn').addEventListener('click',()=>loadCatalogue());
 $('starterBtn').addEventListener('click',loadStarter);
 $('libraryBtn').addEventListener('click',importLibrary);
 $('productLibBtn').addEventListener('click',importProducts);
