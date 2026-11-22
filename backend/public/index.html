@@ -237,7 +237,7 @@ function logout(){ stopAutoRefresh(); token=''; try{localStorage.removeItem('tok
 
 async function showApp(){
   $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
-  await loadProfile(); await loadListings(); await loadOrders();
+  await loadProfile(); await loadListings(); await loadOrders(); loadPharmCat();
   startAutoRefresh();
 }
 
@@ -378,35 +378,50 @@ async function loadListings(){
     collapseTable(body,'phMeds',6,3);
   }catch(e){ toast(e.message); }
 }
-
-let searchTimer=null;
-function onSearch(){
-  clearTimeout(searchTimer);
-  searchTimer=setTimeout(async()=>{
-    const q=$('catSearch').value.trim();
-    if(!q){ $('catResults').innerHTML=''; return; }
-    try{
-      const data=await api('/api/catalogue?q='+encodeURIComponent(q));
-      const items=data.items||[];
-      if(!items.length){ $('catResults').innerHTML='<span class="muted">No matches.</span>'; return; }
-      $('catResults').innerHTML='';
-      items.slice(0,6).forEach(m=>{
-        const div=document.createElement('div');
-        div.className='row'; div.style.padding='8px 0'; div.style.borderBottom='1px solid var(--border)';
-        div.innerHTML=`<div class="grow"><strong>${m.name}</strong> <span class="muted">${m.strength||''}</span> ${m.prescriptionRequired?'<span class="pill rx">Rx</span>':''}</div>`;
-        const add=document.createElement('button'); add.textContent='Add to my shop';
-        add.addEventListener('click',()=>addListing(m._id));
-        div.appendChild(add); $('catResults').appendChild(div);
-      });
-    }catch(e){ toast(e.message); }
-  },300);
+// ---------- browse / search the catalogue + add listing ----------
+let searchTimer=null, phCatPage=1, phCatQ='', phCatPages=1, phCatExpanded=false;
+function onSearch(){ clearTimeout(searchTimer); searchTimer=setTimeout(()=>loadPharmCat(),300); }
+function phCatRow(m){
+  const div=document.createElement('div');
+  div.className='catitem row'; div.style.cssText='padding:8px 2px;border-bottom:1px solid var(--border);align-items:center';
+  div.innerHTML=`<div class="grow"><strong>${m.name||''}</strong> <span class="muted">${[m.strength,m.packSize].filter(Boolean).join(' · ')}</span> ${m.prescriptionRequired?'<span class="pill rx">Rx</span>':'<span class="muted" style="font-size:12px">OTC</span>'}</div>`;
+  const add=document.createElement('button'); add.className='small'; add.textContent='Add'; add.addEventListener('click',()=>addListing(m._id));
+  div.appendChild(add);
+  return div;
+}
+async function loadPharmCat(append){
+  const box=$('catResults'); if(!box) return;
+  const q=$('catSearch')?$('catSearch').value.trim():'';
+  if(!append){ phCatPage=1; phCatQ=q; }
+  try{
+    const d=await api('/api/catalogue?limit=100&page='+phCatPage+(phCatQ?('&q='+encodeURIComponent(phCatQ)):''));
+    const items=d.items||[]; const total=(d.total!=null)?d.total:items.length; phCatPages=d.pages||1;
+    if(!append){ box.innerHTML='<div class="muted" style="font-size:12px;margin-bottom:6px">Set the MRP & selling price above, then tap <strong>Add</strong> on a medicine.</div><div id="catScroll" style="max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:2px 10px"></div><div id="catMore2" style="text-align:center;margin-top:8px"></div>'; }
+    const scroll=$('catScroll'), more=$('catMore2');
+    if(!items.length){ scroll.innerHTML='<div class="muted" style="padding:12px">'+(phCatQ?'No matches.':'No medicines in the catalogue yet.')+'</div>'; more.innerHTML=''; return; }
+    for(const m of items) scroll.appendChild(phCatRow(m));
+    const rows=[].slice.call(scroll.querySelectorAll('.catitem')); const shown=rows.length;
+    if(!append && !phCatQ && !phCatExpanded && shown>5){
+      rows.forEach((r,i)=>{ r.style.display=i<4?'':'none'; });
+      more.innerHTML='<button class="secondary small" id="phCatShowAll">▼ Show all '+total+' medicines</button>';
+      $('phCatShowAll').onclick=()=>{ phCatExpanded=true; loadPharmCat(); };
+      return;
+    }
+    rows.forEach(r=>{ r.style.display=''; });
+    let h='';
+    if(phCatPage<phCatPages) h+='<button class="secondary small" id="phCatMore">⬇ Load more ('+(total-shown)+' more)</button> ';
+    if(phCatExpanded && !phCatQ) h+='<button class="secondary small" id="phCatLess">▲ Show less</button>';
+    more.innerHTML=h;
+    if($('phCatMore')) $('phCatMore').onclick=()=>{ phCatPage++; loadPharmCat(true); };
+    if($('phCatLess')) $('phCatLess').onclick=()=>{ phCatExpanded=false; loadPharmCat(); };
+  }catch(e){ toast(e.message); }
 }
 async function addListing(medicineId){
   const mrp=Number($('mrp').value), sellingPrice=Number($('sellingPrice').value);
   if(mrp<=0||sellingPrice<=0) return toast('Enter MRP and selling price first');
   try{
     await api('/api/pharmacy/listings',{method:'POST',body:JSON.stringify({medicineId,mrp,sellingPrice})});
-    toast('Added to your shop',true); $('catSearch').value=''; $('catResults').innerHTML='';
+    toast('Added to your shop',true);
     loadListings();
   }catch(e){ toast(e.message); }
 }
