@@ -451,7 +451,14 @@ async function loadCatalogue(append){
       return;
     }
     rows.forEach(r=>{ r.style.display=''; });
-    if(mw){ if(catPage<catPages){ mw.innerHTML='<button class="secondary small" id="catMoreBtn">⬇ Load more ('+(total-shown)+' more)</button>'; $('catMoreBtn').onclick=()=>{ catPage++; loadCatalogue(true); }; } else { mw.innerHTML = shown>3 ? '<span class="muted" style="font-size:12px">— end of list —</span>' : ''; } }
+    if(mw){
+      let h='';
+      if(catPage<catPages) h+='<button class="secondary small" id="catMoreBtn">⬇ Load more ('+(total-shown)+' more)</button> ';
+      if(catExpanded && !catQ) h+='<button class="secondary small" id="catLess">▲ Show less</button>';
+      mw.innerHTML=h;
+      if($('catMoreBtn')) $('catMoreBtn').onclick=()=>{ catPage++; loadCatalogue(true); };
+      if($('catLess')) $('catLess').onclick=()=>{ catExpanded=false; loadCatalogue(); if($('catSearch')) $('catSearch').scrollIntoView({behavior:'smooth',block:'start'}); };
+    }
   }catch(e){ toast(e.message); }
 }
 async function toggleRx(id, value, tr){
