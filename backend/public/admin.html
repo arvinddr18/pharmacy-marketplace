@@ -418,7 +418,7 @@ async function bulkRx(value){
   try{ const d=await api('/api/catalogue/bulk-rx',{method:'POST',body:JSON.stringify({q,prescriptionRequired:value})}); toast('Updated '+(d.updated||0)+' medicines → '+(value?'Rx':'OTC'),true); loadCatalogue(); }
   catch(e){ toast(e.message); }
 }
-let catPage=1, catQ='', catPages=1;
+let catPage=1, catQ='', catPages=1, catExpanded=false;
 function catRow(m){
   const tr=document.createElement('tr'); tr.dataset.mid=m._id;
   const thumb = m.imageUrl ? `<img src="${m.imageUrl}" style="width:40px;height:40px;object-fit:contain;border:1px solid var(--border);border-radius:8px;background:#fff" onerror="this.replaceWith(document.createTextNode('—'))"/>` : '<span class="muted">—</span>';
@@ -441,9 +441,17 @@ async function loadCatalogue(append){
     if(!append) body.innerHTML='';
     if(!append && !items.length){ body.innerHTML='<tr><td colspan="4" class="muted" style="padding:16px">'+(catQ?'No medicines match your search.':'No medicines yet. Add one above.')+'</td></tr>'; if(mw) mw.innerHTML=''; if(cc) cc.textContent=''; return; }
     for(const m of items) body.appendChild(catRow(m));
-    const shown=body.querySelectorAll('tr[data-mid]').length;
-    if(cc) cc.textContent = catQ ? (total+' match'+(total===1?'':'es')+(total>shown?(' · showing '+shown):'')) : (total+' medicines · showing '+shown);
-    if(mw){ if(catPage<catPages){ mw.innerHTML='<button class="secondary small" id="catMoreBtn">⬇ Load more ('+(total-shown)+' more)</button>'; $('catMoreBtn').onclick=()=>{ catPage++; loadCatalogue(true); }; } else { mw.innerHTML = shown>100 ? '<span class="muted" style="font-size:12px">— end of list —</span>' : ''; } }
+    const rows=[].slice.call(body.querySelectorAll('tr[data-mid]'));
+    const shown=rows.length;
+    if(cc) cc.textContent = catQ ? (total+' match'+(total===1?'':'es')+(total>shown?(' · showing '+shown):'')) : (total+' medicines · showing '+(catExpanded?shown:Math.min(3,shown)));
+    // First open (no search, not expanded): show only 3, with a "Show all" button.
+    if(!append && !catQ && !catExpanded && shown>4){
+      rows.forEach((r,i)=>{ r.style.display = i<3 ? '' : 'none'; });
+      if(mw){ mw.innerHTML='<button class="secondary small" id="catShowAll">▼ Show all '+total+' medicines</button>'; $('catShowAll').onclick=()=>{ catExpanded=true; loadCatalogue(); }; }
+      return;
+    }
+    rows.forEach(r=>{ r.style.display=''; });
+    if(mw){ if(catPage<catPages){ mw.innerHTML='<button class="secondary small" id="catMoreBtn">⬇ Load more ('+(total-shown)+' more)</button>'; $('catMoreBtn').onclick=()=>{ catPage++; loadCatalogue(true); }; } else { mw.innerHTML = shown>3 ? '<span class="muted" style="font-size:12px">— end of list —</span>' : ''; } }
   }catch(e){ toast(e.message); }
 }
 async function toggleRx(id, value, tr){
