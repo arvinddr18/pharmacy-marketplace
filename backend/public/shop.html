@@ -275,6 +275,7 @@ async function refreshAccess(){
     const d=await r.json();
     state.token=d.accessToken; localStorage.setItem('cust_token',d.accessToken);
     if(d.refreshToken) localStorage.setItem('cust_refresh',d.refreshToken);
+    if(state.user) upsertAccount(state.user, d.accessToken, d.refreshToken||rt);
     return true;
   }catch{ return false; }
 }
@@ -1151,6 +1152,42 @@ async function payOnline(orderIds, amount){
 }
 
 /* ---------------- ACCOUNT / AUTH ---------------- */
+/* ---------------- MULTI-ACCOUNT (switch like social apps) ---------------- */
+function getAccounts(){ try{ return JSON.parse(localStorage.getItem('medmart_accounts')||'[]'); }catch{ return []; } }
+function saveAccounts(a){ try{ localStorage.setItem('medmart_accounts', JSON.stringify(a.slice(0,8))); }catch{} }
+function upsertAccount(user, token, refresh){
+  if(!user || !user.email || !token) return;
+  const list=getAccounts().filter(x=>x.email!==user.email);
+  list.unshift({email:user.email, name:user.name||user.email, token, refresh:refresh||''});
+  saveAccounts(list);
+}
+function removeAccount(email){ if(email) saveAccounts(getAccounts().filter(x=>x.email!==email)); }
+async function switchAccount(email){
+  const acc=getAccounts().find(x=>x.email===email); if(!acc) return;
+  state.token=acc.token; state.user=null; state._notifs=[]; updateNotifBadge();
+  try{ localStorage.setItem('cust_token',acc.token); if(acc.refresh) localStorage.setItem('cust_refresh',acc.refresh); else localStorage.removeItem('cust_refresh'); }catch{}
+  try{ const me=await api('/api/auth/me'); state.user=me.user; }catch{ state.user={name:acc.name,email:acc.email,role:'customer'}; }
+  loadNotifs(); toast('Switched to '+((state.user&&state.user.name)?state.user.name.split(' ')[0]:acc.name),true); go('account');
+}
+function addAnotherAccount(){ state.token=''; state.user=null; state._notifs=[]; updateNotifBadge(); try{localStorage.removeItem('cust_token');localStorage.removeItem('cust_refresh');}catch{} state._afterLogin='account'; go('account'); }
+function renderAccountSwitcher(){
+  const box=$('acctList'); if(!box) return;
+  const accts=getAccounts(), cur=(state.user&&state.user.email)||'';
+  box.innerHTML='';
+  accts.forEach(a=>{
+    const r=document.createElement('div'); r.className='row'; r.style.cssText='align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border)';
+    const active=a.email===cur;
+    r.innerHTML=`<div class="avatar" style="width:40px;height:40px;font-size:16px;background:${colorFor(a.name)}">${esc(initials(a.name))}</div><div class="sp"><strong>${esc(a.name)}</strong><div class="sub">${esc(a.email)}</div></div>`;
+    if(active){ const s=document.createElement('span'); s.className='sub'; s.style.cssText='color:var(--success);font-weight:700'; s.textContent='● Active'; r.appendChild(s); }
+    else { const b=document.createElement('button'); b.className='light small'; b.textContent='Switch'; b.onclick=()=>switchAccount(a.email); r.appendChild(b); }
+    box.appendChild(r);
+  });
+  const add=document.createElement('div'); add.className='row'; add.style.cssText='align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--border);cursor:pointer;color:var(--blue);font-weight:700';
+  add.innerHTML='<div style="font-size:20px">➕</div> Add another account';
+  add.onclick=addAnotherAccount;
+  box.appendChild(add);
+}
+
 function renderAccount(){
   view.innerHTML='';
   const h=document.createElement('h1'); h.textContent=(state.token&&state.user)?'My account':'Account'; view.appendChild(h);
@@ -1162,7 +1199,13 @@ function renderAccount(){
       <div class="sp"><strong style="font-size:18px">${esc(u.name)}</strong><div class="sub">${esc(u.email||'')}</div>${u.phone?`<div class="sub">📱 ${esc(u.phone)}</div>`:''}</div></div>
       <div style="margin-top:14px" class="row"><button class="ghost" id="logoutBtn">Log out</button></div>`;
     view.appendChild(c);
-    $('logoutBtn').onclick=()=>{ state.token=''; state.user=null; try{localStorage.removeItem('cust_token');localStorage.removeItem('cust_refresh');}catch{} toast('Logged out',true); go('home'); };
+    upsertAccount(u, localStorage.getItem('cust_token')||state.token, localStorage.getItem('cust_refresh')||'');
+    $('logoutBtn').onclick=()=>{ const cur=state.user&&state.user.email; removeAccount(cur); state.token=''; state.user=null; state._notifs=[]; updateNotifBadge(); try{localStorage.removeItem('cust_token');localStorage.removeItem('cust_refresh');}catch{} const rest=getAccounts(); if(rest.length){ switchAccount(rest[0].email); } else { toast('Logged out',true); go('home'); } };
+
+    const swc=document.createElement('div'); swc.className='card panel'; swc.style.marginTop='12px';
+    swc.innerHTML='<h2 style="margin-top:0">Switch account</h2><p class="sub" style="margin:-4px 0 4px">Add another person\'s account to order to their place.</p><div id="acctList"></div>';
+    view.appendChild(swc);
+    renderAccountSwitcher();
 
     const oc=document.createElement('div'); oc.className='card panel'; oc.style.marginTop='12px';
     oc.innerHTML=`<div class="row"><h2 style="margin:0">Your orders</h2><span class="sp"></span><span class="ghost small" id="allOrdersLink" style="color:var(--blue);cursor:pointer;font-weight:700">View all →</span></div><div id="acctOrders" style="margin-top:8px"><p class="muted">Loading…</p></div>`;
@@ -1254,7 +1297,7 @@ async function loadAccountOrders(){
 }
 
 /* ---------------- ACCOUNT CENTRE (edit / deactivate / delete) ---------------- */
-function doLogoutLocal(){ state.token=''; state.user=null; state._notifs=[]; updateNotifBadge(); try{localStorage.removeItem('cust_token');localStorage.removeItem('cust_refresh');}catch{} go('home'); }
+function doLogoutLocal(){ const cur=state.user&&state.user.email; removeAccount(cur); state.token=''; state.user=null; state._notifs=[]; updateNotifBadge(); try{localStorage.removeItem('cust_token');localStorage.removeItem('cust_refresh');}catch{} go('home'); }
 function acctRow(icon,label,sub,onclick,danger){
   const r=document.createElement('div');
   r.className='row';
@@ -1460,6 +1503,7 @@ async function afterAuth(d){
   state.token=d.accessToken; localStorage.setItem('cust_token',state.token);
   if(d.refreshToken) localStorage.setItem('cust_refresh',d.refreshToken);
   try{ const me=await api('/api/auth/me'); state.user=me.user; }catch{ state.user=d.user||null; }
+  if(state.user) upsertAccount(state.user, d.accessToken, d.refreshToken);
   toast('Welcome'+(state.user?.name?(', '+state.user.name.split(' ')[0]):'')+'!',true);
   const next=state._afterLogin; state._afterLogin=null;
   loadNotifs();
