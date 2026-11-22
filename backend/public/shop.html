@@ -121,6 +121,8 @@
   .cat{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 8px;text-align:center;cursor:pointer;font-size:12.5px;font-weight:700;color:var(--text);transition:box-shadow .15s,transform .15s}
   .cat:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);border-color:var(--blue)}
   .cat .ce{font-size:26px;margin-bottom:6px}
+  .catbadge{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;box-shadow:0 4px 10px rgba(16,24,40,.14)}
+  .catbadge svg{width:26px;height:26px}
   .track{display:flex;align-items:flex-start;margin-top:12px;overflow-x:auto;padding-bottom:4px}
   .tstep{display:flex;flex-direction:column;align-items:center;min-width:62px;flex:none}
   .tdot{width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid var(--border)}
@@ -343,6 +345,27 @@ function typePlaceholder(key, el, phrases, prefix=''){
   tick();
 }
 
+function tileIcon(key){
+  const C={medicine:'#0D9488',personal_care:'#7C3AED',baby:'#EC4899',nutrition:'#F59E0B',devices:'#2563EB',pet:'#059669',pain:'#EF4444',allergy:'#F59E0B',antibiotics:'#0D9488',vitamins:'#F97316',diabetes:'#DC2626',cough:'#0891B2',stomach:'#16A34A',skin:'#DB2777'};
+  const P={
+    medicine:'<path d="M10.5 20.5 3.5 13.5a5 5 0 0 1 7-7l7 7a5 5 0 0 1-7 7Z"/><path d="m8.5 8.5 7 7"/>',
+    personal_care:'<path d="M9 3h6M10 3v2M14 3v2M8.5 9a3 3 0 0 1 3-3h1a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-1a3 3 0 0 1-3-3z"/><path d="M8.5 12h7"/>',
+    baby:'<circle cx="12" cy="13" r="8"/><path d="M9.5 12h.01M14.5 12h.01"/><path d="M9.5 16a3.5 3.5 0 0 0 5 0"/>',
+    nutrition:'<path d="M6.5 7v10M4 9v6M17.5 7v10M20 9v6M6.5 12h11"/>',
+    devices:'<path d="M3 12h4l2-5 4 10 2-5h6"/>',
+    pet:'<circle cx="7" cy="10" r="1.6"/><circle cx="11" cy="7.5" r="1.6"/><circle cx="15" cy="10" r="1.6"/><path d="M11 12c-2.5 0-4.5 2-4.5 3.8A2.2 2.2 0 0 0 8.7 18c.8 0 1.4-.4 2.3-.4s1.5.4 2.3.4a2.2 2.2 0 0 0 2.2-2.2c0-1.8-2-3.8-4.5-3.8Z"/>',
+    pain:'<path d="M14 14.76V5a2 2 0 1 0-4 0v9.76a4 4 0 1 0 4 0Z"/>',
+    allergy:'<circle cx="12" cy="12" r="2.5"/><path d="M12 9.5a2.5 2.5 0 1 0 0-5M12 14.5a2.5 2.5 0 1 1 0 5M9.5 12a2.5 2.5 0 1 1-5 0M14.5 12a2.5 2.5 0 1 0 5 0"/>',
+    antibiotics:'<path d="M10.5 20.5 3.5 13.5a5 5 0 0 1 7-7l7 7a5 5 0 0 1-7 7Z"/><path d="m8.5 8.5 7 7"/>',
+    vitamins:'<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/>',
+    diabetes:'<path d="M12 3s6 6.4 6 10.5a6 6 0 0 1-12 0C6 9.4 12 3 12 3Z"/>',
+    cough:'<path d="M3 8h10a2.5 2.5 0 1 0-2.5-2.5M3 12h14a2.5 2.5 0 1 1-2.5 2.5M3 16h8"/>',
+    stomach:'<path d="M4 20C4 11 11 4 20 4c0 9-7 16-16 16Z"/><path d="M4 20c3-5 7-8 12-10"/>',
+    skin:'<path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6Z"/><path d="M18.5 14l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8Z"/>'
+  };
+  return `<div class="catbadge" style="background:${C[key]||'#0D9488'}"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${P[key]||P.medicine}</svg></div>`;
+}
+
 async function renderHome(){
   view.innerHTML=`
     <div class="trust">
@@ -380,9 +403,9 @@ async function renderHome(){
     <div id="popMore" style="text-align:center;margin-top:14px"></div>
   `;
   $('seeAllMeds').onclick=()=>{ state._cat=''; state._searchQ=''; go('search',''); };
-  const depts=[['Medicines','medicine','💊'],['Personal care','personal_care','🧴'],['Baby care','baby','👶'],['Nutrition','nutrition','💪'],['Devices','devices','🩹'],['Pet care','pet','🐾']];
+  const depts=[['Medicines','medicine'],['Personal care','personal_care'],['Baby care','baby'],['Nutrition','nutrition'],['Devices','devices'],['Pet care','pet']];
   const deptBox=$('depts');
-  for(const [label,cat,emoji] of depts){ const d=document.createElement('div'); d.className='cat'; d.innerHTML=`<div class="ce">${emoji}</div>${label}`; d.onclick=()=>{ state._cat=cat; state._searchQ=''; if($('globalSearch'))$('globalSearch').value=''; go('search',''); }; deptBox.appendChild(d); }
+  for(const [label,cat] of depts){ const d=document.createElement('div'); d.className='cat'; d.innerHTML=tileIcon(cat)+label; d.onclick=()=>{ state._cat=cat; state._searchQ=''; if($('globalSearch'))$('globalSearch').value=''; go('search',''); }; deptBox.appendChild(d); }
   $('heroBtn').onclick=()=>{ const q=$('heroSearch').value.trim(); if(q){ $('globalSearch').value=q; go('search',q); } };
   $('heroSearch').addEventListener('keydown',e=>{ if(e.key==='Enter') $('heroBtn').click(); });
   $('heroMic').onclick=voiceSearch;
@@ -390,9 +413,9 @@ async function renderHome(){
   typePlaceholder('hero',$('heroSearch'),["Paracetamol","Cetirizine","Amoxicillin","vitamins","a syrup"],"Search ");
   $('rxBtn').onclick=()=>go('prescription');
   getSaved().then(()=>{ const qp=quickPicksEl(); if(qp && $('quickPicks')) $('quickPicks').appendChild(qp); });
-  const cats=[['Pain & Fever','paracetamol','🤒'],['Allergy','cetirizine','🤧'],['Antibiotics','amoxicillin','💊'],['Vitamins','vitamin','🟠'],['Diabetes','metformin','🩸'],['Cough & Cold','cough','😷'],['Stomach care','antacid','🌿'],['Skin care','cream','🧴']];
+  const cats=[['Pain & Fever','paracetamol','pain'],['Allergy','cetirizine','allergy'],['Antibiotics','amoxicillin','antibiotics'],['Vitamins','vitamin','vitamins'],['Diabetes','metformin','diabetes'],['Cough & Cold','cough','cough'],['Stomach care','antacid','stomach'],['Skin care','cream','skin']];
   const catBox=$('cats');
-  for(const [label,q,emoji] of cats){ const d=document.createElement('div'); d.className='cat'; d.innerHTML=`<div class="ce">${emoji}</div>${label}`; d.onclick=()=>{ $('globalSearch').value=q; state._searchQ=q; go('search',q); }; catBox.appendChild(d); }
+  for(const [label,q,icon] of cats){ const d=document.createElement('div'); d.className='cat'; d.innerHTML=tileIcon(icon)+label; d.onclick=()=>{ $('globalSearch').value=q; state._searchQ=q; go('search',q); }; catBox.appendChild(d); }
 
   renderLocBar();
   loadShops();
