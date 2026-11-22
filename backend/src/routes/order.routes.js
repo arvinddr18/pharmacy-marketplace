@@ -8,6 +8,7 @@ import {
   listSavedSearches, addSavedSearch, deleteSavedSearch,
   updateProfile, changePassword, deactivateAccount, deleteAccount,
   listSessions, revokeOtherSessions, revokeSession,
+  send2faSetupCode, enable2fa, disable2fa,
 } from '../controllers/order.controller.js';
 import { createRazorpayOrder, verifyPayment } from '../controllers/payment.controller.js';
 import { createReminder, listReminders, snoozeReminder, deleteReminder } from '../controllers/reminder.controller.js';
@@ -47,5 +48,9 @@ router.delete('/sessions/others', revokeOtherSessions);
 router.delete('/sessions/:id', revokeSession);
 router.post('/account/deactivate', deactivateAccount);
 router.delete('/account', deleteAccount);
+
+router.post('/2fa/send-code', send2faSetupCode);
+router.post('/2fa/enable', enable2fa);
+router.post('/2fa/disable', disable2fa);
 
 export default router;

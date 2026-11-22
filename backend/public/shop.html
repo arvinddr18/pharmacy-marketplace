@@ -1314,7 +1314,8 @@ function renderAccountCentre(){
   box.innerHTML='';
   box.appendChild(acctRow('✏️','Edit profile','Name and mobile number',openEditProfile));
   box.appendChild(acctRow('🔒','Change password','Set a new password for your account',openChangePassword));
-  box.appendChild(acctRow('📱','Manage devices','See where you\'re logged in and log out other devices',openDevices));
+   box.appendChild(acctRow('📱','Manage devices','See where you\'re logged in and log out other devices',openDevices));
+  box.appendChild(acctRow('🛡️','Two-step verification',(state.user&&state.user.twoFactorEnabled)?'On — we email a code each time you sign in':'Off — add an extra code at login',open2fa));
   box.appendChild(acctRow('⏸️','Deactivate account','Temporarily turn off — sign in again to reactivate',confirmDeactivate));
   box.appendChild(acctRow('🗑️','Permanently delete account','Delete your account and personal data for good',confirmDeleteAccount,true));
 }
@@ -1369,6 +1370,40 @@ async function loadDevices(retried){
       box.appendChild(all);
     }
   }catch(e){ box.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
+}
+function open2fa(){
+  const box=$('acctCentre'); if(!box) return;
+  const on=!!(state.user&&state.user.twoFactorEnabled);
+  const email=(state.user&&state.user.email)||'';
+  if(on){
+    box.innerHTML='<div style="padding-top:10px"><p class="sub">Two-step verification is <strong style="color:var(--success)">On</strong>. Each time you sign in, we email a 6-digit code to <strong>'+esc(email)+'</strong> that you must enter to finish.</p><div class="row" style="margin-top:12px"><button class="light small" id="tfOff">Turn off</button><button class="ghost small" id="tfBack">← Back</button></div></div>';
+    $('tfBack').onclick=renderAccountCentre;
+    $('tfOff').onclick=async()=>{ if(!confirm('Turn off two-step verification? Anyone with your password will be able to sign in.')) return; const b=$('tfOff'); b.disabled=true; b.textContent='Turning off…'; try{ const d=await api('/api/customer/2fa/disable',{method:'POST'}); state.user.twoFactorEnabled=false; upsertAccount(state.user,state.token,localStorage.getItem('cust_refresh')||''); toast(d.message||'Turned off',true); renderAccountCentre(); }catch(e){ toast(e.message); b.disabled=false; b.textContent='Turn off'; } };
+    return;
+  }
+  if(!email){
+    box.innerHTML='<div style="padding-top:10px"><p class="sub">Add an email to your account first to use two-step verification.</p><div class="row" style="margin-top:12px"><button class="ghost small" id="tfBack">← Back</button></div></div>';
+    $('tfBack').onclick=renderAccountCentre; return;
+  }
+  box.innerHTML='<div style="padding-top:10px"><p class="sub">Add an extra layer of security. When it\'s on, we\'ll email a 6-digit code to <strong>'+esc(email)+'</strong> that you must enter every time you sign in. We\'ll send a code now to confirm.</p><div class="row" style="margin-top:12px"><button class="small" id="tfSend">Send code to my email</button><button class="ghost small" id="tfBack">← Back</button></div></div>';
+  $('tfBack').onclick=renderAccountCentre;
+  $('tfSend').onclick=async()=>{
+    const b=$('tfSend'); b.disabled=true; b.textContent='Sending…';
+    try{ await api('/api/customer/2fa/send-code',{method:'POST'}); tf2Step(email); }
+    catch(e){ toast(e.message); b.disabled=false; b.textContent='Send code to my email'; }
+  };
+}
+function tf2Step(email){
+  const box=$('acctCentre'); if(!box) return;
+  box.innerHTML='<div style="padding-top:10px"><p class="sub">We emailed a 6-digit code to <strong>'+esc(email)+'</strong>. Enter it to turn on two-step verification.</p><input id="tfCode" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="off" style="letter-spacing:4px;text-align:center;font-size:20px" /><div class="row" style="margin-top:12px"><button class="small" id="tfConfirm">Turn on</button><button class="ghost small" id="tfBack">Cancel</button></div></div>';
+  $('tfCode').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  $('tfBack').onclick=renderAccountCentre;
+  $('tfConfirm').onclick=async()=>{
+    const code=$('tfCode').value.trim(); if(code.length!==6){ toast('Enter the 6-digit code'); return; }
+    const b=$('tfConfirm'); b.disabled=true; b.textContent='Turning on…';
+    try{ const d=await api('/api/customer/2fa/enable',{method:'POST',body:JSON.stringify({code})}); state.user.twoFactorEnabled=true; upsertAccount(state.user,state.token,localStorage.getItem('cust_refresh')||''); toast(d.message||'Two-step verification on',true); renderAccountCentre(); }
+    catch(e){ toast(e.message); b.disabled=false; b.textContent='Turn on'; }
+  };
 }
 function openChangePassword(){
   const box=$('acctCentre'); if(!box) return;
@@ -1476,6 +1511,24 @@ async function doVerify(email){
   try{ const d=await api('/api/auth/verify-email',{method:'POST',body:JSON.stringify({email,code})}); await afterAuth(d); }
   catch(e){ toast(e.message); } finally{ if($('vBtn')) $('vBtn').disabled=false; }
 }
+function show2faScreen(email){
+  authCard('Two-step verification', `
+    <p class="sub">This account has two-step verification on. We emailed a 6-digit code to <strong>${esc(email)}</strong>. Enter it to finish signing in.</p>
+    <label>Verification code</label><input id="t2Code" maxlength="6" inputmode="numeric" placeholder="6-digit code" autocomplete="off" style="letter-spacing:4px;text-align:center;font-size:20px" />
+    <button id="t2Btn" style="width:100%;margin-top:14px">Verify & sign in</button>
+    <div style="text-align:center;margin-top:10px"><span class="ghost small" id="t2Back" style="color:var(--muted);cursor:pointer">Back to sign in</span></div>`);
+  $('t2Code').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  $('t2Code').addEventListener('keydown',e=>{ if(e.key==='Enter') do2fa(email); });
+  $('t2Btn').onclick=()=>do2fa(email);
+  $('t2Back').onclick=()=>go('account');
+}
+async function do2fa(email){
+  const code=$('t2Code').value.trim();
+  if(code.length<6){ toast('Enter the 6-digit code'); return; }
+  $('t2Btn').disabled=true;
+  try{ const d=await api('/api/auth/verify-2fa',{method:'POST',body:JSON.stringify({email,code})}); await afterAuth(d); }
+  catch(e){ toast(e.message); } finally{ if($('t2Btn')) $('t2Btn').disabled=false; }
+}
 function showForgotScreen(email){
   authCard('Reset password', `
     <p class="sub">Enter your email and we'll send you a reset code.</p>
@@ -1548,7 +1601,7 @@ async function doLogin(){
   const email=$('loginEmail').value.trim(), password=$('loginPass').value;
   if(!email||!password){ toast('Enter email and password'); return; }
   $('loginBtn').disabled=true;
-  try{ const d=await api('/api/auth/login',{method:'POST',body:JSON.stringify({email,password})}); await afterAuth(d); }
+  try{ const d=await api('/api/auth/login',{method:'POST',body:JSON.stringify({email,password})}); if(d&&d.needs2FA){ show2faScreen(d.email||email); return; } await afterAuth(d); }
   catch(e){ toast(e.message); if(/verify/i.test(e.message||'')){ showVerifyScreen(email); } } finally{ if($('loginBtn')) $('loginBtn').disabled=false; }
 }
 async function doDemoLogin(){

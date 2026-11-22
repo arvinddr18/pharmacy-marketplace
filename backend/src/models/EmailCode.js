@@ -15,7 +15,7 @@ const emailCodeSchema = new Schema(
   {
     email: { type: String, required: true, lowercase: true, trim: true, index: true },
     codeHash: { type: String, required: true },
-    purpose: { type: String, enum: ['verify', 'reset'], required: true },
+    purpose: { type: String, enum: ['verify', 'reset', 'login2fa', '2fa-setup'], required: true },
     attempts: { type: Number, default: 0 },
     expiresAt: { type: Date, required: true },
   },

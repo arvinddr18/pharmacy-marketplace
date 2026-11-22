@@ -197,6 +197,13 @@ export const dashboardLoginHandler = asyncHandler(async (req, res) => {
     throw ApiError.forbidden('Please verify your email — we just sent you a new code.');
   }
 
+  // Two-step verification: email a login code; the client finishes at /verify-2fa.
+  if (user.twoFactorEnabled && user.email) {
+    const code = await EmailCode.issue(user.email, 'login2fa');
+    await sendVerificationEmail(user.email, user.name, code);
+    return res.json({ needs2FA: true, email: user.email, message: 'Enter the code we emailed you to finish signing in.' });
+  }
+
   user.lastLoginAt = new Date();
   await user.save();
 
@@ -205,6 +212,24 @@ export const dashboardLoginHandler = asyncHandler(async (req, res) => {
     accessToken: signAccessToken(user),
     refreshToken: signRefreshToken(user),
   });
+});
+
+/** POST /api/auth/verify-2fa — finish a login that requires two-step verification. */
+export const verify2faHandler = asyncHandler(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const code = String(req.body.code || '').trim();
+  if (!email || !code) throw ApiError.badRequest('Email and code are required');
+  const user = await User.findOne({ email });
+  if (!user || user.deletedAt) throw ApiError.badRequest('No account found for this email');
+  const result = await EmailCode.check(email, 'login2fa', code);
+  if (!result.ok) {
+    const map = { no_code: 'No code found — please sign in again', expired: 'Code expired — please sign in again', too_many_attempts: 'Too many attempts — please sign in again', mismatch: 'Incorrect code' };
+    throw ApiError.badRequest(map[result.reason] ?? 'Verification failed');
+  }
+  user.lastLoginAt = new Date();
+  await user.save();
+  const t = await issueAuthTokens(user, req);
+  res.json({ user: user.toSafeJSON(), accessToken: t.accessToken, refreshToken: t.refreshToken });
 });
 
 /** POST /api/auth/refresh — exchange a refresh token for a new access token. */

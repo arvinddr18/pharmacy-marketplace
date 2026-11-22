@@ -39,6 +39,9 @@ const userSchema = new Schema(
     phoneVerified: { type: Boolean, default: false },
     emailVerified: { type: Boolean, default: false },
 
+    // Optional email-code two-step verification at login.
+    twoFactorEnabled: { type: Boolean, default: false },
+
     lastLoginAt: { type: Date },
 
     // Saved delivery addresses for customers (pick one at checkout).

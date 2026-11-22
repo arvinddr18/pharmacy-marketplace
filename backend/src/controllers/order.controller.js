@@ -8,7 +8,8 @@ import { User } from '../models/User.js';
 import { Review } from '../models/Review.js';
 import { Coupon } from '../models/Coupon.js';
 import { Session } from '../models/Session.js';
-import { emailOrderUpdate } from '../services/email.service.js';
+import { EmailCode } from '../models/EmailCode.js';
+import { emailOrderUpdate, sendVerificationEmail } from '../services/email.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { env } from '../config/env.js';
@@ -106,6 +107,44 @@ export const deleteAccount = asyncHandler(async (req, res) => {
   user.emailVerified = false;
   await user.save();
   res.json({ ok: true, message: 'Your account has been permanently deleted.' });
+});
+
+/* ---------------- Two-step verification (2FA) ---------------- */
+
+/** POST /api/customer/2fa/send-code — email a code to confirm turning 2FA on. */
+export const send2faSetupCode = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (!user || user.deletedAt) throw ApiError.notFound('Account not found');
+  if (!user.email) throw ApiError.badRequest('Add an email to your account before turning on two-step verification.');
+  const code = await EmailCode.issue(user.email, '2fa-setup');
+  await sendVerificationEmail(user.email, user.name, code);
+  res.json({ ok: true, message: 'We emailed you a 6-digit code to confirm.' });
+});
+
+/** POST /api/customer/2fa/enable { code } — verify the code and turn 2FA on. */
+export const enable2fa = asyncHandler(async (req, res) => {
+  const code = String(req.body.code || '').trim();
+  if (!code) throw ApiError.badRequest('Enter the code we emailed you');
+  const user = await User.findById(req.user._id);
+  if (!user || user.deletedAt) throw ApiError.notFound('Account not found');
+  if (!user.email) throw ApiError.badRequest('Add an email to your account first.');
+  const result = await EmailCode.check(user.email, '2fa-setup', code);
+  if (!result.ok) {
+    const map = { no_code: 'No code found — please resend', expired: 'Code expired — please resend', too_many_attempts: 'Too many attempts — please resend', mismatch: 'Incorrect code' };
+    throw ApiError.badRequest(map[result.reason] ?? 'Verification failed');
+  }
+  user.twoFactorEnabled = true;
+  await user.save();
+  res.json({ ok: true, twoFactorEnabled: true, message: 'Two-step verification is on. We will email a code each time you sign in.' });
+});
+
+/** POST /api/customer/2fa/disable — turn 2FA off (already signed in). */
+export const disable2fa = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (!user || user.deletedAt) throw ApiError.notFound('Account not found');
+  user.twoFactorEnabled = false;
+  await user.save();
+  res.json({ ok: true, twoFactorEnabled: false, message: 'Two-step verification is off.' });
 });
 
 function newOrderNumber() {

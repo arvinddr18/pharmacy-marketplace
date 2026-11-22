@@ -12,6 +12,7 @@ import {
   resendVerificationHandler,
   forgotPasswordHandler,
   resetPasswordHandler,
+  verify2faHandler,
 } from '../controllers/auth.controller.js';
 import {
   validateBody,
@@ -34,6 +35,7 @@ router.post('/resend-verification', authLimiter, resendVerificationHandler);
 router.post('/forgot-password', authLimiter, forgotPasswordHandler);
 router.post('/reset-password', authLimiter, resetPasswordHandler);
 router.post('/login', authLimiter, validateBody(dashboardLoginSchema), dashboardLoginHandler);
+router.post('/verify-2fa', authLimiter, verify2faHandler);
 router.post('/refresh', validateBody(refreshSchema), refreshHandler);
 router.post('/demo-login', authLimiter, demoLoginHandler);
 router.get('/me', authenticate, meHandler);
