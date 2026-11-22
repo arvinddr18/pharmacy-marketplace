@@ -1267,6 +1267,7 @@ function renderAccountCentre(){
   const box=$('acctCentre'); if(!box) return;
   box.innerHTML='';
   box.appendChild(acctRow('✏️','Edit profile','Name and mobile number',openEditProfile));
+  box.appendChild(acctRow('🔒','Change password','Set a new password for your account',openChangePassword));
   box.appendChild(acctRow('⏸️','Deactivate account','Temporarily turn off — sign in again to reactivate',confirmDeactivate));
   box.appendChild(acctRow('🗑️','Permanently delete account','Delete your account and personal data for good',confirmDeleteAccount,true));
 }
@@ -1290,6 +1291,27 @@ function openEditProfile(){
     const btn=$('epSave'); btn.disabled=true; btn.textContent='Saving…';
     try{ const d=await api('/api/customer/profile',{method:'PATCH',body:JSON.stringify({name,phone})}); state.user=d.user; toast('Profile updated',true); renderAccount(); }
     catch(e){ toast(e.message); btn.disabled=false; btn.textContent='Save changes'; }
+  };
+}
+function openChangePassword(){
+  const box=$('acctCentre'); if(!box) return;
+  box.innerHTML=`
+    <div style="padding-top:10px">
+      <label>Current password</label><input id="cpCur" type="password" placeholder="Your current password" />
+      <label>New password</label><input id="cpNew" type="password" placeholder="At least 8 characters" />
+      <label>Confirm new password</label><input id="cpNew2" type="password" placeholder="Re-type new password" />
+      <div class="row" style="margin-top:12px"><button class="small" id="cpSave">Change password</button><button class="ghost small" id="cpCancel">Cancel</button></div>
+      <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)"><span class="ghost small" id="cpForgot" style="color:var(--blue);cursor:pointer">Forgot your current password? Reset by email</span></div>
+    </div>`;
+  $('cpCancel').onclick=renderAccountCentre;
+  $('cpForgot').onclick=()=>{ const email=(state.user&&state.user.email)||''; doLogoutLocal(); go('account'); setTimeout(()=>showForgotScreen(email),50); };
+  $('cpSave').onclick=async()=>{
+    const currentPassword=$('cpCur').value, newPassword=$('cpNew').value, confirm2=$('cpNew2').value;
+    if(newPassword.length<8){ toast('New password must be at least 8 characters'); return; }
+    if(newPassword!==confirm2){ toast('New passwords do not match'); return; }
+    const btn=$('cpSave'); btn.disabled=true; btn.textContent='Saving…';
+    try{ await api('/api/customer/password',{method:'PATCH',body:JSON.stringify({currentPassword,newPassword})}); toast('Password changed',true); renderAccountCentre(); }
+    catch(e){ toast(e.message); btn.disabled=false; btn.textContent='Change password'; }
   };
 }
 async function confirmDeactivate(){
@@ -1356,10 +1378,10 @@ async function doVerify(email){
   try{ const d=await api('/api/auth/verify-email',{method:'POST',body:JSON.stringify({email,code})}); await afterAuth(d); }
   catch(e){ toast(e.message); } finally{ if($('vBtn')) $('vBtn').disabled=false; }
 }
-function showForgotScreen(){
+function showForgotScreen(email){
   authCard('Reset password', `
     <p class="sub">Enter your email and we'll send you a reset code.</p>
-    <label>Email</label><input id="fEmail" type="email" placeholder="you@example.com" />
+    <label>Email</label><input id="fEmail" type="email" placeholder="you@example.com" value="${esc(email||'')}" />
     <button id="fBtn" style="width:100%;margin-top:14px">Send reset code</button>
     <div style="text-align:center;margin-top:10px"><span class="ghost small" id="fBack" style="color:var(--muted);cursor:pointer">Back to sign in</span></div>`);
   $('fBtn').onclick=async()=>{

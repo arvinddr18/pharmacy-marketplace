@@ -33,6 +33,21 @@ export const updateProfile = asyncHandler(async (req, res) => {
   res.json({ user: user.toSafeJSON() });
 });
 
+/** PATCH /api/customer/password { currentPassword, newPassword } — change own password. */
+export const changePassword = asyncHandler(async (req, res) => {
+  const newPassword = String(req.body.newPassword || '');
+  if (newPassword.length < 8) throw ApiError.badRequest('New password must be at least 8 characters');
+  const user = await User.findById(req.user._id).select('+passwordHash');
+  if (!user || user.deletedAt) throw ApiError.notFound('Account not found');
+  if (user.passwordHash) {
+    const ok = await user.verifyPassword(String(req.body.currentPassword || ''));
+    if (!ok) throw ApiError.unauthorized('Current password is incorrect');
+  }
+  await user.setPassword(newPassword);
+  await user.save();
+  res.json({ ok: true, message: 'Password changed' });
+});
+
 /** POST /api/customer/account/deactivate — temporary; signing in again reactivates. */
 export const deactivateAccount = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
