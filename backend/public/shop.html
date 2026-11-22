@@ -40,7 +40,10 @@
   .cartbtn .count,.notifbtn .count{position:absolute;top:-6px;right:-6px;background:var(--error);color:#fff;font-size:11px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
   .notif-wrap{position:relative}
   .notifbtn{position:relative;font-size:17px}
-  .notif-panel{position:absolute;top:44px;right:0;width:330px;max-width:86vw;max-height:66vh;overflow:auto;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);z-index:40;padding:6px}
+  .notif-panel{position:absolute;top:44px;right:0;width:330px;max-width:86vw;max-height:66vh;overflow:auto;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);z-index:60}
+  .notif-head{position:sticky;top:0;background:#fff;display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);font-size:15px;z-index:1}
+  .notif-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);padding:2px 6px;line-height:1}
+  .notif-body{padding:6px}
   .notif-item{padding:10px;border-radius:8px;border-bottom:1px solid var(--border)}
   .notif-item:last-child{border-bottom:none}
 
@@ -171,6 +174,9 @@
     .brand span.full{display:none}
     .navbtns button.small{padding:8px 10px}
     .topbar-in{gap:8px;padding:10px 12px}
+    .notif-panel{position:fixed;inset:0;width:100vw;max-width:100vw;max-height:100vh;border-radius:0;border:none;box-shadow:none;z-index:200}
+    .notif-head{font-size:17px;padding:14px 14px}
+    .notif-close{font-size:24px}
 
     /* Categories: swipe sideways instead of a tall grid */
     .cats{display:flex;overflow-x:auto;gap:10px;padding-bottom:6px;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
@@ -1606,17 +1612,21 @@ function updateNotifBadge(){
 }
 function renderNotifPanel(){
   const p=$('notifPanel'); if(!p) return;
+  const head='<div class="notif-head"><button class="notif-close" id="notifClose" aria-label="Back">←</button><strong>Notifications</strong></div>';
+  let body='';
   if(!state.token){
-    p.innerHTML='<div class="notif-item"><div class="sub">Sign in to see your order updates here.</div></div>';
-    const r=document.createElement('div'); r.style.padding='8px';
-    const b=document.createElement('button'); b.className='light small'; b.textContent='Sign in'; b.onclick=()=>{ $('notifPanel').classList.add('hidden'); go('account'); };
-    r.appendChild(b); p.appendChild(r); return;
+    body='<div class="notif-item"><div class="sub">Sign in to see your order updates here.</div><div style="padding-top:10px"><button class="light small" id="notifSignin">Sign in</button></div></div>';
+  } else {
+    const ns=state._notifs||[];
+    if(!ns.length){
+      body='<div class="notif-item"><div class="sub">No notifications yet. Your order updates will appear here.</div></div>';
+    } else {
+      body=ns.slice(0,30).map(n=>`<div class="notif-item"><div class="row" style="align-items:flex-start;gap:8px"><div style="font-size:18px">${n.icon}</div><div class="sp"><div>${esc(n.text)}</div><div class="sub" style="margin-top:2px">${esc(timeAgo(n.time))}</div></div></div></div>`).join('');
+    }
   }
-  const ns=state._notifs||[];
-  if(!ns.length){ p.innerHTML='<div class="notif-item"><div class="sub">No notifications yet. Your order updates will appear here.</div></div>'; return; }
-  p.innerHTML='<div class="row" style="padding:6px 8px"><strong>Notifications</strong></div>'+ns.slice(0,15).map(n=>`
-    <div class="notif-item"><div class="row" style="align-items:flex-start;gap:8px"><div style="font-size:18px">${n.icon}</div>
-      <div class="sp"><div>${esc(n.text)}</div><div class="sub" style="margin-top:2px">${esc(timeAgo(n.time))}</div></div></div></div>`).join('');
+  p.innerHTML=head+'<div class="notif-body">'+body+'</div>';
+  const cl=$('notifClose'); if(cl) cl.onclick=()=>p.classList.add('hidden');
+  const si=$('notifSignin'); if(si) si.onclick=()=>{ p.classList.add('hidden'); go('account'); };
 }
 async function toggleNotifPanel(){
   const p=$('notifPanel'); if(!p) return;
