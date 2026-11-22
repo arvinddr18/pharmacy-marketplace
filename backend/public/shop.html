@@ -1246,8 +1246,8 @@ function renderAccount(){
       <span class="chip" id="tabSignup">Create account</span>
     </div>
     <div id="signinBox">
-      <label>Email</label><input id="loginEmail" type="email" autocomplete="off" name="mm-login-email" placeholder="you@example.com" />
-      <label>Password</label><input id="loginPass" type="password" autocomplete="new-password" name="mm-login-pass" placeholder="your password" />
+      <label>Email</label><input id="loginEmail" type="email" autocomplete="off" name="mm-login-email" readonly onfocus="this.removeAttribute('readonly')" placeholder="you@example.com" />
+      <label>Password</label><input id="loginPass" type="password" autocomplete="new-password" name="mm-login-pass" readonly onfocus="this.removeAttribute('readonly')" placeholder="your password" />
       <button id="loginBtn" style="width:100%;margin-top:14px">Sign in</button>
       <div style="text-align:center;margin-top:8px"><span class="ghost small" id="forgotLink" style="color:var(--blue);cursor:pointer">Forgot password?</span></div>
     </div>
