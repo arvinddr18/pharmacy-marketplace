@@ -185,8 +185,12 @@ const API = '';
 let token = localStorage.getItem('token') || '';
 let currentListingId = null;
 let refreshTimer = null;
-function startAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer=setInterval(()=>{ if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) return; loadOrders(); loadListings(); }, 15000); }
+let _knownOrderIds = null;
+function playDing(){ try{ const a=new (window.AudioContext||window.webkitAudioContext)(); const o=a.createOscillator(), g=a.createGain(); o.connect(g); g.connect(a.destination); o.type='sine'; o.frequency.value=880; g.gain.setValueAtTime(0.0001,a.currentTime); g.gain.exponentialRampToValueAtTime(0.25,a.currentTime+0.02); g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+0.5); o.start(); o.stop(a.currentTime+0.55); }catch(e){} }
+function phPoll(){ if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) return; loadOrders(); loadListings(); }
+function startAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer=setInterval(()=>{ if(document.hidden) return; phPoll(); }, 10000); }
 function stopAutoRefresh(){ if(refreshTimer){ clearInterval(refreshTimer); refreshTimer=null; } }
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && token) phPoll(); });
 
 const $ = (id) => document.getElementById(id);
 function toast(msg, ok=false){
@@ -257,6 +261,9 @@ async function loadOrders(){
   try{
     const data = await api('/api/pharmacy/orders');
     const items = data.items || [];
+    const _ids = items.map(o=>o._id);
+    if(_knownOrderIds){ const fresh = items.filter(o=>o.status==='placed' && !_knownOrderIds.has(o._id)); if(fresh.length){ playDing(); toast('🔔 '+fresh.length+' new order'+(fresh.length>1?'s':'')+' received!',true); } }
+    _knownOrderIds = new Set(_ids);
     const body = $('orderBody');
     if(!items.length){ body.innerHTML='<tr><td colspan="6" class="muted" style="padding:14px">No orders yet.</td></tr>'; return; }
     body.innerHTML='';

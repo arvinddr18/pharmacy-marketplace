@@ -75,8 +75,10 @@
 const $=(id)=>document.getElementById(id);
 let token=localStorage.getItem('rider_token')||'';
 let refreshTimer=null;
-function startAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer=setInterval(()=>{ if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) return; load(); }, 15000); }
+function riderPoll(){ if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) return; load(); }
+function startAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer=setInterval(()=>{ if(document.hidden) return; riderPoll(); }, 10000); }
 function stopAutoRefresh(){ if(refreshTimer){ clearInterval(refreshTimer); refreshTimer=null; } }
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && token) riderPoll(); });
 function toast(m,ok=false){const t=document.createElement('div');t.className='toast '+(ok?'ok':'err');t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3200);}
 async function refreshAccess(){
   const rt=localStorage.getItem('rider_refresh'); if(!rt) return false;

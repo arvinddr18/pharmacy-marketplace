@@ -1827,7 +1827,8 @@ $('micBtn').onclick=voiceSearch;
   updateCartCount();
   if(state.token){ try{ const me=await api('/api/auth/me'); if(me.user.role==='customer') state.user=me.user; else { state.token=''; localStorage.removeItem('cust_token'); } }catch{ state.token=''; localStorage.removeItem('cust_token'); } }
   loadNotifs();
-  setInterval(loadNotifs, 60000);
+  setInterval(()=>{ if(!document.hidden && state.token) loadNotifs(); }, 20000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden && state.token){ loadNotifs(); if(state.view==='orders') loadOrdersList(); } });
   go('home');
 })();
 </script>

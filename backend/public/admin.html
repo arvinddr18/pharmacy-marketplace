@@ -249,8 +249,10 @@ let token = localStorage.getItem('admin_token') || '';
 let currentStatus = '';
 let allItems = [];
 let refreshTimer = null;
-function startAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer=setInterval(()=>{ if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) return; loadOrders(); load(); loadPrescriptions(); }, 15000); }
+function adminPoll(){ if(document.activeElement&&['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) return; loadOrders(); load(); loadPrescriptions(); }
+function startAutoRefresh(){ if(refreshTimer) clearInterval(refreshTimer); refreshTimer=setInterval(()=>{ if(document.hidden) return; adminPoll(); }, 10000); }
 function stopAutoRefresh(){ if(refreshTimer){ clearInterval(refreshTimer); refreshTimer=null; } }
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && token) adminPoll(); });
 
 const $ = (id) => document.getElementById(id);
 function toast(msg, ok=false){
