@@ -484,8 +484,8 @@ async function loadPrescriptions(){
       const tr=document.createElement('tr');
       tr.innerHTML=`
         <td><strong>${o.orderNumber}</strong><div class="muted" style="font-size:12px">${new Date(o.createdAt).toLocaleString()}</div></td>
-        <td>${cust.name||'Customer'}<div class="muted" style="font-size:12px">${addr}</div>${o.prescriptionNote?`<div class="muted" style="font-size:12px">“${o.prescriptionNote}”</div>`:''}</td>
-        <td>${o.hasPrescription?'<button class="small secondary rxview">View Rx</button>':'<span class="muted" style="font-size:12px">Typed request</span>'}</td>
+        <td>${cust.name||'Customer'}<div class="muted" style="font-size:12px">${addr}</div></td>
+        <td>${o.hasPrescription?('<button class="small secondary rxview">View Rx</button>'+(o.prescriptionNote?`<div class="muted" style="font-size:12px">“${o.prescriptionNote}”</div>`:'')):(`<strong style="font-size:13px">💊 ${o.prescriptionNote||'Medicine request'}</strong>`)}</td>
         <td><span class="pill ${o.status}">${o.status}</span>${o.total>0?` · ₹${o.total}`:''}</td>
         <td style="text-align:right">${assignCell}</td>`;
       body.appendChild(tr);
