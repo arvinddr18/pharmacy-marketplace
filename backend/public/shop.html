@@ -1313,9 +1313,9 @@ function cpStep2(email){
   box.innerHTML=`
     <div style="padding-top:10px">
       <p class="sub">Enter the code sent to <strong>${esc(email)}</strong> and your new password.</p>
-      <label>Verification code</label><input id="cpCode" inputmode="numeric" placeholder="6-digit code" />
-      <label>New password</label><input id="cpNew" type="password" placeholder="At least 8 characters" />
-      <label>Confirm new password</label><input id="cpNew2" type="password" placeholder="Re-type new password" />
+      <label>Verification code</label><input id="cpCode" inputmode="numeric" autocomplete="off" name="mm-code" placeholder="6-digit code" />
+      <label>New password</label><input id="cpNew" type="password" autocomplete="new-password" placeholder="At least 8 characters" />
+      <label>Confirm new password</label><input id="cpNew2" type="password" autocomplete="new-password" placeholder="Re-type new password" />
       <div class="row" style="margin-top:12px"><button class="small" id="cpSave">Change password</button><button class="ghost small" id="cpCancel">Cancel</button></div>
       <div style="text-align:center;margin-top:10px"><span class="ghost small" id="cpResend" style="color:var(--blue);cursor:pointer">Resend code</span></div>
     </div>`;
