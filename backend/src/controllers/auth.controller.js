@@ -226,8 +226,11 @@ export const refreshHandler = asyncHandler(async (req, res) => {
     if (!session || session.revokedAt) throw ApiError.unauthorized('This device was logged out');
     session.lastSeenAt = new Date();
     await session.save();
+    return res.json({ accessToken: signAccessToken(user, sid), refreshToken: signRefreshToken(user, sid) });
   }
-  res.json({ accessToken: signAccessToken(user, sid), refreshToken: signRefreshToken(user, sid) });
+  // Legacy token with no session yet — register this device now so it shows in "Manage devices".
+  const t = await issueAuthTokens(user, req);
+  res.json(t);
 });
 
 /** GET /api/auth/me — current authenticated user. */

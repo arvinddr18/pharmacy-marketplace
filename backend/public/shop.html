@@ -1347,11 +1347,13 @@ function openDevices(){
   $('devBack').onclick=renderAccountCentre;
   loadDevices();
 }
-async function loadDevices(){
+async function loadDevices(retried){
   const box=$('devList'); if(!box) return;
   try{
     const d=await api('/api/customer/sessions'); const items=d.items||[];
-    if(!items.length){ box.innerHTML='<p class="muted">No other active devices. (Only sessions from new logins appear here.)</p>'; return; }
+    // If this device isn't registered yet (older login), force a token refresh once to register it.
+    if(!items.some(x=>x.current) && !retried){ await refreshAccess(); return loadDevices(true); }
+    if(!items.length){ box.innerHTML='<p class="muted">No active devices yet. Other devices will appear here shortly after they\'re next used.</p>'; return; }
     box.innerHTML='';
     items.forEach(s=>{
       const r=document.createElement('div'); r.className='row'; r.style.cssText='align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border)';
