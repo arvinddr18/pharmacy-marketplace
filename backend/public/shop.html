@@ -390,7 +390,7 @@ function renderBanners(){
   const slides=[
     {g:'linear-gradient(120deg,#0D9488,#10B981)', h:'Medicines to your door', p:'Order from trusted local pharmacies near you', b:'Order now', ic:'delivery', act:()=>{ state._cat=''; state._searchQ=''; go('search',''); }},
     {g:'linear-gradient(120deg,#7C3AED,#EC4899)', h:'More than medicines', p:'Baby care, personal care, devices & pet care', b:'Explore', ic:'shop', act:()=>{ state._cat='personal_care'; state._searchQ=''; go('search',''); }},
-    {g:'linear-gradient(120deg,#2563EB,#06B6D4)', h:'Have a prescription?', p:'Upload it and we’ll get your medicines', b:'Upload', ic:'rx', act:()=>go('prescription')},
+    {g:'linear-gradient(120deg,#2563EB,#06B6D4)', h:'Can’t find a medicine?', p:'Type the name or upload a prescription', b:'Order now', ic:'rx', act:()=>go('prescription')},
     {g:'linear-gradient(120deg,#059669,#84CC16)', h:'Pet care has arrived', p:'Food, shampoos & medicines for your pets', b:'Shop pet', ic:'pet', act:()=>{ state._cat='pet'; state._searchQ=''; go('search',''); }},
   ];
   box.innerHTML='<div class="banner-track" id="bTrack"></div><div class="bdots" id="bDots"></div>';
@@ -448,9 +448,9 @@ async function renderHome(){
     <div class="promo" id="rxPromo">
       <div class="row" style="gap:12px">
         <div class="promo-ic">📄</div>
-        <div><div style="font-weight:800">Have a prescription?</div><div class="sub" style="color:#047857">Upload it and we'll get your medicines from a nearby pharmacy.</div></div>
+        <div><div style="font-weight:800">Can't find a medicine?</div><div class="sub" style="color:#047857">Type the name or upload a prescription — a nearby pharmacy delivers it.</div></div>
       </div>
-      <button class="light" id="rxBtn">Upload prescription</button>
+      <button class="light" id="rxBtn">Order a medicine</button>
     </div>
     <div class="banners" id="banners"></div>
     <h2>Shop by department</h2>
@@ -881,10 +881,10 @@ function renderCart(){
 async function renderPrescription(){
   view.innerHTML='';
   view.appendChild(backLink('Back to home',()=>go('home')));
-  const h=document.createElement('h1'); h.textContent='Order with prescription'; view.appendChild(h);
+  const h=document.createElement('h1'); h.textContent='Order a medicine'; view.appendChild(h);
 
   if(!state.token || !state.user){
-    const p=document.createElement('div'); p.className='banner info'; p.innerHTML='Please sign in to upload a prescription and place your order.'; view.appendChild(p);
+    const p=document.createElement('div'); p.className='banner info'; p.innerHTML='Please sign in to place your order.'; view.appendChild(p);
     const b=document.createElement('button'); b.textContent='Sign in'; b.onclick=()=>{ state._afterLogin='prescription'; go('account'); }; view.appendChild(b);
     return;
   }
@@ -902,14 +902,15 @@ async function renderPrescription(){
     </div>` : '';
   panel.innerHTML=`
     <div class="card">
-      <h2 style="margin-top:0">Upload prescription <span class="pill rx">Required</span></h2>
-      <p class="sub" style="margin:4px 0 10px">Upload a clear photo of your doctor's prescription. A nearby pharmacy will check it, confirm the price, and deliver your medicines — you don't need to pick a shop.</p>
-      <input id="rxFile" type="file" accept="image/*" capture="environment" style="padding:9px" />
-      <div id="rxPreview" style="margin-top:10px"></div>
+      <h2 style="margin-top:0">What medicine do you need?</h2>
+      <p class="sub" style="margin:4px 0 10px">Can't find a medicine in search? Just type the name(s) here. A nearby pharmacy will find it, confirm the price, and deliver — you don't need to pick a shop.</p>
+      <textarea id="rxNote" placeholder="e.g. Dolo 650 — 1 strip, or Amoxicillin 500mg" style="width:100%;min-height:70px;padding:10px;border:1px solid var(--border);border-radius:10px;font:inherit"></textarea>
     </div>
     <div class="card" style="margin-top:12px">
-      <h2 style="margin-top:0">What do you need? <span class="sub" style="font-weight:400">(optional)</span></h2>
-      <textarea id="rxNote" placeholder="e.g. the 3 tablets in the prescription, or any instructions" style="width:100%;min-height:60px;padding:10px;border:1px solid var(--border);border-radius:10px;font:inherit"></textarea>
+      <h2 style="margin-top:0">Add a prescription <span class="sub" style="font-weight:400">(optional)</span></h2>
+      <p class="sub" style="margin:4px 0 10px">Have a doctor's prescription? Upload a clear photo. This is required for prescription-only medicines like antibiotics.</p>
+      <input id="rxFile" type="file" accept="image/*" capture="environment" style="padding:9px" />
+      <div id="rxPreview" style="margin-top:10px"></div>
     </div>
     ${savedHtml}
     <div class="card" style="margin-top:12px">
@@ -920,8 +921,8 @@ async function renderPrescription(){
       <label>Phone</label><input id="coPhone" placeholder="10-digit mobile" />
       <label>Delivery note (optional)</label><input id="coNote" placeholder="Landmark, instructions" />
     </div>
-    <div class="banner info" style="margin-top:12px">The pharmacy confirms the amount after checking your prescription — you pay on delivery.</div>
-    <button id="rxPlaceBtn" style="width:100%">Place prescription order</button>
+    <div class="banner info" style="margin-top:12px">A nearby pharmacy confirms the amount after checking your request — you pay on delivery.</div>
+    <button id="rxPlaceBtn" style="width:100%">Place order</button>
   `;
   view.appendChild(panel);
   $('coPin').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
@@ -936,16 +937,16 @@ async function renderPrescription(){
   $('rxPlaceBtn').onclick=doPlacePrescription;
 }
 async function doPlacePrescription(){
-  if(!state._rxPhoto){ toast('Please upload your prescription photo'); return; }
+  const note=$('rxNote').value.trim();
+  if(!state._rxPhoto && !note){ toast('Type the medicine name you need, or upload a prescription photo'); return; }
   const addr={ line1:$('coLine1').value.trim(), city:$('coCity').value.trim(), pincode:$('coPin').value.trim(), phone:$('coPhone').value.trim(), instructions:$('coNote').value.trim() };
   if(!addr.line1){ toast('Please enter your address'); return; }
   if(!/^\d{6}$/.test(addr.pincode)){ toast('Enter a valid 6-digit PIN code'); return; }
-  const note=$('rxNote').value.trim();
   const btn=$('rxPlaceBtn'); btn.disabled=true; btn.textContent='Placing order…';
   try{
     await api('/api/customer/prescription-orders',{method:'POST',body:JSON.stringify({ deliveryAddress:addr, prescriptionImage:state._rxPhoto, note })});
     state._rxPhoto=null; toast('Prescription order placed! 🎉',true); go('orders');
-  }catch(e){ toast(e.message); btn.disabled=false; btn.textContent='Place prescription order'; }
+  }catch(e){ toast(e.message); btn.disabled=false; btn.textContent='Place order'; }
 }
 async function renderCheckout(){
   view.innerHTML='';
@@ -1636,8 +1637,9 @@ function orderCard(o){
   const otp=(o.status==='out_for_delivery'&&o.deliveryOtp)?`<div class="banner okb" style="margin-top:10px"><strong>Delivery OTP: ${esc(o.deliveryOtp)}</strong> — give this to the delivery person at your door.</div>`:'';
   const isRx=o.kind==='prescription';
   const priceHtml = (isRx && !(o.total>0)) ? '<span class="sub">Amount pending</span>' : `<span class="price">${money(o.total)}</span>`;
+  const rxLabel = o.hasPrescription ? '📄 Prescription order' : '💊 Medicine request';
   const detail = isRx
-    ? `📄 Prescription order${o.pharmacy?.name?' · '+esc(o.pharmacy.name):' · finding a nearby pharmacy'}${o.prescriptionNote?`<div class="sub">“${esc(o.prescriptionNote)}”</div>`:''}`
+    ? `${rxLabel}${o.pharmacy?.name?' · '+esc(o.pharmacy.name):' · finding a nearby pharmacy'}${o.prescriptionNote?`<div class="sub">“${esc(o.prescriptionNote)}”</div>`:''}`
     : `${esc(it.name||'')} × ${it.quantity||1} · ${esc(o.pharmacy?.name||'')}`;
   card.innerHTML=`
     <div class="row"><strong>${esc(o.orderNumber)}</strong><span class="pill ${o.status}">${esc(String(o.status).replace(/_/g,' '))}</span>

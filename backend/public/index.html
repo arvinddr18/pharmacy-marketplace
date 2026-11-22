@@ -274,7 +274,7 @@ async function loadOrders(){
       tr.innerHTML = `
         <td><strong>${o.orderNumber}</strong><div class="muted" style="font-size:12px">${new Date(o.createdAt).toLocaleString()}</div></td>
         <td>${cust.name||'Customer'}<div class="muted" style="font-size:12px">${(o.deliveryAddress&&o.deliveryAddress.line1)||''}</div></td>
-        <td>${o.kind==='prescription'?('📄 Prescription order'+(o.prescriptionNote?'<div class="muted" style="font-size:12px">“'+o.prescriptionNote+'”</div>':'')):((it.name||'')+' × '+(it.quantity||1)+' '+(it.prescriptionRequired?'<span class="pill rx">Rx</span>':''))}${o.hasPrescription?' <button class="small secondary rxbtn">View Rx</button>':''}</td>
+        <td>${o.kind==='prescription'?((o.hasPrescription?'📄 Prescription order':'💊 Medicine request')+(o.prescriptionNote?'<div class="muted" style="font-size:12px">“'+o.prescriptionNote+'”</div>':'')):((it.name||'')+' × '+(it.quantity||1)+' '+(it.prescriptionRequired?'<span class="pill rx">Rx</span>':''))}${o.hasPrescription?' <button class="small secondary rxbtn">View Rx</button>':''}</td>
         <td>${o.kind==='prescription'&&!(o.total>0)?'<span class="muted">—</span>':'₹'+o.total}</td>
         <td><span class="pill ${o.status}">${o.status}</span></td>
         <td><div class="oact" style="display:flex;gap:6px;justify-content:flex-end"></div></td>`;

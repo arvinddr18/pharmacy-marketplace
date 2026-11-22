@@ -291,10 +291,14 @@ export const createPrescriptionOrder = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('A delivery address with a valid 6-digit PIN code is required');
   }
   const presc = typeof req.body.prescriptionImage === 'string' ? req.body.prescriptionImage : '';
-  if (!presc) throw ApiError.badRequest('Please upload a photo of your prescription');
-  if (!presc.startsWith('data:image/')) throw ApiError.badRequest('Invalid prescription image');
-  if (presc.length > 4_000_000) throw ApiError.badRequest('Prescription image is too large — please use a smaller photo');
   const note = typeof req.body.note === 'string' ? req.body.note.trim().slice(0, 500) : '';
+  // The customer can either upload a prescription photo OR simply type the
+  // medicine name(s) they need — at least one is required.
+  if (presc) {
+    if (!presc.startsWith('data:image/')) throw ApiError.badRequest('Invalid prescription image');
+    if (presc.length > 4_000_000) throw ApiError.badRequest('Prescription image is too large — please use a smaller photo');
+  }
+  if (!presc && !note) throw ApiError.badRequest('Type the medicine name you need, or upload a prescription photo');
 
   try {
     const order = await Order.create({
@@ -310,13 +314,13 @@ export const createPrescriptionOrder = asyncHandler(async (req, res) => {
         line1: addr.line1, city: addr.city || '', pincode: addr.pincode,
         phone: addr.phone || req.user.phone || '', instructions: addr.instructions || '',
       },
-      prescriptionRequired: true,
-      prescriptionImage: presc,
-      hasPrescription: true,
+      prescriptionRequired: !!presc,
+      prescriptionImage: presc || undefined,
+      hasPrescription: !!presc,
       prescriptionNote: note,
       status: ORDER_STATUS.PLACED,
       isDemo: !env.features.liveOrders,
-      timeline: [{ status: ORDER_STATUS.PLACED, at: new Date(), note: 'Prescription uploaded' }],
+      timeline: [{ status: ORDER_STATUS.PLACED, at: new Date(), note: presc ? 'Prescription uploaded' : 'Medicine request submitted' }],
     });
     emailOrderUpdate(order);
     res.status(201).json({ order: { _id: order._id, orderNumber: order.orderNumber } });
