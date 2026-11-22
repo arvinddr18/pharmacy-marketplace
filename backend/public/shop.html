@@ -50,9 +50,13 @@
   .row{display:flex;gap:10px;align-items:center}
   .sp{flex:1}
 
-  .hero{background:linear-gradient(120deg,var(--blue),#2DD4BF);color:#fff;border-radius:18px;padding:26px 22px;margin-bottom:8px}
-  .hero h1{color:#fff;font-size:24px} .hero p{margin:6px 0 16px;opacity:.95}
-  .hero .herosearch{display:flex;max-width:560px;background:#fff;border-radius:12px;padding:5px;gap:6px}
+  .hero{position:relative;overflow:hidden;color:#fff;border-radius:20px;padding:30px 24px;margin-bottom:8px;
+    background:radial-gradient(120% 120% at 85% -10%, rgba(255,255,255,.22), transparent 55%),radial-gradient(90% 90% at -5% 110%, rgba(16,185,129,.55), transparent 60%),linear-gradient(120deg,#0B8276 0%,#0D9488 45%,#10B981 100%);
+    box-shadow:0 14px 30px -10px rgba(13,148,136,.45)}
+  .hero::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(rgba(255,255,255,.14) 1.4px, transparent 1.6px);background-size:22px 22px;-webkit-mask-image:linear-gradient(120deg,transparent 40%,#000);mask-image:linear-gradient(120deg,transparent 40%,#000);opacity:.55}
+  .hero>*{position:relative;z-index:1}
+  .hero h1{color:#fff;font-size:25px;letter-spacing:-.3px;text-shadow:0 1px 2px rgba(0,0,0,.12)} .hero p{margin:6px 0 16px;opacity:.95}
+  .hero .herosearch{display:flex;max-width:560px;background:#fff;border-radius:14px;padding:6px;gap:6px;box-shadow:0 10px 24px -8px rgba(0,0,0,.35)}
   .hero .herosearch input{border:none;padding:11px 14px;flex:1;min-width:0}
   .hero .herosearch button{border-radius:9px}
 
