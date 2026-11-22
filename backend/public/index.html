@@ -86,6 +86,7 @@
     <span class="brand"><span class="logo">+</span> MedMart <span class="rolebadge">Pharmacy</span></span>
     <span class="grow"></span>
     <span id="whoami" class="muted"></span>
+    <button class="ghost" id="acctBtn">Account</button>
     <button class="ghost" id="logoutBtn">Log out</button>
   </div></div>
 
@@ -220,7 +221,9 @@ async function api(path, opts={}){
 async function login(){
   try{
     $('loginBtn').disabled=true;
-    const data = await api('/api/auth/login',{method:'POST',body:JSON.stringify({email:$('email').value.trim(),password:$('password').value})});
+    const email=$('email').value.trim();
+    const data = await api('/api/auth/login',{method:'POST',body:JSON.stringify({email,password:$('password').value})});
+    if(data.needs2FA){ $('loginBtn').disabled=false; return acctShow2FA(data.email||email, async(r)=>{ token=r.accessToken; localStorage.setItem('token',token); if(r.refreshToken) localStorage.setItem('ph_refresh',r.refreshToken); await showApp(); }); }
     token = data.accessToken; localStorage.setItem('token', token);
     if(data.refreshToken) localStorage.setItem('ph_refresh',data.refreshToken);
     await showApp();
@@ -439,7 +442,122 @@ async function adjust(batchId, delta){
 
 $('loginBtn').addEventListener('click',login);
 $('password').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+/* ===================== ACCOUNT SETTINGS (shared) ===================== */
+function acctEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function acctEnsureModal(){
+  if(document.getElementById('acctModal')) return;
+  const st=document.createElement('style');
+  st.textContent='#acctModal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;z-index:9999;padding:24px 14px;overflow:auto}#acctModal.open{display:flex}#acctCard{background:#fff;width:100%;max-width:440px;border-radius:16px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.25)}#acctCard h3{margin:0 0 4px}.acct-row{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid #eef0f3;cursor:pointer}.acct-row:first-of-type{border-top:0}.acct-row .ic{font-size:20px}.acct-row .sp{flex:1}.acct-row .sp strong{display:block}.acct-row .sp .sub{font-size:12px;color:#7a828c;margin-top:2px}.acct-row .chev{color:#b4bbc4;font-size:20px}#acctCard input{width:100%;padding:11px 12px;border:1px solid #d7dce2;border-radius:10px;margin:6px 0;font-size:15px;box-sizing:border-box}#acctCard label{font-size:12px;color:#6b7280;font-weight:600}.acct-btns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}.acct-btns button{padding:10px 14px;border-radius:10px;border:0;font-weight:600;cursor:pointer}.acct-primary{background:#0f9d8f;color:#fff}.acct-ghost{background:#f1f3f5;color:#333}.acct-danger{background:#fde8e8;color:#c0392b}.acct-sub{font-size:13px;color:#6b7280;line-height:1.5}';
+  document.head.appendChild(st);
+  const m=document.createElement('div'); m.id='acctModal'; m.innerHTML='<div id="acctCard"></div>';
+  m.addEventListener('click',e=>{ if(e.target===m) acctClose(); });
+  document.body.appendChild(m);
+}
+function acctOpen(html){ acctEnsureModal(); document.getElementById('acctCard').innerHTML=html; document.getElementById('acctModal').classList.add('open'); }
+function acctClose(){ const m=document.getElementById('acctModal'); if(m) m.classList.remove('open'); }
+let _acctMe=null;
+async function openAccount(){
+  acctOpen('<p class="acct-sub">Loading…</p>');
+  try{ const me=await api('/api/auth/me'); _acctMe=me.user; acctHome(); }
+  catch(e){ acctOpen('<p class="acct-sub">'+acctEsc(e.message)+'</p><div class="acct-btns"><button class="acct-ghost" onclick="acctClose()">Close</button></div>'); }
+}
+function acctRowH(ic,label,sub,onclick){
+  return '<div class="acct-row" onclick="'+onclick+'"><div class="ic">'+ic+'</div><div class="sp"><strong>'+acctEsc(label)+'</strong><div class="sub">'+acctEsc(sub)+'</div></div><div class="chev">›</div></div>';
+}
+function acctHome(){
+  const u=_acctMe||{}; const tfa=u.twoFactorEnabled;
+  acctOpen(
+    '<h3>Account</h3><p class="acct-sub" style="margin:0 0 6px">'+acctEsc(u.name||'')+(u.email?' · '+acctEsc(u.email):'')+'</p>'+
+    acctRowH('✏️','Edit profile','Name and mobile number','acctEditProfile()')+
+    acctRowH('🔒','Change password','Get a code by email to set a new password','acctChangePw()')+
+    acctRowH('🛡️','Two-step verification',tfa?'On — we email a code each time you sign in':'Off — add an extra code at login','acct2fa()')+
+    acctRowH('📱','Manage devices','See where you\'re signed in and log out others','acctDevices()')+
+    '<div class="acct-btns"><button class="acct-ghost" onclick="acctClose()">Close</button></div>'
+  );
+}
+function acctEditProfile(){
+  const u=_acctMe||{};
+  acctOpen('<h3>Edit profile</h3><label>Full name</label><input id="apName" value="'+acctEsc(u.name||'')+'"/><label>Mobile</label><input id="apPhone" maxlength="10" value="'+acctEsc(u.phone||'')+'" placeholder="10-digit mobile"/><label>Email</label><input value="'+acctEsc(u.email||'')+'" disabled style="opacity:.6"/><div class="acct-sub">Email can\'t be changed here.</div><div class="acct-btns"><button class="acct-primary" id="apSave">Save</button><button class="acct-ghost" onclick="acctHome()">Back</button></div>');
+  document.getElementById('apPhone').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  document.getElementById('apSave').onclick=async()=>{
+    const name=document.getElementById('apName').value.trim(), phone=document.getElementById('apPhone').value.trim();
+    if(name.length<2){ toast('Please enter your name'); return; }
+    if(phone && phone.length!==10){ toast('Enter a valid 10-digit mobile'); return; }
+    const b=document.getElementById('apSave'); b.disabled=true; b.textContent='Saving…';
+    try{ const d=await api('/api/account/profile',{method:'PATCH',body:JSON.stringify({name,phone})}); _acctMe=d.user; try{var w=document.getElementById('whoami'); if(w) w.textContent=d.user.name;}catch(_){} toast('Profile updated',true); acctHome(); }
+    catch(e){ toast(e.message); b.disabled=false; b.textContent='Save'; }
+  };
+}
+function acctChangePw(){
+  const u=_acctMe||{}; const email=u.email||'';
+  if(!email){ acctOpen('<h3>Change password</h3><p class="acct-sub">This account has no email, so a reset code can\'t be sent.</p><div class="acct-btns"><button class="acct-ghost" onclick="acctHome()">Back</button></div>'); return; }
+  acctOpen('<h3>Change password</h3><p class="acct-sub">We\'ll email a 6-digit code to <strong>'+acctEsc(email)+'</strong> to confirm it\'s you.</p><div class="acct-btns"><button class="acct-primary" id="cpSend">Send code</button><button class="acct-ghost" onclick="acctHome()">Back</button></div>');
+  document.getElementById('cpSend').onclick=async()=>{
+    const b=document.getElementById('cpSend'); b.disabled=true; b.textContent='Sending…';
+    try{ await api('/api/auth/forgot-password',{method:'POST',body:JSON.stringify({email})}); acctChangePw2(email); }
+    catch(e){ toast(e.message); b.disabled=false; b.textContent='Send code'; }
+  };
+}
+function acctChangePw2(email){
+  acctOpen('<h3>Change password</h3><p class="acct-sub">Enter the code sent to <strong>'+acctEsc(email)+'</strong> and your new password.</p><label>Code</label><input id="cpCode" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="off"/><label>New password</label><input id="cpPass" type="password" placeholder="at least 8 characters" autocomplete="new-password"/><div class="acct-btns"><button class="acct-primary" id="cpSave">Change password</button><button class="acct-ghost" onclick="acctHome()">Cancel</button></div>');
+  document.getElementById('cpCode').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  document.getElementById('cpSave').onclick=async()=>{
+    const code=document.getElementById('cpCode').value.trim(), password=document.getElementById('cpPass').value;
+    if(code.length!==6){ toast('Enter the 6-digit code'); return; }
+    if(password.length<8){ toast('Password must be at least 8 characters'); return; }
+    const b=document.getElementById('cpSave'); b.disabled=true; b.textContent='Saving…';
+    try{ await api('/api/auth/reset-password',{method:'POST',body:JSON.stringify({email,code,password})}); toast('Password changed',true); acctHome(); }
+    catch(e){ toast(e.message); b.disabled=false; b.textContent='Change password'; }
+  };
+}
+function acct2fa(){
+  const u=_acctMe||{}; const on=!!u.twoFactorEnabled; const email=u.email||'';
+  if(on){
+    acctOpen('<h3>Two-step verification</h3><p class="acct-sub">It\'s <strong style="color:#0f9d8f">On</strong>. Every sign-in needs a code emailed to <strong>'+acctEsc(email)+'</strong>.</p><div class="acct-btns"><button class="acct-danger" id="tfOff">Turn off</button><button class="acct-ghost" onclick="acctHome()">Back</button></div>');
+    document.getElementById('tfOff').onclick=async()=>{ if(!confirm('Turn off two-step verification? Anyone with your password will be able to sign in.')) return; const b=document.getElementById('tfOff'); b.disabled=true; try{ await api('/api/account/2fa/disable',{method:'POST'}); _acctMe.twoFactorEnabled=false; toast('Turned off',true); acctHome(); }catch(e){ toast(e.message); b.disabled=false; } };
+    return;
+  }
+  if(!email){ acctOpen('<h3>Two-step verification</h3><p class="acct-sub">Add an email to this account first.</p><div class="acct-btns"><button class="acct-ghost" onclick="acctHome()">Back</button></div>'); return; }
+  acctOpen('<h3>Two-step verification</h3><p class="acct-sub">When on, every sign-in needs a 6-digit code emailed to <strong>'+acctEsc(email)+'</strong>. We\'ll send one now to confirm.</p><div class="acct-btns"><button class="acct-primary" id="tfSend">Send code</button><button class="acct-ghost" onclick="acctHome()">Back</button></div>');
+  document.getElementById('tfSend').onclick=async()=>{ const b=document.getElementById('tfSend'); b.disabled=true; b.textContent='Sending…'; try{ await api('/api/account/2fa/send-code',{method:'POST'}); acct2fa2(email); }catch(e){ toast(e.message); b.disabled=false; b.textContent='Send code'; } };
+}
+function acct2fa2(email){
+  acctOpen('<h3>Two-step verification</h3><p class="acct-sub">Enter the code sent to <strong>'+acctEsc(email)+'</strong> to turn it on.</p><input id="tfCode" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="off" style="text-align:center;letter-spacing:4px;font-size:18px"/><div class="acct-btns"><button class="acct-primary" id="tfOn">Turn on</button><button class="acct-ghost" onclick="acctHome()">Cancel</button></div>');
+  document.getElementById('tfCode').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  document.getElementById('tfOn').onclick=async()=>{ const code=document.getElementById('tfCode').value.trim(); if(code.length!==6){ toast('Enter the 6-digit code'); return; } const b=document.getElementById('tfOn'); b.disabled=true; b.textContent='Turning on…'; try{ await api('/api/account/2fa/enable',{method:'POST',body:JSON.stringify({code})}); _acctMe.twoFactorEnabled=true; toast('Two-step verification on',true); acctHome(); }catch(e){ toast(e.message); b.disabled=false; b.textContent='Turn on'; } };
+}
+function acctDevAgo(t){ if(!t) return ''; const s=Math.floor((Date.now()-new Date(t).getTime())/1000); if(s<60)return 'just now'; const m=Math.floor(s/60); if(m<60)return m+' min ago'; const h=Math.floor(m/60); if(h<24)return h+(h===1?' hr ago':' hrs ago'); const d=Math.floor(h/24); return d+(d===1?' day ago':' days ago'); }
+function acctDevices(){
+  acctOpen('<h3>Manage devices</h3><p class="acct-sub">Devices and browsers signed in to your account. Log out any you don\'t recognise.</p><div id="acctDevList"><p class="acct-sub">Loading…</p></div><div class="acct-btns"><button class="acct-ghost" onclick="acctHome()">Back</button></div>');
+  acctLoadDevices();
+}
+async function acctLoadDevices(){
+  const box=document.getElementById('acctDevList'); if(!box) return;
+  try{
+    const d=await api('/api/account/sessions'); const items=d.items||[];
+    if(!items.length){ box.innerHTML='<p class="acct-sub">No active devices yet. Other devices appear here shortly after they\'re next used.</p>'; return; }
+    box.innerHTML='';
+    items.forEach(s=>{
+      const row=document.createElement('div'); row.className='acct-row'; row.style.cursor='default';
+      const icon=(s.device&&s.device.indexOf('mobile')>=0)?'📱':'💻';
+      row.innerHTML='<div class="ic">'+icon+'</div><div class="sp"><strong>'+acctEsc(s.device||'Device')+'</strong><div class="sub">'+(s.current?'This device · ':'')+'Active '+acctEsc(acctDevAgo(s.lastSeenAt))+'</div></div>';
+      if(s.current){ const sp=document.createElement('span'); sp.className='sub'; sp.style.cssText='color:#0f9d8f;font-weight:700'; sp.textContent='● This device'; row.appendChild(sp); }
+      else { const b=document.createElement('button'); b.className='acct-ghost'; b.style.cssText='padding:7px 10px;border-radius:8px'; b.textContent='Log out'; b.onclick=async()=>{ if(!confirm('Log out this device?')) return; try{ await api('/api/account/sessions/'+s.id,{method:'DELETE'}); toast('Device logged out',true); acctLoadDevices(); }catch(e){ toast(e.message); } }; row.appendChild(b); }
+      box.appendChild(row);
+    });
+    if(items.filter(x=>!x.current).length){ const all=document.createElement('button'); all.className='acct-danger'; all.style.cssText='margin-top:12px;padding:9px 12px;border-radius:9px'; all.textContent='Log out all other devices'; all.onclick=async()=>{ if(!confirm('Log out all other devices?')) return; try{ await api('/api/account/sessions/others',{method:'DELETE'}); toast('Other devices logged out',true); acctLoadDevices(); }catch(e){ toast(e.message); } }; box.appendChild(all); }
+  }catch(e){ box.innerHTML='<p class="acct-sub">'+acctEsc(e.message)+'</p>'; }
+}
+function acctShow2FA(email,onSuccess){
+  acctOpen('<h3>Two-step verification</h3><p class="acct-sub">This account has two-step verification on. Enter the 6-digit code emailed to <strong>'+acctEsc(email)+'</strong> to finish signing in.</p><input id="l2Code" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="off" style="text-align:center;letter-spacing:4px;font-size:18px"/><div class="acct-btns"><button class="acct-primary" id="l2Btn">Verify & sign in</button><button class="acct-ghost" onclick="acctClose()">Cancel</button></div>');
+  document.getElementById('l2Code').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  const run=async()=>{ const code=document.getElementById('l2Code').value.trim(); if(code.length!==6){ toast('Enter the 6-digit code'); return; } const b=document.getElementById('l2Btn'); b.disabled=true; b.textContent='Verifying…'; try{ const r=await api('/api/auth/verify-2fa',{method:'POST',body:JSON.stringify({email,code})}); acctClose(); await onSuccess(r); }catch(e){ toast(e.message); b.disabled=false; b.textContent='Verify & sign in'; } };
+  document.getElementById('l2Btn').onclick=run;
+  document.getElementById('l2Code').addEventListener('keydown',e=>{ if(e.key==='Enter') run(); });
+}
+/* =================== END ACCOUNT SETTINGS =================== */
 $('logoutBtn').addEventListener('click',logout);
+$('acctBtn').addEventListener('click',openAccount);
 $('refreshBtn').addEventListener('click',loadListings);
 $('refreshOrdersBtn').addEventListener('click',loadOrders);
 $('setLocBtn').addEventListener('click',setShopLocation);

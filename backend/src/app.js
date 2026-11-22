@@ -13,6 +13,7 @@ import adminRoutes from './routes/admin.routes.js';
 import catalogueRoutes from './routes/catalogue.routes.js';
 import discoverRoutes from './routes/discover.routes.js';
 import orderRoutes from './routes/order.routes.js';
+import accountRoutes from './routes/account.routes.js';
 import riderRoutes from './routes/rider.routes.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 
@@ -53,6 +54,7 @@ export function createApp() {
   app.use('/api/catalogue', catalogueRoutes);
   app.use('/api/discover', discoverRoutes);
   app.use('/api/customer', orderRoutes);
+  app.use('/api/account', accountRoutes);
   app.use('/api/rider', riderRoutes);
   app.use('/api/pharmacy', pharmacyRoutes);
 
