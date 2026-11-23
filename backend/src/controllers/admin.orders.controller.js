@@ -2,10 +2,57 @@ import mongoose from 'mongoose';
 import { Order, ORDER_STATUS } from '../models/Order.js';
 import { InventoryBatch } from '../models/InventoryBatch.js';
 import { Pharmacy } from '../models/Pharmacy.js';
+import { MedicineCatalogue } from '../models/MedicineCatalogue.js';
+import { PharmacyMedicineListing } from '../models/PharmacyMedicineListing.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { PHARMACY_STATUS } from '../config/constants.js';
 import { emailOrderUpdate } from '../services/email.service.js';
+
+/**
+ * GET /api/admin/pharmacies-with-medicine?q=dolo
+ * For routing a prescription/typed request: which approved pharmacies actually
+ * stock a medicine matching the search text, with price + available units.
+ * In-stock shops first, cheapest first.
+ */
+export const findPharmaciesWithMedicine = asyncHandler(async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (q.length < 2) return res.json({ items: [] });
+  const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  const meds = await MedicineCatalogue.find({ name: rx, deletedAt: null })
+    .select('_id name strength').limit(25);
+  if (!meds.length) return res.json({ items: [] });
+  const medById = {};
+  meds.forEach((m) => { medById[String(m._id)] = m; });
+
+  const listings = await PharmacyMedicineListing.find({
+    medicine: { $in: meds.map((m) => m._id) }, active: true, deletedAt: null,
+  }).populate('pharmacy', 'name address status deletedAt');
+
+  const now = new Date();
+  const items = [];
+  for (const l of listings) {
+    const ph = l.pharmacy;
+    if (!ph || ph.deletedAt || ph.status !== PHARMACY_STATUS.APPROVED) continue;
+    const batches = await InventoryBatch.find({ listing: l._id, deletedAt: null });
+    const available = batches.reduce(
+      (s, b) => s + (b.expiryDate > now ? Math.max(0, b.quantity - b.reserved) : 0), 0
+    );
+    const med = medById[String(l.medicine)];
+    items.push({
+      pharmacyId: ph._id,
+      pharmacyName: ph.name,
+      city: ph.address?.city || '',
+      medicineName: med ? [med.name, med.strength].filter(Boolean).join(' ') : '',
+      sellingPrice: l.sellingPrice,
+      mrp: l.mrp,
+      available,
+      inStock: available > 0,
+    });
+  }
+  items.sort((a, b) => (Number(b.inStock) - Number(a.inStock)) || (a.sellingPrice - b.sellingPrice));
+  res.json({ items: items.slice(0, 30) });
+});
 
 export const listAllOrders = asyncHandler(async (req, res) => {
   const filter = {};

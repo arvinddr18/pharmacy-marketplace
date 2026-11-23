@@ -507,7 +507,7 @@ async function loadPrescriptions(){
       const addr=(o.deliveryAddress&&o.deliveryAddress.line1)||'';
       const assignCell = o.pharmacy
         ? `<span class="muted">${o.pharmacy.name||'Assigned'}</span>`
-        : `<select class="rxsel" style="padding:6px;border:1px solid var(--border);border-radius:8px"><option value="">Choose pharmacy…</option>${approved.map(p=>`<option value="${p._id}">${p.name}</option>`).join('')}</select> <button class="small ok rxassign">Send</button>`;
+        : `<select class="rxsel" style="padding:6px;border:1px solid var(--border);border-radius:8px"><option value="">Choose pharmacy…</option>${approved.map(p=>`<option value="${p._id}">${p.name}</option>`).join('')}</select> <button class="small ok rxassign">Send</button><div style="margin-top:6px"><button class="small secondary rxfind">🔍 Who stocks it?</button></div><div class="rxfindbox" style="margin-top:8px"></div>`;
       const tr=document.createElement('tr');
       tr.innerHTML=`
         <td><strong>${o.orderNumber}</strong><div class="muted" style="font-size:12px">${new Date(o.createdAt).toLocaleString()}</div></td>
@@ -519,8 +519,41 @@ async function loadPrescriptions(){
       const rxv=tr.querySelector('.rxview'); if(rxv) rxv.onclick=()=>viewPrescriptionAdmin(o._id);
       const assignBtn=tr.querySelector('.rxassign');
       if(assignBtn) assignBtn.onclick=()=>assignPharmacy(o._id, tr.querySelector('.rxsel').value);
+      const findBtn=tr.querySelector('.rxfind');
+      if(findBtn) findBtn.onclick=()=>openStockFinder(o._id, o.prescriptionNote||'', tr.querySelector('.rxfindbox'));
     }
   }catch(e){ $('rxRows').innerHTML='<tr><td colspan="5" class="muted" style="padding:16px">'+e.message+'</td></tr>'; }
+}
+function openStockFinder(orderId, note, box){
+  if(!box) return;
+  if(box.dataset.open==='1'){ box.innerHTML=''; box.dataset.open='0'; return; }
+  box.dataset.open='1';
+  box.innerHTML='<div style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:10px"><div class="row" style="gap:6px"><input class="sfq" placeholder="Type medicine name" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px"/><button class="small sfgo">Search</button></div><div class="sfres" style="margin-top:8px"><span class="muted" style="font-size:12px">Searching…</span></div></div>';
+  const q=box.querySelector('.sfq'); q.value=note;
+  const run=()=>stockSearch(orderId, q.value.trim(), box.querySelector('.sfres'));
+  box.querySelector('.sfgo').onclick=run;
+  q.addEventListener('keydown',e=>{ if(e.key==='Enter') run(); });
+  if((note||'').trim().length>=2) run(); else box.querySelector('.sfres').innerHTML='<span class="muted" style="font-size:12px">Type a medicine name and press Search.</span>';
+}
+async function stockSearch(orderId, q, resEl){
+  if(!resEl) return;
+  if(q.length<2){ resEl.innerHTML='<span class="muted" style="font-size:12px">Type at least 2 letters.</span>'; return; }
+  resEl.innerHTML='<span class="muted" style="font-size:12px">Searching…</span>';
+  try{
+    const d=await api('/api/admin/pharmacies-with-medicine?q='+encodeURIComponent(q));
+    const items=d.items||[];
+    if(!items.length){ resEl.innerHTML='<span class="muted" style="font-size:12px">No pharmacy has this listed. You can still pick any shop from the dropdown above.</span>'; return; }
+    resEl.innerHTML='';
+    items.forEach(it=>{
+      const row=document.createElement('div');
+      row.className='row'; row.style.cssText='padding:7px 0;border-top:1px solid var(--border);align-items:center;gap:8px';
+      const stock = it.inStock ? ('<span style="color:#059669;font-weight:700">'+it.available+' in stock</span>') : '<span style="color:#b45309">out of stock</span>';
+      row.innerHTML='<div class="grow"><strong>'+(it.pharmacyName||'')+'</strong>'+(it.city?' <span class="muted" style="font-size:12px">· '+it.city+'</span>':'')+'<div class="muted" style="font-size:12px">'+(it.medicineName||'')+' · ₹'+it.sellingPrice+' · '+stock+'</div></div>';
+      const b=document.createElement('button'); b.className='small ok'; b.textContent='Send here'; b.onclick=()=>assignPharmacy(orderId, it.pharmacyId);
+      row.appendChild(b);
+      resEl.appendChild(row);
+    });
+  }catch(e){ resEl.innerHTML='<span class="muted" style="font-size:12px">'+e.message+'</span>'; }
 }
 async function assignPharmacy(orderId, pharmacyId){
   if(!pharmacyId){ toast('Choose a pharmacy first'); return; }
