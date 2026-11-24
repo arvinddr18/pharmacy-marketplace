@@ -1364,7 +1364,8 @@ function renderAccountCentre(){
   box.innerHTML='';
   box.appendChild(acctRow('✏️','Edit profile','Name and mobile number',openEditProfile));
   box.appendChild(acctRow('🔒','Change password','Set a new password for your account',openChangePassword));
-   box.appendChild(acctRow('📱','Manage devices','See where you\'re logged in and log out other devices',openDevices));
+   box.appendChild(acctRow('🔔','Notifications','Turn on order alerts and send yourself a test',enablePushAndTest));
+  box.appendChild(acctRow('📱','Manage devices','See where you\'re logged in and log out other devices',openDevices));
   box.appendChild(acctRow('🛡️','Two-step verification',(state.user&&state.user.twoFactorEnabled)?'On — we email a code each time you sign in':'Off — add an extra code at login',open2fa));
   box.appendChild(acctRow('⏸️','Deactivate account','Temporarily turn off — sign in again to reactivate',confirmDeactivate));
   box.appendChild(acctRow('🗑️','Permanently delete account','Delete your account and personal data for good',confirmDeleteAccount,true));
@@ -1669,6 +1670,18 @@ async function initPush(ask){
     if(!sub){ sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(key) }); }
     await api('/api/push/subscribe',{method:'POST',body:JSON.stringify({subscription:sub})});
   }catch(e){}
+}
+async function enablePushAndTest(){
+  try{
+    if(!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)){ toast('This browser does not support notifications'); return; }
+    if(Notification.permission==='denied'){ toast('Notifications are blocked — enable them in your browser site settings'); return; }
+    toast('Setting up…',true);
+    await initPush(true);
+    if(Notification.permission!=='granted'){ toast('Please tap Allow when asked'); return; }
+    const d=await api('/api/push/test',{method:'POST'});
+    if(d && d.devices===0){ toast('No device registered yet — close and reopen, then try again'); return; }
+    toast('Test sent 🔔 check your notification tray',true);
+  }catch(e){ toast(e.message||'Could not send test'); }
 }
 async function doLogin(){
   const email=$('loginEmail').value.trim(), password=$('loginPass').value;

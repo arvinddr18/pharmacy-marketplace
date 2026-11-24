@@ -1,6 +1,13 @@
 import { PushSubscription } from '../models/PushSubscription.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { vapidPublicKey } from '../services/push.service.js';
+import { vapidPublicKey, sendPushToUser } from '../services/push.service.js';
+
+/** POST /api/push/test — send a test notification to the logged-in user. */
+export const testPush = asyncHandler(async (req, res) => {
+  const count = await PushSubscription.countDocuments({ user: req.user._id });
+  await sendPushToUser(req.user._id, { title: 'IndiCure 🔔', body: 'Notifications are working! You\'ll get order updates here.', url: '/' });
+  res.json({ ok: true, devices: count });
+});
 
 export const getVapidKey = asyncHandler(async (_req, res) => {
   res.json({ key: vapidPublicKey() });
