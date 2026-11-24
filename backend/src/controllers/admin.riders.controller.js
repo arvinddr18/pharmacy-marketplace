@@ -29,6 +29,22 @@ export const createRider = asyncHandler(async (req, res) => {
   res.status(201).json({ rider: rider.toSafeJSON() });
 });
 
+export const approveRider = asyncHandler(async (req, res) => {
+  const rider = await User.findOne({ _id: req.params.id, role: ROLES.RIDER, deletedAt: null });
+  if (!rider) throw ApiError.notFound('Rider not found');
+  rider.status = ACCOUNT_STATUS.ACTIVE;
+  await rider.save();
+  res.json({ rider: rider.toSafeJSON(), message: `${rider.name} approved` });
+});
+
+export const suspendRider = asyncHandler(async (req, res) => {
+  const rider = await User.findOne({ _id: req.params.id, role: ROLES.RIDER, deletedAt: null });
+  if (!rider) throw ApiError.notFound('Rider not found');
+  rider.status = ACCOUNT_STATUS.DISABLED;
+  await rider.save();
+  res.json({ rider: rider.toSafeJSON(), message: `${rider.name} suspended` });
+});
+
 export const assignRider = asyncHandler(async (req, res) => {
   const { riderId } = req.body;
   const rider = await User.findOne({ _id: riderId, role: ROLES.RIDER, deletedAt: null });

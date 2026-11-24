@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>IndiCure — Become a Rider</title>
+<style>
+  :root{ --bg:#F8FAFC; --card:#FFFFFF; --text:#172033; --muted:#64748B; --blue:#0E9F6E; --blue-light:#ECFDF5; --border:#E5E7EB; --success:#16A34A; --error:#DC2626; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  .topbar{background:#fff;border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:12px}
+  .brand{font-weight:700;color:var(--blue)}
+  .grow{flex:1}
+  a{color:var(--blue);text-decoration:none;font-weight:600}
+  .wrap{max-width:680px;margin:0 auto;padding:24px 20px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:24px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 6px}
+  .muted{color:var(--muted)}
+  label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+  input{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+  button{font:inherit;cursor:pointer;border:none;border-radius:8px;padding:12px 16px;background:var(--blue);color:#fff;font-weight:700;width:100%;margin-top:20px}
+  button:disabled{opacity:.6;cursor:not-allowed}
+  .toast{position:fixed;right:16px;bottom:16px;max-width:360px;padding:12px 16px;border-radius:10px;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.15);font-size:14px;z-index:50}
+  .toast.err{background:var(--error)} .toast.ok{background:var(--success)}
+  .success{text-align:center;padding:16px}
+  .success .tick{width:56px;height:56px;border-radius:50%;background:#DCFCE7;color:var(--success);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px}
+  .req{color:var(--error)}
+  .note{background:var(--blue-light);border:1px solid #A7F3D0;border-radius:10px;padding:12px 14px;font-size:13px;color:#065F46;margin-top:14px}
+  @media(max-width:560px){ .grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="brand"><svg viewBox="0 0 512 512" width="26" height="26" style="vertical-align:middle;margin-right:4px"><rect x="18" y="18" width="476" height="476" rx="120" fill="#fff" stroke="#0f172a" stroke-width="30"/><path d="M256 128 C196 128 148 174 148 232 C148 318 256 420 256 420 C256 420 364 318 364 232 C364 174 316 128 256 128 Z" fill="#fff" stroke="#10b981" stroke-width="26"/><rect x="238" y="176" width="36" height="112" rx="12" fill="#10b981"/><rect x="206" y="208" width="100" height="36" rx="12" fill="#10b981"/></svg><span style="color:#0f172a">Indi</span><span style="color:#10b981">Cure</span></span>
+  <span class="grow"></span>
+  <a href="/rider">Rider login →</a>
+</div>
+<div class="wrap">
+  <div class="card" id="formCard">
+    <h1>Become a delivery partner 🛵</h1>
+    <p class="sub">Deliver medicines from local pharmacies to customers near you and earn per delivery. Fill in your details — our team will review and activate your account.</p>
+    <div class="grid">
+      <div><label>Full name <span class="req">*</span></label><input id="name" placeholder="Your name" /></div>
+      <div><label>Mobile number <span class="req">*</span></label><input id="phone" maxlength="10" placeholder="10-digit mobile" /></div>
+    </div>
+    <div class="grid">
+      <div><label>Email <span class="req">*</span></label><input id="email" type="email" placeholder="you@example.com" autocomplete="off" /></div>
+      <div><label>Password <span class="req">*</span></label><input id="password" type="password" placeholder="min 8 characters" autocomplete="new-password" /></div>
+    </div>
+    <div class="grid">
+      <div><label>Area you'll deliver in</label><input id="area" placeholder="e.g. Tarikere town" /></div>
+      <div><label>Vehicle</label><input id="vehicle" placeholder="e.g. Bike / Cycle" /></div>
+    </div>
+    <div class="note">After you apply, your account stays <strong>pending</strong> until an IndiCure admin approves it. You'll then log in at the Rider page with this email &amp; password.</div>
+    <button id="submitBtn">Submit application</button>
+  </div>
+  <div class="card success" id="doneCard" style="display:none">
+    <div class="tick">✓</div>
+    <h1>Application received!</h1>
+    <p class="muted" id="doneMsg">We'll review your details and activate your rider account soon. You'll then be able to log in at the Rider page.</p>
+    <a href="/rider">Go to Rider login →</a>
+  </div>
+</div>
+<script>
+function toast(msg, ok){ const t=document.createElement('div'); t.className='toast '+(ok?'ok':'err'); t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3200); }
+function val(id){ return (document.getElementById(id).value||'').trim(); }
+document.getElementById('phone').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+document.getElementById('submitBtn').onclick=async()=>{
+  const name=val('name'), phone=val('phone'), email=val('email'), password=document.getElementById('password').value, area=val('area'), vehicle=val('vehicle');
+  if(name.length<2) return toast('Please enter your name');
+  if(!/^[6-9]\d{9}$/.test(phone)) return toast('Enter a valid 10-digit mobile number');
+  if(!/^\S+@\S+\.\S+$/.test(email)) return toast('Enter a valid email');
+  if(password.length<8) return toast('Password must be at least 8 characters');
+  const b=document.getElementById('submitBtn'); b.disabled=true; b.textContent='Submitting…';
+  try{
+    const res=await fetch('/api/register/rider',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,phone,email,password,area,vehicle})});
+    const d=await res.json();
+    if(!res.ok) throw new Error((d&&(d.error||d.message))||'Something went wrong');
+    if(d.message) document.getElementById('doneMsg').textContent=d.message;
+    document.getElementById('formCard').style.display='none';
+    document.getElementById('doneCard').style.display='block';
+    window.scrollTo(0,0);
+  }catch(e){ toast(e.message); b.disabled=false; b.textContent='Submit application'; }
+};
+</script>
+</body>
+</html>

@@ -190,6 +190,15 @@ export const dashboardLoginHandler = asyncHandler(async (req, res) => {
     user.status = ACCOUNT_STATUS.ACTIVE;
   }
 
+  // Staff awaiting approval (e.g. a rider who applied) cannot log in yet.
+  if (user.status === ACCOUNT_STATUS.PENDING && user.role !== ROLES.CUSTOMER) {
+    throw ApiError.forbidden(
+      user.role === ROLES.RIDER
+        ? 'Your rider application is awaiting approval — we will activate it soon.'
+        : 'Your account is awaiting approval.'
+    );
+  }
+
   // Customers must have a verified email. Staff accounts are exempt.
   if (user.role === ROLES.CUSTOMER && !user.emailVerified) {
     const code = await EmailCode.issue(user.email, 'verify');

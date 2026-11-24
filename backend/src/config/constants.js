@@ -27,4 +27,5 @@ export const PHARMACY_STATUS = Object.freeze({
 export const ACCOUNT_STATUS = Object.freeze({
   ACTIVE: 'active',
   DISABLED: 'disabled',
+  PENDING: 'pending', // staff (e.g. rider) registered, awaiting admin approval
 });

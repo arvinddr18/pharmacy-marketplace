@@ -366,9 +366,27 @@ async function loadRiders(){
   try{
     const d=await api('/api/admin/riders'); riders=d.items||[];
     const box=$('riderList');
-    if(!riders.length){ box.innerHTML='<span class="muted">No riders yet. Add one above.</span>'; return; }
-    box.innerHTML = riders.map(r=>`<span class="pill" style="background:var(--blue-light);color:var(--blue);margin:0 6px 6px 0;display:inline-block">${r.name}${r.phone?(' · '+r.phone):''}</span>`).join('');
+    if(!riders.length){ box.innerHTML='<span class="muted">No riders yet. Add one above, or riders can apply from the customer app.</span>'; return; }
+    box.innerHTML='';
+    const sorted=[...riders].sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1));
+    sorted.forEach(r=>{
+      const row=document.createElement('div'); row.className='row'; row.style.cssText='padding:10px 0;border-top:1px solid var(--border);align-items:center;gap:8px';
+      const st = r.status==='pending'
+        ? '<span class="pill" style="background:#fef3c7;color:#92400e">Pending</span>'
+        : (r.status==='disabled' ? '<span class="pill" style="background:#fee2e2;color:#b91c1c">Suspended</span>'
+                                 : '<span class="pill" style="background:#dcfce7;color:#166534">Active</span>');
+      const extra=(r.savedSearches&&r.savedSearches.length)?(' · '+r.savedSearches.join(', ')):'';
+      row.innerHTML='<div class="grow"><strong>'+(r.name||'')+'</strong> '+st+'<div class="muted" style="font-size:12px">'+(r.phone||'')+(r.email?(' · '+r.email):'')+extra+'</div></div>';
+      if(r.status==='pending'){ const a=document.createElement('button'); a.className='small ok'; a.textContent='Approve'; a.onclick=()=>riderAction(r._id,'approve'); row.appendChild(a); }
+      else if(r.status==='active'){ const s=document.createElement('button'); s.className='small secondary'; s.textContent='Suspend'; s.onclick=()=>riderAction(r._id,'suspend'); row.appendChild(s); }
+      else { const a=document.createElement('button'); a.className='small ok'; a.textContent='Re-activate'; a.onclick=()=>riderAction(r._id,'approve'); row.appendChild(a); }
+      box.appendChild(row);
+    });
   }catch(e){ toast(e.message); }
+}
+async function riderAction(id,act){
+  try{ const d=await api('/api/admin/riders/'+id+'/'+act,{method:'POST'}); toast(d.message||'Done',true); loadRiders(); }
+  catch(e){ toast(e.message); }
 }
 async function addRider(){
   const name=$('rName').value.trim(), email=$('rEmail').value.trim(), phone=$('rPhone').value.trim(), password=$('rPass').value;
@@ -383,7 +401,7 @@ function renderDelivery(el, o){
   const riderName = o.rider ? (riders.find(r=>r._id===String(o.rider))?.name || 'rider') : null;
   if(o.status==='ready'){
     const sel=document.createElement('select'); sel.className='small'; sel.style.cssText='padding:6px 8px;border:1px solid var(--border);border-radius:8px';
-    sel.innerHTML='<option value="">Assign rider…</option>'+riders.map(r=>`<option value="${r._id}">${r.name}</option>`).join('');
+    sel.innerHTML='<option value="">Assign rider…</option>'+riders.filter(r=>r.status==='active').map(r=>`<option value="${r._id}">${r.name}</option>`).join('');
     const b=document.createElement('button'); b.className='small ok'; b.textContent='Assign';
     b.onclick=()=>{ if(!sel.value) return toast('Pick a rider'); assign(o._id, sel.value); };
     el.appendChild(sel); el.appendChild(b);

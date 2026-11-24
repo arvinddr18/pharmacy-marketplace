@@ -12,7 +12,7 @@ import {
   reactivatePharmacy,
 } from '../controllers/admin.pharmacy.controller.js';
 import { listAllOrders, markDelivered, getOrderPrescriptionAdmin, assignPharmacyToOrder, findPharmaciesWithMedicine } from '../controllers/admin.orders.controller.js';
-import { listRiders, createRider, assignRider } from '../controllers/admin.riders.controller.js';
+import { listRiders, createRider, assignRider, approveRider, suspendRider } from '../controllers/admin.riders.controller.js';
 import { listCoupons, createCoupon, toggleCoupon, deleteCoupon } from '../controllers/admin.coupons.controller.js';
 
 const router = Router();
@@ -32,6 +32,8 @@ router.post('/orders/:id/assign-pharmacy', assignPharmacyToOrder);
 router.get('/pharmacies-with-medicine', findPharmaciesWithMedicine);
 router.get('/riders', listRiders);
 router.post('/riders', createRider);
+router.post('/riders/:id/approve', approveRider);
+router.post('/riders/:id/suspend', suspendRider);
 router.post('/orders/:id/assign', assignRider);
 
 router.get('/coupons', listCoupons);
