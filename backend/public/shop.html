@@ -1265,6 +1265,7 @@ function renderAccount(){
     sc.innerHTML='<h2 style="margin-top:0">Account centre</h2><div id="acctCentre"></div>';
     view.appendChild(sc);
     renderAccountCentre();
+    view.appendChild(businessCard());
     return;
   }
 
@@ -1305,6 +1306,21 @@ function renderAccount(){
   $('signupBtn').onclick=doSignup;
   $('suPass').addEventListener('keydown',e=>{ if(e.key==='Enter') doSignup(); });
   $('demoLink').onclick=doDemoLogin;
+  view.appendChild(businessCard());
+}
+
+function businessCard(){
+  const b=document.createElement('div'); b.className='card panel'; b.style.marginTop='12px';
+  b.innerHTML='<h2 style="margin-top:0">More</h2>'
+    +'<div id="bizPartner" style="padding:12px 0;border-top:1px solid var(--border);cursor:pointer;font-weight:600;color:var(--blue)">🏥 Partner with us — Register your pharmacy</div>'
+    +'<div id="bizRider" style="padding:12px 0;border-top:1px solid var(--border);cursor:pointer;font-weight:600;color:var(--blue)">🛵 Deliver with us — Become a rider</div>'
+    +'<div id="bizContact" style="padding:12px 0;border-top:1px solid var(--border);cursor:pointer;font-weight:600;color:var(--blue)">📞 Contact us</div>'
+    +'<div id="bizContactBox" style="display:none;padding:10px 2px 2px;font-size:14px;color:#334155;line-height:1.9">☎ <a href="tel:+919019162576" style="color:var(--blue)">+91 90191 62576</a><br>✉ <a href="mailto:indicure2026@gmail.com" style="color:var(--blue)">indicure2026@gmail.com</a><br>💬 <a href="https://wa.me/919019162576" target="_blank" style="color:var(--blue)">WhatsApp us</a></div>';
+  b.querySelector('#bizPartner').onclick=()=>location.href='/signup';
+  b.querySelector('#bizRider').onclick=()=>location.href='/rider-apply';
+  const box=b.querySelector('#bizContactBox');
+  b.querySelector('#bizContact').onclick=()=>{ box.style.display=(box.style.display==='none'?'block':'none'); };
+  return b;
 }
 
 async function loadAccountOrders(){
