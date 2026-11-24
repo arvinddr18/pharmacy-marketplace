@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pharmacy Marketplace</title>
+<meta name="theme-color" content="#0E9F6E" />
+<link rel="manifest" href="/manifest.json" />
+<link rel="apple-touch-icon" href="/icon-192.png" />
+<title>IndiCure</title>
 <style>
   :root{
     --bg:#F8FAFC; --card:#FFFFFF; --text:#172033; --muted:#64748B;
@@ -1641,8 +1644,31 @@ async function afterAuth(d){
   toast('Welcome'+(state.user?.name?(', '+state.user.name.split(' ')[0]):'')+'!',true);
   const next=state._afterLogin; state._afterLogin=null;
   loadNotifs();
+  initPush(true);
   go(next||'home');
   return true;
+}
+let _swReg=null;
+async function registerSW(){ if(!('serviceWorker' in navigator)) return; try{ _swReg=await navigator.serviceWorker.register('/sw.js'); }catch(e){} }
+function urlBase64ToUint8Array(base64String){
+  const padding='='.repeat((4 - base64String.length % 4) % 4);
+  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(base64); const arr=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i);
+  return arr;
+}
+async function initPush(ask){
+  try{
+    if(!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+    if(!state.token) return;
+    const reg=_swReg || await navigator.serviceWorker.register('/sw.js'); _swReg=reg;
+    if(Notification.permission==='denied') return;
+    if(Notification.permission==='default'){ if(!ask) return; const p=await Notification.requestPermission(); if(p!=='granted') return; }
+    const kr=await fetch('/api/push/vapid-key'); const kd=await kr.json(); const key=kd&&kd.key; if(!key) return;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub){ sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(key) }); }
+    await api('/api/push/subscribe',{method:'POST',body:JSON.stringify({subscription:sub})});
+  }catch(e){}
 }
 async function doLogin(){
   const email=$('loginEmail').value.trim(), password=$('loginPass').value;
@@ -1875,6 +1901,8 @@ $('micBtn').onclick=voiceSearch;
   updateCartCount();
   if(state.token){ try{ const me=await api('/api/auth/me'); if(me.user.role==='customer') state.user=me.user; else { state.token=''; localStorage.removeItem('cust_token'); } }catch{ state.token=''; localStorage.removeItem('cust_token'); } }
   loadNotifs();
+  registerSW();
+  if(state.token) initPush(false);
   setInterval(()=>{ if(!document.hidden && state.token) loadNotifs(); }, 20000);
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden && state.token){ loadNotifs(); if(state.view==='orders') loadOrdersList(); } });
   go('home');

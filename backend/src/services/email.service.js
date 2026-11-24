@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
 import { User } from '../models/User.js';
+import { sendPushToUser } from './push.service.js';
 
 let transporter = null;
 
@@ -90,6 +91,12 @@ export async function emailOrderUpdate(order) {
     if (!order) return;
     const cfg = ORDER_EMAILS[order.status];
     if (!cfg) return;
+
+    // Push notification to the customer (works even when the app is closed).
+    try {
+      const uid = order.customer && (order.customer._id || order.customer);
+      await sendPushToUser(uid, { title: `IndiCure · Order ${order.orderNumber}`, body: cfg.line, url: '/' });
+    } catch {}
 
     let email = order.customer && order.customer.email;
     let name = order.customer && order.customer.name;
