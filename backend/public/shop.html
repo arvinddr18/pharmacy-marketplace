@@ -126,6 +126,9 @@
   @keyframes trustShine{0%{left:-60%}55%,100%{left:125%}}
   @media(prefers-reduced-motion:reduce){.trust-track{animation:none;flex-wrap:wrap;justify-content:center}}
   .promo{display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:14px;padding:14px 16px;margin:16px 0}
+  #rxPromo{transition:transform .12s ease,box-shadow .12s ease}
+  #rxPromo:hover{box-shadow:0 8px 22px rgba(16,185,129,.22);border-color:#10B981}
+  #rxPromo:active{transform:scale(.985)}
   .promo-ic{width:42px;height:42px;border-radius:10px;background:#10B981;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
   .cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
   .cat{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 8px;text-align:center;cursor:pointer;font-size:12.5px;font-weight:700;color:var(--text);transition:box-shadow .15s,transform .12s,border-color .15s;animation:catIn .45s ease backwards}
@@ -450,7 +453,7 @@ async function renderHome(){
         <div class="promo-ic">📄</div>
         <div><div style="font-weight:800">Can't find a medicine?</div><div class="sub" style="color:#047857">Type the name or upload a prescription — a nearby pharmacy delivers it.</div></div>
       </div>
-      <button class="light" id="rxBtn">Order a medicine</button>
+      <button class="light" id="rxBtn">Order a medicine →</button>
     </div>
     <div class="banners" id="banners"></div>
     <h2>Shop by department</h2>
