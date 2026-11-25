@@ -1094,8 +1094,10 @@ async function renderCheckout(){
     );
   }
   const updateSummary=renderSummary;
+  window._refreshFee=fetchQuote;
   renderSummary();
   if(_custLoc) fetchQuote();
+  else askLocAndQuote();   // auto-ask for GPS on checkout so the fee appears without tapping
   $('coCoupon').addEventListener('input',e=>e.target.value=e.target.value.toUpperCase());
   $('applyCoupon').onclick=async()=>{
     const code=$('coCoupon').value.trim();
@@ -1117,11 +1119,23 @@ async function placeOrders(){
   if(!/^\d{6}$/.test(addr.pincode)){ toast('Enter a valid 6-digit PIN code'); return; }
   const hasRx=state.cart.some(i=>i.prescriptionRequired);
   if(hasRx && !state._prescription){ toast('Please upload your prescription for the Rx medicines'); return; }
+  // Delivery needs the customer's location — require it before placing the order.
+  const gl=getLoc(); const geo=(gl && gl.mode==='gps' && Number.isFinite(gl.lat) && Number.isFinite(gl.lng)) ? {lat:gl.lat,lng:gl.lng} : null;
+  if(!geo){
+    toast('Please allow your location so we can deliver and show the correct fee');
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(
+        pos=>{ setLoc({mode:'gps',lat:pos.coords.latitude,lng:pos.coords.longitude}); if(window._refreshFee) window._refreshFee(); toast('Location added ✓ — tap Place order to confirm',true); },
+        ()=>toast('Location is needed to place the order — please allow access in your browser settings'),
+        { enableHighAccuracy:true, timeout:10000 }
+      );
+    } else { toast('Location is not available on this device'); }
+    return;
+  }
   const wantSave = $('saveAddr') && $('saveAddr').checked;
   const payMethod = (document.querySelector('input[name="pay"]:checked')||{}).value || 'cod';
   const sub=cartTotal();
   $('placeBtn').disabled=true; $('placeBtn').textContent='Placing order…';
-  const gl=getLoc(); const geo=(gl && gl.mode==='gps' && Number.isFinite(gl.lat) && Number.isFinite(gl.lng)) ? {lat:gl.lat,lng:gl.lng} : null;
   const ok=[], fail=[], orderIds=[]; let payable=0; let feesSent=false;
   for(const i of state.cart){
     const body={ listingId:i.listingId, quantity:i.qty, deliveryAddress:addr, paymentMethod:payMethod };
