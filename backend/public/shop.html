@@ -1115,6 +1115,39 @@ async function renderCheckout(){
   renderSummary();
   if(_custLoc) fetchQuote();
   else askLocAndQuote();   // auto-ask for GPS; they can also type their address and tap “Use typed address”
+  // Address autocomplete (type-ahead, typo-tolerant) via Photon (free OpenStreetMap).
+  (function(){
+    const inp=$('coLine1'); if(!inp) return;
+    const box=document.createElement('div'); box.id='addrSuggest';
+    box.style.cssText='display:none;border:1px solid var(--border);border-radius:10px;margin-top:4px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.08);max-height:220px;overflow:auto;position:relative;z-index:30';
+    inp.insertAdjacentElement('afterend', box);
+    let t=null;
+    const close=()=>{ box.style.display='none'; box.innerHTML=''; };
+    inp.addEventListener('input',()=>{
+      const q=inp.value.trim(); clearTimeout(t);
+      if(q.length<3){ close(); return; }
+      t=setTimeout(async()=>{
+        try{
+          const r=await fetch('https://photon.komoot.io/api/?limit=5&lat=13.71&lon=75.81&q='+encodeURIComponent(q));
+          const d=await r.json(); const feats=(d&&d.features)||[];
+          if(!feats.length){ close(); return; }
+          box.innerHTML='';
+          feats.forEach(f=>{
+            const p=f.properties||{}, c=(f.geometry&&f.geometry.coordinates)||[];
+            const label=[p.name,p.street,p.city||p.county,p.state].filter(Boolean).join(', ');
+            const row=document.createElement('div');
+            row.textContent=label||p.name||'Unknown';
+            row.style.cssText='padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:14px';
+            row.onmouseenter=()=>row.style.background='#f1f5f9'; row.onmouseleave=()=>row.style.background='#fff';
+            row.onmousedown=(e)=>{ e.preventDefault(); inp.value=label||p.name||''; if(Number.isFinite(c[1])&&Number.isFinite(c[0])){ setDeliveryLoc({lat:c[1],lng:c[0]}); fetchQuote(); toast('Location set ✓',true); } const ci=$('coCity'); if(ci&&!ci.value&&(p.city||p.county)) ci.value=p.city||p.county; close(); };
+            box.appendChild(row);
+          });
+          box.style.display='block';
+        }catch{ close(); }
+      }, 350);
+    });
+    inp.addEventListener('blur',()=>setTimeout(close,200));
+  })();
   $('coCoupon').addEventListener('input',e=>e.target.value=e.target.value.toUpperCase());
   $('applyCoupon').onclick=async()=>{
     const code=$('coCoupon').value.trim();
