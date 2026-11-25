@@ -1063,6 +1063,8 @@ async function renderCheckout(){
   const DELIVERY_BASE=25;   // keep same as server (src/controllers/order.controller.js)
   let _deliveryFee=null, _distanceKm=null, _custLoc=null;
   (function(){ const l=getLoc(); if(l && l.mode==='gps' && Number.isFinite(l.lat) && Number.isFinite(l.lng)) _custLoc={lat:l.lat,lng:l.lng}; })();
+  window._deliveryLoc=_custLoc;
+  function setDeliveryLoc(loc){ _custLoc=loc; window._deliveryLoc=loc; }
   function renderSummary(){
     const disc=state._coupon?state._coupon.discount:0;
     const items=Math.max(0,sub-disc);
@@ -1071,12 +1073,13 @@ async function renderCheckout(){
     let html=`Items total: <strong>${money(sub)}</strong>`;
     if(disc) html+=`<br>Coupon ${esc(state._coupon.code)}: <strong style="color:var(--success)">− ${money(disc)}</strong>`;
     html+=`<br>Delivery fee${_distanceKm!=null?` · ${_distanceKm} km`:''}: <strong>${money(dFee)}</strong>`;
-    if(_deliveryFee==null) html+=`<br><span style="color:#dc2626">⚠️ Allow location to confirm your delivery & fee</span> <button class="ghost small" id="useLocBtn" style="width:auto;padding:2px 10px;margin-left:6px">📍 Use my location</button>`;
+    if(_deliveryFee==null) html+=`<br><span style="color:#dc2626">⚠️ Set delivery location: allow GPS, or type the address above then tap “Use typed address”</span><br><button class="ghost small" id="useLocBtn" style="width:auto;padding:2px 10px;margin:4px 6px 0 0">📍 Use my location</button><button class="ghost small" id="useAddrBtn" style="width:auto;padding:2px 10px;margin-top:4px">🔎 Use typed address</button>`;
     html+=`<br>Platform fee: <strong style="color:var(--success)">Free</strong>`;
     html+=`<br>To pay: <strong>${money(tot)}</strong>`;
     $('orderSummary').innerHTML=html;
     $('placeBtn').textContent='Place order · '+money(tot);
     const ul=$('useLocBtn'); if(ul) ul.onclick=askLocAndQuote;
+    const ua=$('useAddrBtn'); if(ua) ua.onclick=resolveTyped;
   }
   async function fetchQuote(){
     const first=state.cart[0];
@@ -1085,19 +1088,32 @@ async function renderCheckout(){
     renderSummary();
   }
   function askLocAndQuote(){
-    if(!navigator.geolocation){ toast('Location is not available on this device'); return; }
+    if(!navigator.geolocation){ toast('GPS not available — type your address and tap “Use typed address”'); return; }
     toast('Getting your location…');
     navigator.geolocation.getCurrentPosition(
-      pos=>{ _custLoc={lat:pos.coords.latitude,lng:pos.coords.longitude}; setLoc({mode:'gps',lat:_custLoc.lat,lng:_custLoc.lng}); toast('Location added',true); fetchQuote(); },
-      ()=>toast('Could not get location — please allow access'),
+      pos=>{ setDeliveryLoc({lat:pos.coords.latitude,lng:pos.coords.longitude}); setLoc({mode:'gps',lat:_custLoc.lat,lng:_custLoc.lng}); toast('Location added',true); fetchQuote(); },
+      ()=>toast('Could not get GPS — type your address and tap “Use typed address”'),
       { enableHighAccuracy:true, timeout:10000 }
     );
   }
+  async function geocodeTyped(){
+    const q=[$('coLine1').value.trim(), $('coCity').value.trim(), $('coPin').value.trim(), 'Karnataka, India'].filter(Boolean).join(', ');
+    if(q.replace(/[^a-z0-9]/gi,'').length<4) return null;
+    try{ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q)); const d=await r.json(); if(d && d[0] && d[0].lat) return { lat:parseFloat(d[0].lat), lng:parseFloat(d[0].lon) }; }catch{}
+    return null;
+  }
+  async function resolveTyped(){
+    toast('Finding your address on the map…');
+    const loc=await geocodeTyped();
+    if(loc){ setDeliveryLoc(loc); toast('Address located ✓',true); fetchQuote(); }
+    else { toast('Couldn’t find that address — check the spelling or use GPS'); renderSummary(); }
+  }
+  window._geocodeTyped=geocodeTyped;
   const updateSummary=renderSummary;
   window._refreshFee=fetchQuote;
   renderSummary();
   if(_custLoc) fetchQuote();
-  else askLocAndQuote();   // auto-ask for GPS on checkout so the fee appears without tapping
+  else askLocAndQuote();   // auto-ask for GPS; they can also type their address and tap “Use typed address”
   $('coCoupon').addEventListener('input',e=>e.target.value=e.target.value.toUpperCase());
   $('applyCoupon').onclick=async()=>{
     const code=$('coCoupon').value.trim();
@@ -1119,17 +1135,19 @@ async function placeOrders(){
   if(!/^\d{6}$/.test(addr.pincode)){ toast('Enter a valid 6-digit PIN code'); return; }
   const hasRx=state.cart.some(i=>i.prescriptionRequired);
   if(hasRx && !state._prescription){ toast('Please upload your prescription for the Rx medicines'); return; }
-  // Delivery needs the customer's location — require it before placing the order.
-  const gl=getLoc(); const geo=(gl && gl.mode==='gps' && Number.isFinite(gl.lat) && Number.isFinite(gl.lng)) ? {lat:gl.lat,lng:gl.lng} : null;
+  // Delivery needs a location — from GPS or the typed address. Require it before placing.
+  let geo = (window._deliveryLoc && Number.isFinite(window._deliveryLoc.lat)) ? window._deliveryLoc : null;
+  if(!geo){ const gl=getLoc(); if(gl && gl.mode==='gps' && Number.isFinite(gl.lat) && Number.isFinite(gl.lng)) geo={lat:gl.lat,lng:gl.lng}; }
+  if(!geo && window._geocodeTyped){ geo=await window._geocodeTyped(); if(geo){ window._deliveryLoc=geo; if(window._refreshFee) window._refreshFee(); } }
   if(!geo){
-    toast('Please allow your location so we can deliver and show the correct fee');
+    toast('Please allow your location, or type a valid address, so we can deliver');
     if(navigator.geolocation){
       navigator.geolocation.getCurrentPosition(
-        pos=>{ setLoc({mode:'gps',lat:pos.coords.latitude,lng:pos.coords.longitude}); if(window._refreshFee) window._refreshFee(); toast('Location added ✓ — tap Place order to confirm',true); },
-        ()=>toast('Location is needed to place the order — please allow access in your browser settings'),
+        pos=>{ window._deliveryLoc={lat:pos.coords.latitude,lng:pos.coords.longitude}; setLoc({mode:'gps',lat:pos.coords.latitude,lng:pos.coords.longitude}); if(window._refreshFee) window._refreshFee(); toast('Location added ✓ — tap Place order to confirm',true); },
+        ()=>toast('Enter a valid address or allow location to place the order'),
         { enableHighAccuracy:true, timeout:10000 }
       );
-    } else { toast('Location is not available on this device'); }
+    }
     return;
   }
   const wantSave = $('saveAddr') && $('saveAddr').checked;
