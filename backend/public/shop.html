@@ -1074,7 +1074,7 @@ async function renderCheckout(){
     const items=Math.max(0,sub-disc);
     const dFee=(_deliveryFee!=null)?_deliveryFee:DELIVERY_BASE;
     const tot=items+dFee;
-    const row=(l,v,big)=>`<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:4px 0;font-size:${big?'16px':'14px'}"><span style="color:#475569">${l}</span><span style="font-weight:${big?'800':'600'};color:#0f172a;white-space:nowrap">${v}</span></div>`;
+    const row=(l,v,big)=>`<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:5px 0;font-size:${big?'17px':'15px'}"><span style="color:#0f172a;font-weight:700">${l}</span><span style="font-weight:800;color:#0f172a;white-space:nowrap">${v}</span></div>`;
     let html='<div style="display:block;width:100%;text-align:left">';
     html+=row('Items total', money(sub));
     if(disc) html+=row(`Coupon (${esc(state._coupon.code)})`, `<span style="color:var(--success)">− ${money(disc)}</span>`);
