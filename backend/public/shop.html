@@ -1071,7 +1071,7 @@ async function renderCheckout(){
     let html=`Items total: <strong>${money(sub)}</strong>`;
     if(disc) html+=`<br>Coupon ${esc(state._coupon.code)}: <strong style="color:var(--success)">− ${money(disc)}</strong>`;
     html+=`<br>Delivery fee${_distanceKm!=null?` · ${_distanceKm} km`:''}: <strong>${money(dFee)}</strong>`;
-    if(_deliveryFee==null) html+=` <button class="ghost small" id="useLocBtn" style="width:auto;padding:2px 10px;margin-left:4px">📍 Use my location</button>`;
+    if(_deliveryFee==null) html+=`<br><span style="color:#dc2626">⚠️ Allow location to confirm your delivery & fee</span> <button class="ghost small" id="useLocBtn" style="width:auto;padding:2px 10px;margin-left:6px">📍 Use my location</button>`;
     html+=`<br>Platform fee: <strong style="color:var(--success)">Free</strong>`;
     html+=`<br>To pay: <strong>${money(tot)}</strong>`;
     $('orderSummary').innerHTML=html;
