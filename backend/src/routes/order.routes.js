@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticate, requireRole } from '../middleware/auth.js';
 import { ROLES } from '../config/constants.js';
 import {
-  createOrder, myOrders, getMyOrder, cancelMyOrder,
+  createOrder, deliveryQuote, myOrders, getMyOrder, cancelMyOrder,
   listAddresses, addAddress, deleteAddress, addReview, validateCoupon,
   createPrescriptionOrder,
   listSavedSearches, addSavedSearch, deleteSavedSearch,
@@ -19,6 +19,7 @@ const router = Router();
 router.use(authenticate, requireRole(ROLES.CUSTOMER));
 
 router.post('/orders', createOrder);
+router.post('/delivery-quote', deliveryQuote);
 router.post('/prescription-orders', createPrescriptionOrder);
 router.get('/orders', myOrders);
 router.get('/orders/:id', getMyOrder);

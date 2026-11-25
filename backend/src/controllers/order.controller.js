@@ -15,6 +15,24 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { env } from '../config/env.js';
 import { PHARMACY_STATUS, ACCOUNT_STATUS } from '../config/constants.js';
 
+/* ---------------- Delivery fee (distance-based) ---------------- */
+const DELIVERY_BASE = 25;      // ₹ flat fee that covers the nearby radius — change to adjust
+const DELIVERY_RADIUS_KM = 3;  // km covered by the base fee — change to adjust
+const DELIVERY_PER_KM = 8;     // ₹ for each extra km beyond the radius — change to adjust
+const PLATFORM_FEE = 0;        // ₹ platform fee — keep 0 for now
+
+function _toRad(d) { return (d * Math.PI) / 180; }
+function distanceKm(lat1, lng1, lat2, lng2) {
+  const R = 6371, dLat = _toRad(lat2 - lat1), dLng = _toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(_toRad(lat1)) * Math.cos(_toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+function deliveryFeeForKm(km) {
+  if (!Number.isFinite(km)) return DELIVERY_BASE;               // unknown distance → base fee
+  const extra = Math.max(0, Math.ceil(km - DELIVERY_RADIUS_KM));
+  return DELIVERY_BASE + extra * DELIVERY_PER_KM;
+}
+
 /* ---------------- Account self-service (profile / deactivate / delete) ---------------- */
 
 /** PATCH /api/customer/profile { name, phone } — update own name / mobile. */
@@ -159,6 +177,18 @@ function newOrderNumber() {
  * While FEATURE_LIVE_ORDERS is off, orders are marked isDemo (no real payment
  * or dispensing). The flow still works end to end for testing.
  */
+/** POST /api/customer/delivery-quote { lat, lng, listingId } — delivery fee for this distance. */
+export const deliveryQuote = asyncHandler(async (req, res) => {
+  const lat = Number(req.body.lat), lng = Number(req.body.lng);
+  let km = null;
+  if (Number.isFinite(lat) && Number.isFinite(lng) && req.body.listingId) {
+    const l = await PharmacyMedicineListing.findById(req.body.listingId).populate('pharmacy', 'location');
+    const co = l && l.pharmacy && l.pharmacy.location && l.pharmacy.location.coordinates;
+    if (co && (co[0] || co[1])) km = distanceKm(lat, lng, co[1], co[0]);
+  }
+  res.json({ distanceKm: km != null ? Math.round(km * 10) / 10 : null, deliveryFee: deliveryFeeForKm(km), platformFee: PLATFORM_FEE });
+});
+
 export const createOrder = asyncHandler(async (req, res) => {
   const { listingId, quantity } = req.body;
   const qty = parseInt(quantity, 10);
@@ -177,7 +207,7 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   const listing = await PharmacyMedicineListing.findOne({ _id: listingId, active: true, deletedAt: null })
     .populate('medicine', 'name prescriptionRequired')
-    .populate('pharmacy', 'name status deletedAt');
+    .populate('pharmacy', 'name status deletedAt location');
   if (!listing) throw ApiError.badRequest('This medicine listing is not available');
   if (!listing.pharmacy || listing.pharmacy.deletedAt || listing.pharmacy.status !== PHARMACY_STATUS.APPROVED) {
     throw ApiError.badRequest('This pharmacy is not currently active');
@@ -235,6 +265,17 @@ export const createOrder = asyncHandler(async (req, res) => {
       }
       const prescriptionRequired = Boolean(listing.prescriptionRequired || listing.medicine?.prescriptionRequired);
 
+      // Delivery fee by distance (added once per checkout, on the first order).
+      const custLat = Number(req.body.lat), custLng = Number(req.body.lng);
+      const phCo = listing.pharmacy.location && listing.pharmacy.location.coordinates;
+      let distKm = null;
+      if (Number.isFinite(custLat) && Number.isFinite(custLng) && phCo && (phCo[0] || phCo[1])) {
+        distKm = distanceKm(custLat, custLng, phCo[1], phCo[0]);
+      }
+      const addFees = req.body.includeFees === true && lineTotal > 0;
+      const deliveryFee = addFees ? deliveryFeeForKm(distKm) : 0;
+      const platformFee = addFees ? PLATFORM_FEE : 0;
+
       const [created] = await Order.create([{
         orderNumber: newOrderNumber(),
         customer: req.user._id,
@@ -250,10 +291,11 @@ export const createOrder = asyncHandler(async (req, res) => {
         }],
         reservations,
         itemsTotal: lineTotal,
-        deliveryFee: 0,
+        deliveryFee,
+        platformFee,
         couponCode: coupon ? coupon.code : undefined,
         discount,
-        total: lineTotal - discount,
+        total: lineTotal - discount + deliveryFee + platformFee,
         paymentMethod: req.body.paymentMethod === 'online' ? 'online' : 'cod',
         deliveryAddress: {
           line1: addr.line1, city: addr.city || '', pincode: addr.pincode,
