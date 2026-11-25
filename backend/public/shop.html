@@ -1098,9 +1098,9 @@ async function renderCheckout(){
     );
   }
   async function geocodeTyped(){
-    const q=[$('coLine1').value.trim(), $('coCity').value.trim(), $('coPin').value.trim(), 'Karnataka, India'].filter(Boolean).join(', ');
-    if(q.replace(/[^a-z0-9]/gi,'').length<4) return null;
-    try{ const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q)); const d=await r.json(); if(d && d[0] && d[0].lat) return { lat:parseFloat(d[0].lat), lng:parseFloat(d[0].lon) }; }catch{}
+    const q=$('coLine1').value.trim() || [$('coCity').value.trim(), $('coPin').value.trim()].filter(Boolean).join(' ');
+    if(q.replace(/[^a-z0-9]/gi,'').length<3) return null;
+    try{ const r=await fetch('https://photon.komoot.io/api/?limit=1&lat=13.71&lon=75.81&q='+encodeURIComponent(q)); const d=await r.json(); const f=d&&d.features&&d.features[0]; const c=f&&f.geometry&&f.geometry.coordinates; if(c&&Number.isFinite(c[1])&&Number.isFinite(c[0])) return { lat:c[1], lng:c[0] }; }catch{}
     return null;
   }
   async function resolveTyped(){
