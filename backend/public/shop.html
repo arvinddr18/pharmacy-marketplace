@@ -1041,11 +1041,14 @@ async function renderCheckout(){
   view.appendChild(panel);
   $('coPin').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
   $('coPhone').addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
+  window._deliveryLoc=null;   // reset each checkout; set by a saved address, GPS, or typed address
   if(saved.length){
     const fillAddr=(a,chip)=>{
       $('coLine1').value=a.line1||''; $('coCity').value=a.city||'Tarikere'; $('coPin').value=a.pincode||''; $('coPhone').value=a.phone||''; $('coNote').value=a.instructions||'';
       $('savedAddrs').querySelectorAll('.chip').forEach(x=>x.classList.remove('active')); if(chip) chip.classList.add('active');
       $('saveAddr').checked=false;
+      window._deliveryLoc=(Number.isFinite(a.lat)&&Number.isFinite(a.lng))?{lat:a.lat,lng:a.lng}:null;
+      if(window._refreshQuote) window._refreshQuote();
     };
     $('savedAddrs').querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
       const a=saved.find(x=>String(x._id)===c.dataset.aid); if(a) fillAddr(a,c);
@@ -1062,9 +1065,10 @@ async function renderCheckout(){
   const sub=cartTotal();
   const DELIVERY_BASE=25;   // keep same as server (src/controllers/order.controller.js)
   let _deliveryFee=null, _distanceKm=null, _custLoc=null;
-  (function(){ const l=getLoc(); if(l && l.mode==='gps' && Number.isFinite(l.lat) && Number.isFinite(l.lng)) _custLoc={lat:l.lat,lng:l.lng}; })();
-  window._deliveryLoc=_custLoc;
+  if(window._deliveryLoc && Number.isFinite(window._deliveryLoc.lat)) _custLoc=window._deliveryLoc;
+  else { const l=getLoc(); if(l && l.mode==='gps' && Number.isFinite(l.lat) && Number.isFinite(l.lng)){ _custLoc={lat:l.lat,lng:l.lng}; window._deliveryLoc=_custLoc; } }
   function setDeliveryLoc(loc){ _custLoc=loc; window._deliveryLoc=loc; }
+  window._refreshQuote=()=>{ if(window._deliveryLoc && Number.isFinite(window._deliveryLoc.lat)){ _custLoc=window._deliveryLoc; fetchQuote(); } else { resolveTyped(); } };
   function renderSummary(){
     const disc=state._coupon?state._coupon.discount:0;
     const items=Math.max(0,sub-disc);
@@ -1204,7 +1208,7 @@ async function placeOrders(){
   // remove successful lines
   state.cart=state.cart.filter(i=>!ok.includes(i)); saveCart();
   if(fail.length===0){
-    if(wantSave){ try{ await api('/api/customer/addresses',{method:'POST',body:JSON.stringify({ label:addr.city||'Home', line1:addr.line1, city:addr.city, pincode:addr.pincode, phone:addr.phone, instructions:addr.instructions })}); }catch{} }
+    if(wantSave){ try{ await api('/api/customer/addresses',{method:'POST',body:JSON.stringify({ label:addr.city||'Home', line1:addr.line1, city:addr.city, pincode:addr.pincode, phone:addr.phone, instructions:addr.instructions, lat:geo&&geo.lat, lng:geo&&geo.lng })}); }catch{} }
     state._prescription=null;
     if(payMethod==='online' && payable>0){ await payOnline(orderIds, payable); }
     else { state._coupon=null; toast('Order placed! 🎉',true); go('orders'); }

@@ -52,6 +52,8 @@ const userSchema = new Schema(
       pincode: { type: String, trim: true },
       phone: { type: String, trim: true },
       instructions: { type: String, trim: true, maxlength: 200 },
+      lat: { type: Number },
+      lng: { type: Number },
     }],
 
     // Saved (⭐) search terms for quick re-search without typing.

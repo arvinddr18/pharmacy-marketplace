@@ -433,7 +433,7 @@ export const listAddresses = asyncHandler(async (req, res) => {
 
 /** POST /api/customer/addresses — save a new delivery address. */
 export const addAddress = asyncHandler(async (req, res) => {
-  const { label, line1, city, pincode, phone, instructions } = req.body;
+  const { label, line1, city, pincode, phone, instructions, lat, lng } = req.body;
   if (!line1 || !/^\d{6}$/.test(pincode || '')) {
     throw ApiError.badRequest('An address with a valid 6-digit PIN code is required');
   }
@@ -441,6 +441,7 @@ export const addAddress = asyncHandler(async (req, res) => {
   user.addresses.push({
     label: (label || 'Home').slice(0, 40), line1, city: city || '', pincode,
     phone: phone || '', instructions: instructions || '',
+    lat: Number.isFinite(lat) ? lat : undefined, lng: Number.isFinite(lng) ? lng : undefined,
   });
   await user.save();
   res.status(201).json({ items: user.addresses });
