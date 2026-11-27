@@ -61,6 +61,7 @@ const orderSchema = new Schema(
     // Payment: 'cod' (cash on delivery) or 'online' (Razorpay).
     paymentMethod: { type: String, enum: ['cod', 'online'], default: 'cod' },
     paymentStatus: { type: String, enum: ['pending', 'paid'], default: 'pending' },
+    collectedVia: { type: String, enum: ['cash', 'upi'], default: undefined },
     razorpayOrderId: { type: String },
     razorpayPaymentId: { type: String },
 

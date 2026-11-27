@@ -135,10 +135,11 @@
       <div class="tab" data-ostatus="ready">Ready</div>
       <div class="tab" data-ostatus="delivered">Delivered</div>
     </div>
+    <div id="orderStats" class="row" style="gap:10px;flex-wrap:wrap;margin:6px 0 10px"></div>
     <div class="card" style="padding:8px 12px">
       <table>
-        <thead><tr><th>Order</th><th>Pharmacy</th><th>Customer</th><th>Item</th><th>Total</th><th>Status</th><th style="text-align:right">Delivery</th></tr></thead>
-        <tbody id="orderRows"><tr><td colspan="7" class="muted" style="padding:16px">Loading…</td></tr></tbody>
+        <thead><tr><th>Order</th><th>Pharmacy</th><th>Customer</th><th>Item</th><th>Total</th><th>Payment</th><th>Status</th><th style="text-align:right">Delivery</th></tr></thead>
+        <tbody id="orderRows"><tr><td colspan="8" class="muted" style="padding:16px">Loading…</td></tr></tbody>
       </table>
     </div>
 
@@ -349,11 +350,15 @@ async function loadOrders(){
     const data=await api('/api/admin/orders'+(orderStatus?('?status='+orderStatus):''));
     const items=data.items||[];
     const body=$('orderRows');
-    if(!items.length){ body.innerHTML='<tr><td colspan="7" class="muted" style="padding:16px">No orders in this view.</td></tr>'; return; }
+    renderOrderStats(items);
+    if(!items.length){ body.innerHTML='<tr><td colspan="8" class="muted" style="padding:16px">No orders in this view.</td></tr>'; return; }
     body.innerHTML='';
     for(const o of items){
       const it=o.items[0]||{}; const cust=o.customer||{}; const ph=o.pharmacy||{};
       const a=o.deliveryAddress||{};
+      const pay = o.paymentStatus==='paid'
+        ? ('<span style="color:var(--success);font-weight:600">'+(o.collectedVia==='upi'?'📲 UPI':(o.collectedVia==='cash'?'💵 Cash':'✓'))+' · Paid</span>')
+        : '<span class="muted">Pending</span>';
       const tr=document.createElement('tr');
       tr.innerHTML=`
         <td><strong>${o.orderNumber}</strong><div class="muted" style="font-size:12px">${new Date(o.createdAt).toLocaleString()}</div></td>
@@ -361,13 +366,27 @@ async function loadOrders(){
         <td>${cust.name||'Customer'}<div class="muted" style="font-size:12px">${[a.line1,a.pincode].filter(Boolean).join(', ')}</div></td>
         <td>${it.name||''} × ${it.quantity||1} ${it.prescriptionRequired?'<span class="pill rx">Rx</span>':''}</td>
         <td>₹${o.total}</td>
+        <td>${pay}</td>
         <td><span class="pill ${o.status}">${o.status}</span></td>
         <td><div class="dact" style="display:flex;gap:6px;justify-content:flex-end"></div></td>`;
       body.appendChild(tr);
       renderDelivery(tr.querySelector('.dact'), o);
     }
-    collapseTable(body,'orders',7,3);
+    collapseTable(body,'orders',8,3);
   }catch(e){ toast(e.message); }
+}
+function renderOrderStats(items){
+  const el=$('orderStats'); if(!el) return;
+  const start=new Date(); start.setHours(0,0,0,0);
+  let count=0, collected=0, cash=0, upi=0;
+  for(const o of items){
+    if(new Date(o.createdAt)>=start){
+      count++;
+      if(o.paymentStatus==='paid'){ collected+=(o.total||0); if(o.collectedVia==='cash') cash+=(o.total||0); else if(o.collectedVia==='upi') upi+=(o.total||0); }
+    }
+  }
+  const card=(label,val,color)=>'<div class="stat" style="min-width:130px"><div class="muted">'+label+'</div><div class="n"'+(color?(' style="color:'+color+'"'):'')+'>'+val+'</div></div>';
+  el.innerHTML=card('Orders today',count)+card('Collected today','₹'+collected,'var(--success)')+card('💵 Cash today','₹'+cash)+card('📲 UPI today','₹'+upi);
 }
 async function deliverOrder(id){
   try{ await api('/api/admin/orders/'+id+'/delivered',{method:'POST'}); toast('Marked delivered',true); await loadOrders(); }

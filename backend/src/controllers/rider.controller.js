@@ -43,6 +43,7 @@ export const confirmPickup = asyncHandler(async (req, res) => {
 
 export const confirmDelivery = asyncHandler(async (req, res) => {
   const otp = String(req.body?.otp || '').trim();
+  const collectedVia = ['cash', 'upi'].includes(req.body?.collectedVia) ? req.body.collectedVia : undefined;
   const session = await mongoose.startSession();
   try {
     let order;
@@ -55,6 +56,7 @@ export const confirmDelivery = asyncHandler(async (req, res) => {
         await InventoryBatch.updateOne({ _id: r.batch }, { $inc: { quantity: -r.quantity, reserved: -r.quantity } }, { session });
       }
       order.status = ORDER_STATUS.DELIVERED;
+      if (collectedVia) { order.collectedVia = collectedVia; order.paymentStatus = 'paid'; }
       order.deliveryOtp = undefined;
       order.timeline.push({ status: ORDER_STATUS.DELIVERED, at: new Date(), note: 'Delivered (OTP verified)' });
       await order.save({ session });

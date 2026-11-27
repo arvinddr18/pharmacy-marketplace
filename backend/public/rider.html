@@ -153,11 +153,20 @@ function card(o){
     b.onclick=async()=>{ try{ await api('/api/rider/orders/'+o._id+'/pickup',{method:'POST'}); toast('Picked up — out for delivery',true); load(); }catch(e){ toast(e.message);} };
     act.appendChild(b);
   } else if(o.status==='out_for_delivery'){
-    act.innerHTML=`<label>Enter delivery OTP (ask the customer)</label>
+    act.innerHTML=`<label>How did the customer pay?</label>
+      <div style="display:flex;gap:8px;margin:4px 0 12px">
+        <button type="button" class="paybtn" data-pay="cash" style="flex:1;padding:9px;border-radius:8px;cursor:pointer">💵 Cash</button>
+        <button type="button" class="paybtn" data-pay="upi" style="flex:1;padding:9px;border-radius:8px;cursor:pointer">📲 UPI / Scan</button>
+      </div>
+      <label>Enter delivery OTP (ask the customer)</label>
       <div style="display:flex;gap:8px"><input class="otp" maxlength="6" placeholder="6-digit OTP" /><button class="ok dl">Deliver</button></div>`;
+    let pay='cash';
+    const paint=()=>act.querySelectorAll('.paybtn').forEach(b=>{ const on=b.dataset.pay===pay; b.style.background=on?'#0d9488':'#fff'; b.style.color=on?'#fff':'#0f172a'; b.style.border='1px solid '+(on?'#0d9488':'#cbd5e1'); });
+    act.querySelectorAll('.paybtn').forEach(btn=>{ btn.onclick=()=>{ pay=btn.dataset.pay; paint(); }; });
+    paint();
     const inp=act.querySelector('.otp'); inp.addEventListener('input',e=>e.target.value=e.target.value.replace(/\D/g,''));
     act.querySelector('.dl').onclick=async()=>{ const otp=inp.value.trim(); if(otp.length!==6) return toast('Enter the 6-digit OTP');
-      try{ await api('/api/rider/orders/'+o._id+'/deliver',{method:'POST',body:JSON.stringify({otp})}); toast('Delivered! 🎉',true); load(); }catch(e){ toast(e.message);} };
+      try{ await api('/api/rider/orders/'+o._id+'/deliver',{method:'POST',body:JSON.stringify({otp,collectedVia:pay})}); toast('Delivered! 🎉',true); load(); }catch(e){ toast(e.message);} };
   } else {
     act.innerHTML='<span class="muted" style="font-size:13px">Completed</span>';
   }
