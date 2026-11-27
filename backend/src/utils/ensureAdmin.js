@@ -3,12 +3,7 @@ import { User } from '../models/User.js';
 import { ROLES, ACCOUNT_STATUS } from '../config/constants.js';
 
 /**
- * Startup security helper (safe to leave in permanently):
- *  - ADMIN_EMAIL + ADMIN_PASSWORD  → create/refresh your real super-admin.
- *  - DISABLE_DEMO_ACCOUNTS === 'true' → lock the public demo ADMIN login.
- *  - DEMO_PHARMACY_PASSWORD → keep the demo pharmacy logins (owner.a / owner.b)
- *    working for testing, but with a secret password you choose (data kept).
- * Does nothing unless the matching env vars are set.
+ * Startup security helper (safe to leave in permanently).
  */
 export async function ensureAdmin() {
   const email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
