@@ -1,3 +1,4 @@
+import { ensureAdmin } from './utils/ensureAdmin.js';
 import { createApp } from './app.js';
 import { connectDB, disconnectDB } from './config/db.js';
 import { env } from './config/env.js';
@@ -5,6 +6,7 @@ import { startReminderScheduler } from './services/reminder.scheduler.js';
 
 async function start() {
   await connectDB();
+  await ensureAdmin();
   const app = createApp();
   startReminderScheduler();
 
