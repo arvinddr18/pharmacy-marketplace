@@ -37,9 +37,9 @@ async function sendMail({ to, subject, text, html }) {
 const LOGO_URL = 'https://pharmacy-marketplace-qwca.onrender.com/icon-192.png';
 const wrap = (title, body) => `
   <div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#172033">
-    <div style="background:#0E9F6E;color:#fff;padding:16px 20px;border-radius:12px 12px 0 0">
-      <img src="${LOGO_URL}" width="30" height="30" alt="" style="vertical-align:middle;border-radius:7px;background:#fff" />
-      <span style="font-weight:800;font-size:18px;vertical-align:middle;margin-left:8px">IndiCure</span>
+    <div style="background:#ffffff;padding:16px 20px;border-radius:12px 12px 0 0;border:1px solid #E5E7EB;border-bottom:none">
+      <img src="${LOGO_URL}" width="30" height="30" alt="" style="vertical-align:middle;border-radius:7px" />
+      <span style="font-weight:800;font-size:20px;vertical-align:middle;margin-left:8px"><span style="color:#0f172a">Indi</span><span style="color:#10b981">Cure</span></span>
     </div>
     <div style="border:1px solid #E5E7EB;border-top:none;border-radius:0 0 12px 12px;padding:22px 20px">
       <h2 style="margin:0 0 10px">${title}</h2>
