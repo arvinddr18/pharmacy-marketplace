@@ -33,9 +33,14 @@ async function sendMail({ to, subject, text, html }) {
   return { delivered: 'smtp' };
 }
 
+// Public logo URL for email headers. Update this if you move to a custom domain (e.g. https://indicure.in/icon-192.png).
+const LOGO_URL = 'https://pharmacy-marketplace-qwca.onrender.com/icon-192.png';
 const wrap = (title, body) => `
   <div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#172033">
-    <div style="background:#0D9488;color:#fff;padding:18px 20px;border-radius:12px 12px 0 0;font-weight:800;font-size:18px">MedMart</div>
+    <div style="background:#0E9F6E;color:#fff;padding:16px 20px;border-radius:12px 12px 0 0">
+      <img src="${LOGO_URL}" width="30" height="30" alt="" style="vertical-align:middle;border-radius:7px;background:#fff" />
+      <span style="font-weight:800;font-size:18px;vertical-align:middle;margin-left:8px">IndiCure</span>
+    </div>
     <div style="border:1px solid #E5E7EB;border-top:none;border-radius:0 0 12px 12px;padding:22px 20px">
       <h2 style="margin:0 0 10px">${title}</h2>
       ${body}
@@ -49,17 +54,17 @@ const codeBlock = (code) =>
 export async function sendVerificationEmail(to, name, code) {
   return sendMail({
     to,
-    subject: `${code} is your MedMart verification code`,
-    text: `Hi ${name || ''}, your MedMart verification code is ${code}. It expires in 15 minutes.`,
-    html: wrap('Verify your email', `<p>Hi ${name || 'there'}, welcome to MedMart! Enter this code to finish creating your account:</p>${codeBlock(code)}<p style="color:#64748B;font-size:13px">This code expires in 15 minutes.</p>`),
+    subject: `${code} is your IndiCure verification code`,
+    text: `Hi ${name || ''}, your IndiCure verification code is ${code}. It expires in 15 minutes.`,
+    html: wrap('Verify your email', `<p>Hi ${name || 'there'}, welcome to IndiCure! Enter this code to finish creating your account:</p>${codeBlock(code)}<p style="color:#64748B;font-size:13px">This code expires in 15 minutes.</p>`),
   });
 }
 
 export async function sendPasswordResetEmail(to, name, code) {
   return sendMail({
     to,
-    subject: `${code} is your MedMart password reset code`,
-    text: `Hi ${name || ''}, your MedMart password reset code is ${code}. It expires in 15 minutes.`,
+    subject: `${code} is your IndiCure password reset code`,
+    text: `Hi ${name || ''}, your IndiCure password reset code is ${code}. It expires in 15 minutes.`,
     html: wrap('Reset your password', `<p>Hi ${name || 'there'}, use this code to set a new password:</p>${codeBlock(code)}<p style="color:#64748B;font-size:13px">This code expires in 15 minutes.</p>`),
   });
 }
@@ -67,9 +72,9 @@ export async function sendPasswordResetEmail(to, name, code) {
 export async function sendRefillReminderEmail(to, name, label) {
   return sendMail({
     to,
-    subject: `Time to reorder ${label} — MedMart`,
-    text: `Hi ${name || ''}, it looks like it's time to refill ${label}. Open MedMart and tap "Order again" to get it delivered.`,
-    html: wrap('Time to refill', `<p>Hi ${name || 'there'},</p><p>It looks like it's time to reorder <strong>${label}</strong>. Open MedMart and tap <strong>“Order again”</strong> to get it delivered to your door.</p>`),
+    subject: `Time to reorder ${label} — IndiCure`,
+    text: `Hi ${name || ''}, it looks like it's time to refill ${label}. Open IndiCure and tap "Order again" to get it delivered.`,
+    html: wrap('Time to refill', `<p>Hi ${name || 'there'},</p><p>It looks like it's time to reorder <strong>${label}</strong>. Open IndiCure and tap <strong>“Order again”</strong> to get it delivered to your door.</p>`),
   });
 }
 
@@ -78,7 +83,7 @@ const ORDER_EMAILS = {
   placed: { subject: 'Order {n} placed', line: 'We’ve received your order and it’s being sent to a pharmacy. We’ll email you as it progresses.' },
   accepted: { subject: 'Order {n} accepted', line: 'A pharmacy has accepted your order and is preparing it.' },
   out_for_delivery: { subject: 'Order {n} is on the way', line: 'Your order is out for delivery and will reach you soon.' },
-  delivered: { subject: 'Order {n} delivered', line: 'Your order has been delivered. Thank you for using MedMart!' },
+  delivered: { subject: 'Order {n} delivered', line: 'Your order has been delivered. Thank you for using IndiCure!' },
   rejected: { subject: 'Order {n} could not be fulfilled', line: 'Sorry — the pharmacy could not fulfil this order. You can try another pharmacy or reorder from the app.' },
 };
 
