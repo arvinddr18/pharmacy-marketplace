@@ -168,6 +168,17 @@
     </div>
 
     <div class="row" style="justify-content:space-between;align-items:flex-end;margin-top:28px">
+      <h2 style="margin:0">🆕 Requests from pharmacies</h2>
+      <button class="secondary small" id="refreshReqBtn">Refresh</button>
+    </div>
+    <div class="card" style="padding:8px 12px">
+      <table>
+        <thead><tr><th>Medicine</th><th>Details</th><th>Requested by</th><th style="text-align:right">Action</th></tr></thead>
+        <tbody id="reqRows"><tr><td colspan="4" class="muted" style="padding:16px">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="row" style="justify-content:space-between;align-items:flex-end;margin-top:28px">
       <h2 style="margin:0">Medicine catalogue</h2>
       <div class="row" style="gap:8px;flex-wrap:wrap"><button class="small" id="libraryBtn">📥 Import medicine library</button><button class="small" id="productLibBtn">🧴 Import products (care/baby/pet…)</button><button class="secondary small" id="starterBtn">+ Load starter medicines</button><button class="secondary small" id="refreshCatBtn">Refresh</button></div>
     </div>
@@ -309,6 +320,8 @@ async function showApp(){
   await loadRiders();
   await loadOrders();
   await loadCatalogue();
+  loadRequests();
+  if($('refreshReqBtn')) $('refreshReqBtn').onclick=loadRequests;
   await loadCoupons();
   await loadPrescriptions();
   startAutoRefresh();
@@ -448,6 +461,32 @@ function catRow(m){
   tr.querySelector('.rxbtn').addEventListener('click',()=>toggleRx(m._id, !m.prescriptionRequired, tr));
   tr.querySelector('.imgbtn').addEventListener('click',()=>setCatImage(m._id, tr));
   return tr;
+}
+async function loadRequests(){
+  const tb=$('reqRows'); if(!tb) return;
+  try{
+    const d=await api('/api/catalogue?status=pending&limit=100');
+    const items=(d.items||[]);
+    if(!items.length){ tb.innerHTML='<tr><td colspan="4" class="muted" style="padding:16px">No pending requests.</td></tr>'; return; }
+    tb.innerHTML='';
+    items.forEach(m=>{
+      const det=[m.strength,m.packSize,m.brand,(m.prescriptionRequired?'Rx':'')].filter(Boolean).join(' · ');
+      const who=(m.submittedByPharmacy&&m.submittedByPharmacy.name)?m.submittedByPharmacy.name:'—';
+      const tr=document.createElement('tr');
+      tr.innerHTML='<td><strong>'+(m.name||'')+'</strong></td><td class="muted">'+det+'</td><td>'+who+'</td>';
+      const td=document.createElement('td'); td.style.textAlign='right';
+      const ok=document.createElement('button'); ok.className='small ok'; ok.textContent='✓ Accept'; ok.onclick=()=>reqAction(m._id,'approve');
+      const no=document.createElement('button'); no.className='small secondary'; no.style.marginLeft='6px'; no.textContent='Reject'; no.onclick=()=>reqAction(m._id,'reject');
+      td.appendChild(ok); td.appendChild(no); tr.appendChild(td); tb.appendChild(tr);
+    });
+  }catch(e){ tb.innerHTML='<tr><td colspan="4" class="muted" style="padding:16px">'+(e.message||'Failed to load')+'</td></tr>'; }
+}
+async function reqAction(id,action){
+  try{
+    if(action==='approve'){ await api('/api/catalogue/'+id+'/approve',{method:'POST'}); toast('Added to catalogue ✓',true); }
+    else { await api('/api/catalogue/'+id,{method:'DELETE'}); toast('Request rejected',true); }
+    loadRequests(); loadCatalogue();
+  }catch(e){ toast(e.message); }
 }
 async function loadCatalogue(append){
   try{

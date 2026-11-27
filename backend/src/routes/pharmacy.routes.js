@@ -19,6 +19,7 @@ import {
 import {
   listListings,
   createListing,
+  submitCatalogueRequest,
   updateListing,
   deleteListing,
   listBatches,
@@ -32,6 +33,7 @@ const router = Router();
 router.use(authenticate, requireRole(ROLES.PHARMACY_OWNER, ROLES.PHARMACY_STAFF), resolvePharmacy);
 
 router.get('/me', getMyPharmacy);
+router.post('/catalogue-request', submitCatalogueRequest);
 router.patch('/me/location', updateMyLocation);
 router.get('/orders', listMyPharmacyOrders);
 router.get('/orders/:id/prescription', getOrderPrescription);

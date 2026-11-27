@@ -14,6 +14,18 @@ export const listListings = asyncHandler(async (req, res) => {
   res.json({ items: listings });
 });
 
+/** POST /api/pharmacy/catalogue-request — pharmacy submits a new medicine for admin review. */
+export const submitCatalogueRequest = asyncHandler(async (req, res) => {
+  const name = (req.body.name || '').trim();
+  if (!name) throw ApiError.badRequest('Medicine name is required');
+  const ALLOWED = ['brand', 'genericName', 'manufacturer', 'strength', 'dosageForm', 'category', 'packSize', 'prescriptionRequired', 'scheduleCategory', 'description'];
+  const doc = { name, status: 'pending', submittedByPharmacy: req.pharmacyId };
+  for (const k of ALLOWED) if (req.body[k] !== undefined) doc[k] = req.body[k];
+  const item = await MedicineCatalogue.create(doc);
+  res.status(201).json({ medicine: item, message: 'Request sent to admin for review' });
+});
+
+/** POST /api/pharmacy/listings — add a catalogue medicine to this pharmacy. */
 export const createListing = asyncHandler(async (req, res) => {
   const { medicineId, mrp, sellingPrice } = req.body;
 

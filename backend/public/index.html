@@ -147,6 +147,27 @@
       <div id="catResults" style="margin-top:10px"></div>
     </div>
 
+    <!-- request a new medicine not in the catalogue -->
+    <div class="sectionhead">
+      <h2>Can't find a medicine? Request it</h2>
+    </div>
+    <div class="card">
+      <p class="muted" style="margin:0 0 10px;font-size:13px">If a medicine you stock isn't in the catalogue, send it to the admin to add. Once approved, you can list it like any other.</p>
+      <div class="row" style="align-items:flex-end">
+        <div class="grow"><label>Medicine name *</label><input id="reqName" placeholder="e.g. Zincovit Syrup 200 ml" /></div>
+        <div style="width:150px"><label>Brand / maker</label><input id="reqBrand" placeholder="e.g. Apex" /></div>
+      </div>
+      <div class="row" style="align-items:flex-end;margin-top:8px">
+        <div style="width:120px"><label>Strength</label><input id="reqStrength" placeholder="500 mg" /></div>
+        <div style="width:140px"><label>Pack size</label><input id="reqPack" placeholder="10 tablets" /></div>
+        <div style="width:170px"><label>Category</label><select id="reqCategory"><option value="medicine">💊 Medicine</option><option value="personal_care">🧴 Personal care</option><option value="baby">👶 Baby care</option><option value="nutrition">💪 Health &amp; nutrition</option><option value="devices">🩹 Devices &amp; first aid</option><option value="pet">🐾 Pet / veterinary</option></select></div>
+        <label style="display:flex;align-items:center;gap:6px;width:auto;margin:0 0 10px"><input type="checkbox" id="reqRx" style="width:auto" /> Prescription (Rx)</label>
+        <div><button id="reqSendBtn">Send request</button></div>
+      </div>
+    </div>
+
+    <!-- listings -->
+
     <div class="sectionhead">
       <h2>Your medicines</h2>
       <button class="secondary" id="refreshBtn">Refresh</button>
@@ -584,6 +605,16 @@ $('refreshBtn').addEventListener('click',loadListings);
 $('refreshOrdersBtn').addEventListener('click',loadOrders);
 $('setLocBtn').addEventListener('click',setShopLocation);
 $('catSearch').addEventListener('input',onSearch);
+if($('reqSendBtn')) $('reqSendBtn').onclick=submitCatRequest;
+async function submitCatRequest(){
+  const name=$('reqName').value.trim();
+  if(!name){ toast('Enter the medicine name'); return; }
+  const body={ name, brand:$('reqBrand').value.trim(), strength:$('reqStrength').value.trim(), packSize:$('reqPack').value.trim(), category:$('reqCategory').value, prescriptionRequired:$('reqRx').checked };
+  const b=$('reqSendBtn'); b.disabled=true; b.textContent='Sending…';
+  try{ await api('/api/pharmacy/catalogue-request',{method:'POST',body:JSON.stringify(body)}); toast('Request sent to admin ✓',true); $('reqName').value='';$('reqBrand').value='';$('reqStrength').value='';$('reqPack').value='';$('reqRx').checked=false; }
+  catch(e){ toast(e.message); }
+  b.disabled=false; b.textContent='Send request';
+}
 $('addBatchBtn').addEventListener('click',addBatch);
 $('closeBatch').addEventListener('click',()=>$('batchPanel').classList.add('hidden'));
 

@@ -6,7 +6,7 @@ export const searchCatalogue = asyncHandler(async (req, res) => {
   const { q, status } = req.query;
   const filter = { deletedAt: null };
   if (status) filter.status = status;
-  else filter.status = { $ne: 'inactive' };
+  else filter.status = 'active';
 
   let query;
   if (q && q.trim()) {
@@ -20,7 +20,7 @@ export const searchCatalogue = asyncHandler(async (req, res) => {
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit ?? '20', 10)));
 
   const [items, total] = await Promise.all([
-    query.skip((page - 1) * limit).limit(limit),
+    query.skip((page - 1) * limit).limit(limit).populate('submittedByPharmacy', 'name city'),
     MedicineCatalogue.countDocuments(filter),
   ]);
 
