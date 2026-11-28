@@ -11,7 +11,7 @@ export async function ensureAdmin() {
   if (email && password) {
     try {
       let u = await User.findOne({ email });
-      if (!u) u = new User({ name: 'IndiCure Admin', email, role: ROLES.SUPER_ADMIN, emailVerified: true, status: ACCOUNT_STATUS.ACTIVE });
+      if (!u) u = new User({ name: 'Arnora Admin', email, role: ROLES.SUPER_ADMIN, emailVerified: true, status: ACCOUNT_STATUS.ACTIVE });
       else { u.role = ROLES.SUPER_ADMIN; u.emailVerified = true; u.status = ACCOUNT_STATUS.ACTIVE; }
       await u.setPassword(password);
       await u.save();

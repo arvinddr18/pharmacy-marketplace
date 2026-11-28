@@ -34,7 +34,7 @@ export const env = {
     port: parseInt(process.env.SMTP_PORT ?? '587', 10),
     user: process.env.SMTP_USER ?? '',
     pass: process.env.SMTP_PASS ?? '',
-    from: process.env.MAIL_FROM ?? 'MedMart <no-reply@medmart.app>',
+    from: process.env.MAIL_FROM ?? 'Arnora <no-reply@arnora.co.in>',
   },
   // Razorpay payment gateway (UPI/cards/wallets). Test keys start with rzp_test_.
   razorpay: {

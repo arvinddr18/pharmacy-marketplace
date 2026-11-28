@@ -1,11 +1,11 @@
-// IndiCure service worker — handles push notifications (works when app is closed).
+// Arnora service worker — handles push notifications (works when app is closed).
 self.addEventListener('install', (e) => { self.skipWaiting(); });
 self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
 
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) {}
-  const title = data.title || 'IndiCure';
+  const title = data.title || 'Arnora';
   const options = {
     body: data.body || '',
     icon: '/icon-192.png',
