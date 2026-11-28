@@ -48,6 +48,7 @@ export function createApp() {
   app.get('/rider', (_req, res) => res.sendFile(path.join(pub, 'rider.html')));
   app.get('/rider-apply', (_req, res) => res.sendFile(path.join(pub, 'rider-apply.html')));
   app.get('/signup', (_req, res) => res.sendFile(path.join(pub, 'signup.html')));
+  app.get('/privacy', (_req, res) => res.sendFile(path.join(pub, 'privacy.html')));
 
   app.use(express.static(pub));
 
