@@ -489,6 +489,7 @@ async function renderHome(){
         <span class="foot-link" id="footPartner">🏥 Partner with us — Register your pharmacy</span>
         <span class="foot-link" id="footRider">🛵 Deliver with us — Become a rider</span>
         <span class="foot-link" id="footContact">📞 Contact us</span>
+        <span class="foot-link" id="footPrivacy">🔒 Privacy Policy</span>
       </div>
       <div class="foot-contact" id="footContactBox" style="display:none">☎ <a href="tel:+919019162576" style="color:var(--blue)">+91 90191 62576</a> &nbsp;·&nbsp; ✉ <a href="mailto:indicure2026@gmail.com" style="color:var(--blue)">indicure2026@gmail.com</a> &nbsp;·&nbsp; <a href="https://wa.me/919019162576" target="_blank" style="color:var(--blue)">WhatsApp us</a></div>
       <div class="foot-copy">© IndiCure · India's local pharmacy, delivered</div>
@@ -507,6 +508,7 @@ async function renderHome(){
   $('footPartner').onclick=()=>location.href='/signup';
   $('footRider').onclick=()=>location.href='/rider-apply';
   $('footContact').onclick=()=>{ const el=$('footContactBox'); el.style.display=(el.style.display==='none'?'block':'none'); };
+  $('footPrivacy').onclick=()=>window.open('/privacy','_blank');
   getSaved();
   const cats=[['Pain & Fever','paracetamol','pain'],['Allergy','cetirizine','allergy'],['Antibiotics','amoxicillin','antibiotics'],['Vitamins','vitamin','vitamins'],['Diabetes','metformin','diabetes'],['Cough & Cold','cough','cough'],['Stomach care','antacid','stomach'],['Skin care','cream','skin']];
   const catBox=$('cats');
@@ -1423,9 +1425,11 @@ function businessCard(){
     +'<div id="bizPartner" style="padding:12px 0;border-top:1px solid var(--border);cursor:pointer;font-weight:600;color:var(--blue)">🏥 Partner with us — Register your pharmacy</div>'
     +'<div id="bizRider" style="padding:12px 0;border-top:1px solid var(--border);cursor:pointer;font-weight:600;color:var(--blue)">🛵 Deliver with us — Become a rider</div>'
     +'<div id="bizContact" style="padding:12px 0;border-top:1px solid var(--border);cursor:pointer;font-weight:600;color:var(--blue)">📞 Contact us</div>'
-    +'<div id="bizContactBox" style="display:none;padding:10px 2px 2px;font-size:14px;color:#334155;line-height:1.9">☎ <a href="tel:+919019162576" style="color:var(--blue)">+91 90191 62576</a><br>✉ <a href="mailto:indicure2026@gmail.com" style="color:var(--blue)">indicure2026@gmail.com</a><br>💬 <a href="https://wa.me/919019162576" target="_blank" style="color:var(--blue)">WhatsApp us</a></div>';
+    +'<div id="bizContactBox" style="display:none;padding:10px 2px 2px;font-size:14px;color:#334155;line-height:1.9">☎ <a href="tel:+919019162576" style="color:var(--blue)">+91 90191 62576</a><br>✉ <a href="mailto:indicure2026@gmail.com" style="color:var(--blue)">indicure2026@gmail.com</a><br>💬 <a href="https://wa.me/919019162576" target="_blank" style="color:var(--blue)">WhatsApp us</a></div>'
+    +'<div id="bizPrivacy" style="padding:12px 0;border-top:1px solid var(--border);cursor:pointer;font-weight:600;color:var(--blue)">🔒 Privacy Policy</div>';
   b.querySelector('#bizPartner').onclick=()=>location.href='/signup';
   b.querySelector('#bizRider').onclick=()=>location.href='/rider-apply';
+  b.querySelector('#bizPrivacy').onclick=()=>window.open('/privacy','_blank');
   const box=b.querySelector('#bizContactBox');
   b.querySelector('#bizContact').onclick=()=>{ box.style.display=(box.style.display==='none'?'block':'none'); };
   return b;
